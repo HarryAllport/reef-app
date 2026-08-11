@@ -1,0 +1,3302 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#060b10">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="description" content="Reef Key — reef aquarium chemistry, worked out from the products you actually own.">
+<link rel="icon" type="image/png" href="icon-512.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-title" content="Reef Key Lite">
+<title>Reef Key Lite</title>
+<style>
+/* Reef Key — deep water. The palette is the light a reef sees at depth:
+   red is the first wavelength the water takes away, so what remains is
+   blue-green, and the one bright thing is bioluminescent. Everything is
+   drawn or set in the system face, so the app is complete with no network. */
+:root{
+  --ink:#060b10;          /* page background — water at depth */
+  --deep:#0d151c;         /* cards */
+  --panel:#141f28;        /* inputs and tiles */
+  --line:#1f2c37;
+  --foam:#e6f0f4;         /* main text */
+  --muted:#7d95a3;
+  --titrant:#2fe0c6;      /* bioluminescent cyan */
+  --accent:#2fe0c6;
+  --good:#2fe0c6;
+  --near:#f2b134;
+  --alert:#ff5f6d;
+  --band:rgba(47,224,198,0.12);
+  --dot:#e6f0f4;
+  --radius:14px;
+  --f-display:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",system-ui,sans-serif;
+  --f-body:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;
+  --f-mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--ink);
+  color:var(--foam);
+  font-family:var(--f-body);
+  font-size:16px;
+  line-height:1.5;
+  padding-bottom:calc(84px + env(safe-area-inset-bottom));
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1100px;margin:0 auto;padding:0 18px}
+h1,h2,h3{font-family:var(--f-display);font-weight:800;margin:0;letter-spacing:0.01em;text-transform:uppercase}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--titrant);font-weight:600}
+
+/* header */
+header{
+  position:sticky;top:0;z-index:20;
+  background:linear-gradient(180deg,var(--ink) 72%,rgba(6,11,16,0));
+  padding:calc(14px + env(safe-area-inset-top)) 0 14px;
+}
+.head-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.head-brand{display:flex;align-items:center;gap:12px}
+.head-right{display:flex;align-items:center;gap:8px}
+.cog{background:none;border:0;padding:6px;color:var(--muted);display:flex;border-radius:8px}
+.cog svg{width:22px;height:22px;fill:currentColor}
+.cog:active{color:var(--titrant)}
+
+/* settings modal */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:50;display:none;align-items:flex-start;justify-content:center;padding:70px 18px 18px;overflow-y:auto}
+.modal.on{display:flex}
+/* tank switcher: pills sit under the masthead, only when there is more than one */
+.tankbar{display:flex;gap:6px;overflow-x:auto;padding:10px 0 0;scrollbar-width:none}
+.tankbar::-webkit-scrollbar{display:none}
+.tankbar button{flex:0 0 auto;background:var(--deep);border:1px solid var(--line);color:var(--muted);
+  border-radius:999px;padding:6px 13px;font-family:var(--f-display);font-weight:700;font-size:11px;letter-spacing:.02em}
+.tankbar button.on{background:var(--titrant);border-color:var(--titrant);color:#fff}
+.tankbar button:focus-visible{outline:2px solid var(--titrant);outline-offset:2px}
+/* stand-in shown where a Pro feature would be, in the lite build */
+.icp-grp{margin-top:14px}
+.icp-grp h4{font-family:var(--f-display);font-weight:800;font-size:12px;margin:0 0 2px;letter-spacing:.02em}
+.icp-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;align-items:end;padding:7px 0;border-bottom:1px solid var(--line)}
+.icp-row:last-child{border-bottom:0}
+.icp-el{font-size:12px;line-height:1.3}
+.icp-el b{font-family:var(--f-mono);font-size:13px}
+.icp-el span{display:block;color:var(--muted);font-size:10px}
+.icp-row input{width:100%}
+.icp-lab{font-size:10px;color:var(--muted);display:block;margin-bottom:2px}
+.icp-find{border-left:3px solid var(--line);padding:9px 0 9px 11px;margin:9px 0}
+.icp-find.low{border-left-color:var(--near)}
+.icp-find.high{border-left-color:var(--near)}
+.icp-find.metal{border-left-color:var(--alert)}
+.icp-find.ok{border-left-color:var(--good)}
+.icp-find h5{margin:0 0 3px;font-family:var(--f-display);font-size:12px;font-weight:800}
+.icp-find p{margin:0;font-size:12px;line-height:1.5;color:var(--foam)}
+.icp-find .why{color:var(--muted);margin-top:3px}
+.locked{border:1px dashed var(--line);border-radius:var(--radius);background:var(--panel);padding:13px 15px;margin:12px 0}
+.locked-t{font-family:var(--f-display);font-weight:800;font-size:13px}
+.locked-b{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.5}
+.locked-n{font-size:10px;font-weight:600;color:var(--titrant);margin-top:9px;letter-spacing:.06em;
+  text-transform:uppercase;font-family:var(--f-mono)}
+.modal .card{width:100%;max-width:440px;margin:0;box-shadow:0 12px 40px rgba(0,0,0,0.5)}
+.brandmark{width:40px;height:40px;border-radius:9px;display:block}
+.head-row h1{font-size:19px}
+.tank-meta{font-family:var(--f-mono);font-size:12px;color:var(--muted);text-align:right;line-height:1.35}
+
+/* views */
+.view{display:none;padding-top:4px}
+.view.on{display:block}
+
+/* cards */
+.card{background:var(--deep);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,0.35)}
+.card-title{font-family:var(--f-display);font-weight:700;font-size:14px;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px}
+.sub{color:var(--muted);font-size:13px}
+
+/* reading tiles */
+#rows{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:14px}
+.tile{grid-column:span 2}
+.tile.half{grid-column:span 3}
+@media(max-width:520px){#rows{grid-template-columns:repeat(2,1fr)}.tile,.tile.half{grid-column:span 1}}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:11px 11px 9px;display:flex;flex-direction:column;gap:8px}
+.tile-name{font-size:13px;font-weight:600;line-height:1.25}
+.tile-name small{display:block;font-family:var(--f-mono);font-size:10px;color:var(--muted);font-weight:400;letter-spacing:0.04em;margin-top:1px}
+.tile .strip{background:var(--deep)}
+.tile .verdict{display:block;text-align:center;font-size:10px;min-height:13px;margin-top:1px}
+.input-cluster{display:flex;align-items:center;gap:6px}
+.tile .input-cluster input.reading-input{flex:1;width:100%;min-width:0}
+.tile .unit{min-width:auto;font-size:11px}
+input[type="text"],input[type="number"],select{
+  background:var(--panel);border:1px solid var(--line);color:var(--foam);
+  border-radius:9px;padding:9px 10px;font-size:16px;
+  font-family:var(--f-mono);font-variant-numeric:tabular-nums;
+  width:100%;
+}
+select{font-family:var(--f-body)}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--titrant);outline-offset:2px}
+input::placeholder{color:#5d7482}
+.reading-input{width:88px;text-align:right}
+.unit{font-family:var(--f-mono);font-size:12px;color:var(--muted);min-width:30px}
+
+/* comparator strip — the signature */
+.strip{position:relative;height:26px;border-radius:6px;overflow:hidden;background:var(--panel);border:1px solid var(--line)}
+.strip-track{position:absolute;inset:0;opacity:0.9}
+.strip-band{position:absolute;top:0;bottom:0;border-left:1px dashed rgba(0,0,0,0.45);border-right:1px dashed rgba(0,0,0,0.45)}
+.needle{position:absolute;top:-2px;bottom:-2px;width:3px;background:var(--foam);border-radius:2px;
+  transform:translateX(-50%);box-shadow:0 0 0 2px rgba(13,21,28,0.92);transition:left .22s ease}
+.needle.hide{display:none}
+.strip-foot{display:flex;justify-content:space-between;margin-top:5px;font-family:var(--f-mono);font-size:11px;color:var(--muted)}
+.verdict{font-family:var(--f-mono);font-size:11px;letter-spacing:0.08em;text-transform:uppercase}
+.v-good{color:var(--good)}
+.v-near{color:var(--near)}
+.v-out{color:var(--alert)}
+
+/* buttons */
+button{font-family:var(--f-body);font-size:15px;cursor:pointer;border-radius:10px;border:1px solid var(--line);
+  background:var(--panel);color:var(--foam);padding:12px 14px;font-weight:500}
+button.primary{background:var(--titrant);color:#ffffff;border-color:var(--titrant);font-weight:600}
+button.ghost{background:transparent;color:var(--muted)}
+button.small{padding:8px 11px;font-size:13px}
+.btn-row{display:flex;gap:10px;margin:14px 0 6px}
+.btn-row button{flex:1}
+
+/* corrections */
+.fix{border:1px solid var(--line);border-left:3px solid var(--titrant);background:var(--deep);border-radius:10px;padding:14px;margin-bottom:10px}
+.fix.crit{border-left-color:var(--alert)}
+.fix.ok{border-left-color:var(--good)}
+.fix h3{font-size:16px;margin-bottom:6px}
+.fix .dose{font-family:var(--f-mono);font-size:20px;color:var(--titrant);margin:8px 0 6px;line-height:1.3}
+.fix.crit .dose{color:var(--alert)}
+.fix p{margin:6px 0 0;font-size:14px;color:#8fa6b3}
+.step{font-family:var(--f-mono);font-size:11px;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:2px}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.chip{font-family:var(--f-mono);font-size:11px;padding:5px 9px;border-radius:20px;border:1px solid var(--line);color:var(--good)}
+.coral-chip{font-family:var(--f-mono);font-size:11px;padding:5px 10px;border-radius:20px;border:1px solid var(--line);background:var(--panel);color:var(--foam);cursor:pointer}
+
+/* stock list table */
+.stock-row{display:grid;grid-template-columns:minmax(0,1.7fr) 1fr 56px 30px;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}
+.stock-row:last-child{border-bottom:0}
+.stock-head{font-family:var(--f-mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted)}
+.stock-name{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stock-row select,.stock-row input{padding:7px 8px;font-size:13px;width:100%;min-width:0}
+.stock-dash{color:var(--muted);text-align:center}
+.stock-rm{background:none;border:0;color:var(--muted);font-size:14px;padding:5px;border-radius:8px;cursor:pointer}
+
+/* species photos on livestock alerts */
+.lv-imgs{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:flex-start}
+.lv-img:empty{display:none}
+.lv-img img{height:96px;width:130px;object-fit:cover;border-radius:8px;border:1px solid var(--line);display:block}
+
+/* the email field earns some room */
+#setEmail{padding:14px 12px;font-size:17px}
+
+/* suggested purchases */
+.shop-row{display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line)}
+.shop-row:last-child{border-bottom:0}
+.shop-row b{font-size:14px}
+.shop-img{width:52px;height:68px;flex:0 0 52px;display:block}
+.shop-photo{width:84px;height:84px;flex:0 0 84px;object-fit:contain;display:block;border-radius:8px;background:#fff;border:1px solid var(--line)}
+
+/* shelf */
+.prod{border-bottom:1px solid var(--line);padding:4px 0}
+.prod:last-child{border-bottom:0}
+.prod-toggle{width:100%;text-align:left;background:none;border:0;padding:10px 0;color:var(--muted);
+  font-size:14px;display:flex;gap:10px;align-items:baseline;line-height:1.4}
+.prod.on .prod-toggle{color:var(--foam)}
+.tick{font-family:var(--f-mono);width:16px;flex:0 0 16px;color:#33434f}
+.prod.on .tick{color:var(--good)}
+.prod-eff{display:flex;flex-wrap:wrap;gap:10px;margin:2px 0 12px 26px}
+.prod-eff label{font-size:10px;color:var(--muted);font-family:var(--f-mono);
+  letter-spacing:0.06em;text-transform:uppercase}
+.prod-eff input{width:92px;margin-top:4px;padding:7px 8px}
+.prod-note{margin:0 0 10px 26px;font-size:12px;color:#6e8593;line-height:1.5}
+
+/* settings */
+.field{margin-bottom:14px}
+.field label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+.hint{font-size:12px;color:#7d95a3;margin-top:5px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tgt-row{display:grid;grid-template-columns:1.1fr 1fr 1fr 1fr;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.tgt-row:last-child{border-bottom:0}
+.tgt-row .nm{font-size:13px}
+.tgt-head{font-family:var(--f-mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted)}
+
+/* log */
+.chart-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+.chart-tab{font-family:var(--f-mono);font-size:11px;padding:5px 10px;border-radius:20px;border:1px solid var(--line);background:none;color:var(--muted)}
+.chart-tab.on{color:#ffffff;background:var(--titrant);border-color:var(--titrant);font-weight:600}
+.chart-head{display:flex;justify-content:space-between;align-items:baseline;font-family:var(--f-mono);font-size:12px;margin-bottom:6px}
+.chart-svg{width:100%;height:170px;display:block;background:var(--panel);border:1px solid var(--line);border-radius:8px}
+
+/* salt & water change card */
+.salt-sub{font-size:13px;margin:14px 0 2px}
+.mode-tabs{display:flex;gap:8px;margin:16px 0 8px}
+.mode-tab{flex:1;font-family:var(--f-display);font-weight:700;font-size:12px;letter-spacing:0.04em;text-transform:uppercase;padding:10px 8px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--muted)}
+.mode-tab.on{background:var(--titrant);border-color:var(--titrant);color:#fff}
+.wc-rows{margin:10px 0 2px}
+.wc-row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
+.wc-row:last-child{border-bottom:0}
+.wc-row .mono{font-size:13px}
+.wc-row b{font-weight:600}
+.entry{border:1px solid var(--line);background:var(--deep);border-radius:10px;padding:13px;margin-bottom:9px}
+.entry-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.entry-date{font-family:var(--f-mono);font-size:13px}
+.entry-vals{display:flex;flex-wrap:wrap;gap:10px;margin-top:9px;font-family:var(--f-mono);font-size:12px;color:#8fa6b3}
+.entry-vals span i{font-style:normal;color:var(--muted)}
+.trend{margin-top:6px}
+.trend svg{width:100%;height:64px;display:block}
+.empty{text-align:center;color:var(--muted);padding:34px 12px;font-size:14px}
+.empty strong{display:block;font-family:var(--f-display);color:var(--foam);font-size:15px;text-transform:uppercase;letter-spacing:0.03em;margin-bottom:6px}
+
+/* nav */
+nav{
+  position:fixed;left:0;right:0;bottom:0;z-index:30;
+  background:rgba(13,21,28,0.96);backdrop-filter:blur(12px);
+  border-top:1px solid var(--line);
+  padding:8px 0 calc(8px + env(safe-area-inset-bottom));
+  display:flex;
+}
+nav button{flex:1;background:none;border:0;color:var(--muted);font-size:12px;font-family:var(--f-display);font-weight:700;
+  letter-spacing:0.08em;text-transform:uppercase;padding:8px 0;border-radius:0}
+nav button.on{color:var(--titrant)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(94px + env(safe-area-inset-bottom));
+  background:var(--foam);border:1px solid var(--foam);color:#ffffff;padding:10px 16px;border-radius:22px;
+  font-size:13px;z-index:40;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.on{opacity:1}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap head-row">
+    <div class="head-brand">
+      <svg class="brandmark" viewBox="0 0 64 64" role="img" aria-label="Reef Key">
+        <rect width="64" height="64" rx="15" fill="#0d151c"/>
+        <path d="M6 44c6 0 6-7 12-7s6 7 12 7 6-7 12-7 6 7 12 7" fill="none"
+              stroke="#2fe0c6" stroke-width="2.4" stroke-linecap="round" opacity=".5"/>
+        <path d="M6 53c6 0 6-6 12-6s6 6 12 6 6-6 12-6 6 6 12 6" fill="none"
+              stroke="#2fe0c6" stroke-width="2.2" stroke-linecap="round" opacity=".28"/>
+        <circle cx="32" cy="21" r="8.5" fill="none" stroke="#2fe0c6" stroke-width="3.4"/>
+        <path d="M32 29.5V44" stroke="#2fe0c6" stroke-width="3.4" stroke-linecap="round"/>
+        <path d="M32 35.5h6M32 40h4.5" stroke="#2fe0c6" stroke-width="3.2" stroke-linecap="round"/>
+      </svg>
+      <div>
+        <div class="eyebrow">Reef Key</div>
+        <h1 id="tankName">Reef tank</h1>
+      </div>
+    </div>
+    <div class="head-right">
+      <div class="tank-meta" id="tankMeta"></div>
+      <button class="cog" id="btnCog" aria-label="Tank settings" title="Tank settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14 12.94a7.14 7.14 0 0 0 .06-.94 7.14 7.14 0 0 0-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.61-.22l-2.39.96a7.3 7.3 0 0 0-1.62-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96a.5.5 0 0 0-.61.22L2.71 8.48a.5.5 0 0 0 .12.64l2.03 1.58a7.14 7.14 0 0 0 0 1.88l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.23.4.32.61.22l2.39-.96c.49.38 1.03.7 1.62.94l.36 2.54c.04.24.25.42.49.42h3.8c.24 0 .45-.18.49-.42l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.21.1.48 0 .61-.22l1.92-3.32a.5.5 0 0 0-.12-.64ZM12 15.6A3.6 3.6 0 1 1 15.6 12 3.6 3.6 0 0 1 12 15.6Z"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="wrap"><div class="tankbar" id="tankBar" style="display:none"></div></div>
+</header>
+
+<div class="modal" id="icpModal">
+  <div class="card">
+    <div class="card-title">Triton ICP report</div>
+    <div class="sub">Copy each figure from your results page. Your report prints a setpoint beside every element — if it differs from the one shown here, overtype it and the app will follow your lab rather than its own defaults.</div>
+    <div class="field" style="margin-top:12px">
+      <label for="icpDate">Date of the report</label>
+      <input type="date" id="icpDate">
+    </div>
+    <div id="icpForm"></div>
+    <div class="btn-row" style="margin-top:14px">
+      <button class="primary" id="btnIcpSave">Read the report</button>
+      <button class="ghost" id="btnIcpCancel" style="flex:0 0 auto">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="tankModal">
+  <div class="card">
+    <div class="card-title">Tank</div>
+    <div id="tankPickWrap" data-pro="More than one tank" data-why="Add a frag tank, a quarantine or a second display, each with its own targets, shelf and log. Switch between them from the pills under the title.">
+      <div class="field" style="margin-top:12px;margin-bottom:8px">
+        <label for="tankPick">Active tank</label>
+        <select id="tankPick"></select>
+      </div>
+      <div class="btn-row" style="margin-top:0">
+        <button class="small" id="btnAddTank">Add tank</button>
+        <button class="small ghost" id="btnCopyTank">Duplicate</button>
+        <button class="small ghost" id="btnDelTank">Delete tank</button>
+      </div>
+      <div class="hint" id="tankPickHint">Each tank keeps its own targets, shelf, livestock and test log. Duplicate copies the setup but starts a fresh log.</div>
+    </div>
+    <div class="field" style="margin-top:12px">
+      <label for="setTankName">Tank name</label>
+      <input type="text" id="setTankName">
+    </div>
+    <div class="field">
+      <label for="setTankType">Tank type</label>
+      <select id="setTankType">
+        <option value="fowlr">FOWLR — fish only with live rock</option>
+        <option value="soft">Soft coral</option>
+        <option value="lps">LPS dominant</option>
+        <option value="mixed">Mixed reef — LPS &amp; soft</option>
+        <option value="sps">SPS dominant</option>
+      </select>
+      <div class="hint">Sets the published target bands and daily limits the whole app calculates from — corrections, water change predictions and uptake dosing all follow it.</div>
+    </div>
+
+    <div data-pro="Livestock-refined targets" data-why="Add what you actually keep and the target bands narrow to the overlap of their published care ranges, rather than a generic figure for the tank type.">
+    <h3 class="salt-sub">Livestock in the tank</h3>
+    <div class="sub">Add what you actually keep — corals, clams, fish and inverts — and how big it is. Targets refine to the overlap of their published care ranges (a butterflyfish caps nitrate, a Linckia starfish demands cleaner water still), and calcifiers drive the demand estimate until your log can measure the real thing.</div>
+    <div class="grid3" style="margin-top:10px">
+      <div class="field" style="margin-bottom:8px"><label for="coralSp">Species</label><select id="coralSp"></select></div>
+      <div class="field" style="margin-bottom:8px"><label for="coralSize">Size</label><select id="coralSize"></select></div>
+      <div class="field" style="margin-bottom:8px" id="coralQtyField"><label for="coralQty">Quantity</label><input type="number" id="coralQty" inputmode="numeric" step="1" min="1" value="1"></div>
+    </div>
+    <div class="btn-row" style="margin-top:0"><button class="small" id="btnAddCoral">Add species</button></div>
+    <div class="chips" id="coralChips" style="margin-top:2px"></div>
+    <div class="hint" id="coralInfo" style="margin-top:8px"></div>
+    </div>
+
+    <div class="field">
+      <label for="setVolume">Net water volume</label>
+      <div class="grid2">
+        <input type="number" id="setVolume" inputmode="decimal" step="1">
+        <select id="setVolUnit">
+          <option value="L">litres</option>
+          <option value="gal">US gallons</option>
+        </select>
+      </div>
+      <div class="hint" id="volHint">Display plus sump, minus rock and sand. Most systems come out around 85% of the total. Every dose in the app is worked out from this number, so it's worth getting close.</div>
+    </div>
+
+    <h3 class="salt-sub" style="margin-top:14px">Not sure? Estimate it</h3>
+    <div class="grid3" style="margin-top:8px">
+      <div class="field"><label for="estTotal" id="estTotalLabel">Total volume (L)</label><input type="number" id="estTotal" inputmode="decimal" step="1"></div>
+      <div class="field"><label for="estRock">Rock (kg)</label><input type="number" id="estRock" inputmode="decimal" step="1"></div>
+      <div class="field"><label for="estSand">Sand (kg)</label><input type="number" id="estSand" inputmode="decimal" step="1"></div>
+    </div>
+    <div class="hint" style="margin-top:-4px" id="estOut"></div>
+    <div class="btn-row"><button class="small" id="btnUseEst">Use this estimate</button></div>
+
+    <div data-pro="Running costs" data-why="Enter what you pay for salt, RO water and each supplement, and every dose and water change is priced as it is worked out.">
+    <h3 class="salt-sub" style="margin-top:16px">Running costs</h3>
+    <div class="sub">Optional — add what you pay and the app shows what dosing and each water change cost.</div>
+    <div class="grid3" style="margin-top:8px">
+      <div class="field"><label for="costSaltPrice">Salt bucket (£)</label><input type="number" id="costSaltPrice" step="0.01" inputmode="decimal"></div>
+      <div class="field"><label for="costSaltKg">Bucket size (kg)</label><input type="number" id="costSaltKg" step="0.1" inputmode="decimal"></div>
+      <div class="field"><label for="costRo">RO water (£/L)</label><input type="number" id="costRo" step="0.01" inputmode="decimal"></div>
+    </div>
+    <div id="costProducts"></div>
+    </div>
+
+    <h3 class="salt-sub" style="margin-top:16px">Maintenance reminders</h3>
+    <div class="field" style="margin-top:8px">
+      <label for="setEmail">Your email</label>
+      <input type="email" id="setEmail" inputmode="email" autocomplete="email" placeholder="you@example.com">
+    </div>
+    <div class="grid3">
+      <div class="field"><label>Water change (days)</label><input type="number" id="remWC" step="1" min="1" inputmode="numeric"></div>
+      <div class="field"><label>Test &amp; log (days)</label><input type="number" id="remTest" step="1" min="1" inputmode="numeric"></div>
+      <div class="field"><label>Daily dosing</label><select id="remDose"><option value="1">Remind me</option><option value="0">Off</option></select></div>
+    </div>
+    <div class="btn-row"><button class="small" id="btnIcs">Add reminders to my calendar</button></div>
+    <div class="hint" style="margin-top:-2px">A saved page can’t send email on its own, so reminders go through your calendar: this downloads repeating water change, testing and dosing events with alerts addressed to the email above. Open the file and Calendar takes over — set your calendar account (iCloud, Outlook, Gmail) to email event alerts and they arrive in your inbox too. Re-download after changing the schedule.</div>
+
+    <div class="btn-row" style="margin-bottom:0">
+      <button class="primary" id="btnCogDone">Done</button>
+    </div>
+  </div>
+</div>
+
+<main class="wrap">
+
+  <!-- TEST -->
+  <section class="view on" id="view-test">
+    <div class="card">
+      <div class="card-title">Today's readings</div>
+      <div class="sub">Leave anything you haven't tested blank. The flow: <b>enter readings → save to log → calculate</b> to see what's off and how to fix it. Doing a water change today? Plan it below first — it updates the readings for you (re-test and overtype if you prefer) — then calculate for the remaining amendments, listed in the order to do them.</div>
+      <div id="rows"></div>
+    </div>
+    <div class="btn-row">
+      <button class="small" id="btnLogNow" style="flex:0 0 auto">Save to log</button>
+      <button class="primary" id="btnCalc">Work out corrections</button>
+      <button class="ghost" id="btnClear" style="flex:0 0 auto">Clear</button>
+    </div>
+    <div id="results"></div>
+
+    <div class="card" id="icpCard" data-pro="ICP analysis" data-why="Type in a Triton report and the app reads all 45 figures against their setpoints, works out which water change would correct what, and says plainly which elements it cannot fix from your shelf.">
+      <div class="card-title">ICP analysis</div>
+      <div class="sub">A lab ICP report covers the elements no home kit reaches. Type the figures from your Triton results page below — the setpoints are pre-filled where they are published, and anything left blank is simply skipped.</div>
+      <div class="btn-row" style="margin-bottom:0">
+        <button class="small" id="btnIcpOpen">Enter ICP results</button>
+        <button class="small ghost" id="btnIcpLast">Last report</button>
+      </div>
+      <div id="icpOut"></div>
+    </div>
+
+    <div class="card" id="saltCard">
+      <div class="card-title">Salt &amp; water changes</div>
+      <div class="sub">Pick your salt and the app uses its published levels when working out mixes, water changes, and what still needs supplementing afterwards.</div>
+      <div class="field" style="margin-top:12px">
+        <label for="smBrand">Salt brand</label>
+        <div class="grid2">
+          <select id="smBrand"></select>
+          <div class="input-cluster"><input type="number" id="smStrength" step="0.1" inputmode="decimal"><span class="unit" style="min-width:86px">g/L at 1.026</span></div>
+        </div>
+        <div class="hint">Grams per litre of RO/DI to reach SPG 1.026, from the tub's label — edit if yours says otherwise. Remembered per brand.</div>
+      </div>
+      <div class="grid3">
+        <div class="field"><label>Alkalinity (dKH)</label><input type="number" id="smElAlk" step="0.1" inputmode="decimal"></div>
+        <div class="field"><label>Calcium (ppm)</label><input type="number" id="smElCa" step="5" inputmode="decimal"></div>
+        <div class="field"><label>Magnesium (ppm)</label><input type="number" id="smElMg" step="10" inputmode="decimal"></div>
+      </div>
+      <div class="hint" style="margin-top:-6px;margin-bottom:14px">The brand's published levels for freshly mixed water at SPG 1.026. Edit them if your own test of new salt water disagrees — remembered per brand.</div>
+
+      <div class="mode-tabs">
+        <button class="mode-tab" data-mode="change">Water change</button>
+        <button class="mode-tab" data-mode="fix">Salinity fix only</button>
+      </div>
+      <div class="sub" id="modeSub"></div>
+      <div class="grid3" style="margin-top:10px">
+        <div class="field"><label for="wcTgt">Target SPG</label><input type="number" id="wcTgt" inputmode="decimal" step="0.001"></div>
+        <div class="field"><label for="wcCur">Current tank SPG</label><input type="number" id="wcCur" inputmode="decimal" step="0.001"></div>
+        <div class="field" id="wcVolField"><label for="wcVol">RO/DI volume (litres)</label><select id="wcVol"><option value="">Choose…</option></select></div>
+      </div>
+      <div class="hint" style="margin-top:-4px;margin-bottom:10px" id="wcPct"></div>
+      <div id="wcOut"></div>
+    </div>
+  </section>
+
+  <!-- LOG -->
+  <section class="view" id="view-log">
+    <div id="trendCard"></div>
+    <div id="logList"></div>
+  </section>
+
+  <!-- SETUP -->
+  <section class="view" id="view-setup">
+    <div class="card">
+      <div class="card-title">What's on your shelf</div>
+      <div class="sub">Tick everything you have to hand. Corrections are worked out from these and nothing else. The strength figures come from the labels — change any that your bottle disagrees with.</div>
+      <div id="shelfFields" style="margin-top:10px"></div>
+      <div class="btn-row" style="margin-bottom:0">
+        <button class="small" id="btnAddProduct">Add a product that isn't listed</button>
+      </div>
+      <div id="customForm" style="display:none;margin-top:14px"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Targets</div>
+      <div class="sub" id="tgtSub">Low and high set the green band on each strip; target is what corrections aim for.</div>
+      <div style="margin-top:12px">
+        <div class="tgt-row tgt-head"><span>Parameter</span><span>Low</span><span>Target</span><span>High</span></div>
+        <div id="targetRows"></div>
+      </div>
+      <button class="small ghost" id="btnResetTargets" style="margin-top:12px">Restore recommended targets</button>
+      <div class="hint">Resets the targets and daily limits to the published values for your tank type, set in the ⚙ panel top right. Use this after an update to pick up any revised figures.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Daily limits</div>
+      <div class="sub">Corrections larger than these get split across several days.</div>
+      <div class="grid3" style="margin-top:12px">
+        <div class="field"><label>Alkalinity (dKH)</label><input type="number" id="capAlk" step="0.1" inputmode="decimal"></div>
+        <div class="field"><label>Calcium (ppm)</label><input type="number" id="capCa" step="5" inputmode="decimal"></div>
+        <div class="field"><label>Magnesium (ppm)</label><input type="number" id="capMg" step="10" inputmode="decimal"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Where these targets come from</div>
+      <div class="sub" id="provSub"></div>
+      <div id="provBody" style="margin-top:12px;font-size:13px;color:#8fa6b3;line-height:1.6"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Data</div>
+      <div class="sub" id="storageNote">Your settings and test log are stored by this browser on this machine.</div>
+      <div class="btn-row">
+        <button class="small" id="btnBackup">Save backup file</button>
+        <button class="small" id="btnRestore">Load backup</button>
+      </div>
+      <div class="btn-row" style="margin-bottom:0">
+        <button class="small ghost" id="btnExport">Copy log as CSV</button>
+        <button class="small ghost" id="btnWipe">Erase log</button>
+      </div>
+      <input type="file" id="restoreFile" accept="application/json,.json" style="display:none">
+    </div>
+  </section>
+
+</main>
+
+<nav>
+  <button class="on" data-view="test">Test</button>
+  <button data-view="log">Log</button>
+  <button data-view="setup">Setup</button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------- parameter definitions ---------- */
+var PARAMS = [
+  {key:'temp',     name:'Temperature', unit:'°C',  dp:1, step:'0.1'},
+  {key:'salinity', name:'Salinity',    unit:'ppt', dp:1, step:'0.1'},
+  {key:'alk',      name:'Alkalinity',  unit:'dKH', dp:2, step:'0.05'},
+  {key:'ca',       name:'Calcium',     unit:'ppm', dp:0, step:'5'},
+  {key:'mg',       name:'Magnesium',   unit:'ppm', dp:0, step:'10'},
+  {key:'no3',      name:'Nitrate',     unit:'ppm', dp:2, step:'0.5'},
+  {key:'po4',      name:'Phosphate',   unit:'ppm', dp:3, step:'0.01'},
+  {key:'ph',       name:'pH',          unit:'',    dp:2, step:'0.05'},
+  {key:'nh3',      name:'Ammonia',     unit:'ppm', dp:2, step:'0.01'},
+  {key:'no2',      name:'Nitrite',     unit:'ppm', dp:2, step:'0.01'}
+];
+
+/* Published target profiles per tank type. Selecting a type in the ⚙ panel
+   swaps the targets and daily limits the whole app calculates from.
+   Salinity bands are internal ppt: they display as SPG 1.024 / 1.025 / 1.026.
+   Ammonia and nitrite are zero for every type — a cycled tank is a cycled tank. */
+var COMMON_T = {
+  salinity:{low:31.8,target:33.2,high:34.5},
+  ph:{low:7.9,target:8.2,high:8.4},
+  nh3:{low:0,target:0,high:0.02},
+  no2:{low:0,target:0,high:0.02}
+};
+function tt(extra){ var o = clone(COMMON_T); for(var k in extra) o[k] = extra[k]; return o; }
+var TANK_TYPES = {
+  fowlr:{name:'FOWLR — fish only with live rock', short:'FOWLR',
+    caps:{alk:1.0, ca:25, mg:100},
+    targets:tt({temp:{low:24,target:25.5,high:27.5}, alk:{low:7,target:8.5,high:11},
+      ca:{low:380,target:400,high:450}, mg:{low:1200,target:1280,high:1400},
+      no3:{low:2,target:20,high:50}, po4:{low:0.02,target:0.1,high:0.5}}),
+    blurb:'<p>Fish do not calcify the way corals do, so the bands here are wide. Alkalinity is kept mainly for pH stability, calcium and magnesium just need to sit in seawater range, and nitrate up to about 50 ppm is fine for most fish.</p><p>Watch ammonia, nitrite, salinity and temperature — those are what actually hurt fish.</p>'},
+  soft:{name:'Soft coral', short:'Soft',
+    caps:{alk:0.5, ca:20, mg:75},
+    targets:tt({temp:{low:24.5,target:25,high:26}, alk:{low:7.5,target:8.5,high:10},
+      ca:{low:400,target:420,high:450}, mg:{low:1250,target:1300,high:1400},
+      no3:{low:10,target:15,high:40}, po4:{low:0.05,target:0.1,high:0.3}}),
+    blurb:'<p>Soft corals have no stony skeleton, so alkalinity and calcium demand is modest and the bands are relaxed. They positively want nutrients — nitrate 10–40 ppm keeps leathers and zoas full and coloured — and they sulk above roughly 10 dKH.</p>'},
+  lps:{name:'LPS dominant', short:'LPS',
+    caps:{alk:0.4, ca:20, mg:50},
+    targets:tt({temp:{low:24.5,target:25,high:26}, alk:{low:7.5,target:8.3,high:9},
+      ca:{low:400,target:425,high:450}, mg:{low:1250,target:1300,high:1400},
+      no3:{low:5,target:10,high:30}, po4:{low:0.05,target:0.08,high:0.2}}),
+    blurb:'<p>Euphyllia, Trachyphyllia and Scolymia sit best around 7.5–8.5 dKH; Micromussa and Favia take 8.0–9.0. LPS respond to the <em>rate</em> of alkalinity change more than the number, so the daily limit stays tight.</p><p>Nutrients are deliberately not near zero — starved LPS pale and shut down.</p>'},
+  mixed:{name:'Mixed reef — LPS & soft', short:'Mixed',
+    caps:{alk:0.4, ca:20, mg:50},
+    targets:tt({temp:{low:24.5,target:25,high:26}, alk:{low:7.5,target:8.5,high:9},
+      ca:{low:400,target:425,high:450}, mg:{low:1250,target:1300,high:1400},
+      no3:{low:5,target:10,high:30}, po4:{low:0.05,target:0.08,high:0.2}}),
+    blurb:'<p>Tuned for LPS and soft corals together: alkalinity 7.5–9.0 dKH — narrower and lower than the broad 7–11 reef range — calcium 400–450 ppm around the natural 420, magnesium 1250–1400.</p><p>Nutrients stay measurable. Randy Holmes-Farley’s guidance for a mature mixed reef is to let nitrate float 5–50 ppm and phosphate 0.06–0.3, acting only outside that; LPS and softies pale and shut down when starved.</p>'},
+  sps:{name:'SPS dominant', short:'SPS',
+    caps:{alk:0.25, ca:20, mg:50},
+    targets:tt({temp:{low:25,target:25.8,high:26.5}, alk:{low:7.8,target:8.2,high:8.5},
+      ca:{low:420,target:440,high:450}, mg:{low:1300,target:1350,high:1400},
+      no3:{low:2,target:5,high:10}, po4:{low:0.03,target:0.05,high:0.1}}),
+    blurb:'<p>Acropora and friends care about stability more than any single number. Alkalinity is pinned to 7.8–8.5 dKH and the daily limit tightens to 0.25 dKH, because alk <em>swings</em> — not absolute values — are what brown and bleach SPS.</p><p>Calcium 420–450 and magnesium 1300–1400 support the heavy calcification; nutrients run low but never zero — nitrate 2–10 ppm, phosphate 0.03–0.10.</p>'}
+};
+var DEFAULT_TARGETS = TANK_TYPES.mixed.targets;
+
+/* Common hobby corals with published care ranges: preferred alkalinity,
+   nitrate and phosphate bands, plus a relative calcification demand factor
+   (SPS highest, softies close to nil). Selected corals narrow the tank-type
+   targets to the overlap of their ranges, and drive a stocking-based demand
+   estimate until the log can measure real uptake. */
+var CORALS = [
+  ['acropora',   'Acropora (Acropora spp.)',            'SPS',  7.8,8.5,  2,10,  0.03,0.10, 1.6],
+  ['montipora',  'Montipora (Montipora spp.)',          'SPS',  7.8,9.0,  2,15,  0.03,0.15, 1.2],
+  ['pocillopora','Pocillopora (Pocillopora damicornis)','SPS',  7.8,9.0,  2,15,  0.03,0.15, 1.1],
+  ['stylophora', 'Stylophora (Stylophora pistillata)',  'SPS',  7.8,9.0,  2,15,  0.03,0.15, 1.1],
+  ['seriatopora','Birdsnest (Seriatopora hystrix)',     'SPS',  7.8,9.0,  2,15,  0.03,0.15, 1.0],
+  ['porites',    'Porites (Porites spp.)',              'SPS',  7.8,9.0,  2,15,  0.03,0.15, 1.0],
+  ['pavona',     'Cactus coral (Pavona spp.)',          'SPS',  7.8,9.0,  2,15,  0.03,0.15, 0.8],
+  ['hydnophora', 'Horn coral (Hydnophora spp.)',        'SPS',  7.8,9.0,  2,15,  0.03,0.15, 0.8],
+  ['cyphastrea', 'Cyphastrea (Cyphastrea spp.)',        'SPS',  7.5,9.0,  2,20,  0.03,0.20, 0.4],
+  ['leptastrea', 'Leptastrea (Leptastrea spp.)',        'SPS',  7.5,9.0,  2,20,  0.03,0.20, 0.4],
+  ['psammocora', 'Psammocora (Psammocora spp.)',        'SPS',  7.8,9.0,  2,15,  0.03,0.15, 0.7],
+  ['stylocoeniella','Stylocoeniella (Stylocoeniella spp.)','SPS',7.5,9.0, 2,20,  0.03,0.20, 0.5],
+  ['euphyllia',  'Euphyllia — general (Euphyllia / Fimbriaphyllia spp.)','LPS', 7.5,8.5, 5,30, 0.05,0.20, 0.7],
+  ['torch',      'Torch coral (Euphyllia glabrescens)', 'LPS',  7.5,8.5,  5,30,  0.05,0.20, 0.7],
+  ['hammerbr',   'Hammer, branching (Fimbriaphyllia ancora)','LPS',7.5,8.5, 5,30, 0.05,0.20, 0.7],
+  ['hammerwall', 'Hammer, wall (Fimbriaphyllia ancora)','LPS',  7.5,8.5,  5,30,  0.05,0.20, 0.6],
+  ['frogspawnbr','Frogspawn, branching (Fimbriaphyllia divisa)','LPS',7.5,8.5, 5,30, 0.05,0.20, 0.7],
+  ['frogspawnwall','Frogspawn, wall (Fimbriaphyllia divisa)','LPS',7.5,8.5, 5,30, 0.05,0.20, 0.6],
+  ['trachy',     'Open brain (Trachyphyllia geoffroyi)','LPS',  7.5,8.5,  5,30,  0.05,0.25, 0.4],
+  ['scolymia',   'Scolymia (Homophyllia australis)',    'LPS',  7.5,8.5,  5,30,  0.05,0.25, 0.4],
+  ['acan',       'Acan lord (Micromussa lordhowensis)', 'LPS',  8.0,9.0,  5,30,  0.05,0.25, 0.5],
+  ['favia',      'Moon brain (Favia / Favites spp.)',   'LPS',  8.0,9.0,  5,30,  0.05,0.20, 0.5],
+  ['goniopora',  'Flowerpot (Goniopora spp.)',          'LPS',  7.5,8.5, 10,40,  0.07,0.30, 0.5],
+  ['duncan',     'Duncan (Duncanopsammia axifuga)',     'LPS',  7.5,8.7,  5,30,  0.05,0.20, 0.5],
+  ['candycane',  'Candy cane (Caulastrea furcata)',     'LPS',  7.5,9.0,  5,30,  0.05,0.20, 0.5],
+  ['plate',      'Plate coral (Fungia / Cycloseris spp.)','LPS',7.5,8.7,  5,30,  0.05,0.20, 0.5],
+  ['chalice',    'Chalice (Echinophyllia spp.)',        'LPS',  7.5,8.7,  5,30,  0.05,0.25, 0.4],
+  ['blasto',     'Blastomussa (Blastomussa wellsi / merleti)','LPS',7.5,8.7, 5,30, 0.05,0.25, 0.3],
+  ['lobo',       'Lobo brain (Lobophyllia / Symphyllia spp.)','LPS',7.5,8.7, 5,30, 0.05,0.25, 0.5],
+  ['platygyra',  'Maze brain (Platygyra spp.)',         'LPS',  7.5,9.0,  5,30,  0.05,0.25, 0.6],
+  ['galaxea',    'Galaxy coral (Galaxea fascicularis)', 'LPS',  7.5,9.0,  5,30,  0.05,0.25, 0.6],
+  ['bubble',     'Bubble coral (Plerogyra sinuosa)',    'LPS',  7.5,8.7,  5,30,  0.05,0.25, 0.4],
+  ['elegance',   'Elegance (Catalaphyllia jardinei)',   'LPS',  7.5,8.5,  5,30,  0.05,0.25, 0.5],
+  ['alveopora',  'Alveopora (Alveopora spp.)',          'LPS',  7.5,8.5, 10,40,  0.07,0.30, 0.5],
+  ['pectinia',   'Pectinia (Pectinia spp.)',            'LPS',  7.5,8.7,  5,30,  0.05,0.25, 0.4],
+  ['turbinaria', 'Scroll / pagoda (Turbinaria spp.)',   'LPS',  7.5,9.0,  5,30,  0.05,0.25, 0.6],
+  ['suncoral',   'Sun coral (Tubastraea spp.)',         'LPS',  7.5,9.0,  5,50,  0.05,0.50, 0.3],
+  ['cynarina',   'Button coral (Cynarina lacrymalis)',  'LPS',  7.5,8.7,  5,30,  0.05,0.25, 0.4],
+  ['foxcoral',   'Fox coral (Nemenzophyllia turbida)',  'LPS',  7.5,8.5,  5,30,  0.05,0.25, 0.3],
+  ['heliofungia','Long-tentacle plate (Heliofungia actiniformis)','LPS',7.5,8.7, 5,30, 0.05,0.25, 0.4],
+  ['echinopora', 'Echinopora (Echinopora spp.)',        'LPS',  7.5,9.0,  5,30,  0.05,0.25, 0.5],
+  ['leather',    'Toadstool leather (Sarcophyton spp.)','Soft', 7.5,10,  10,40,  0.05,0.30, 0.05],
+  ['sinularia',  'Finger leather (Sinularia spp.)',     'Soft', 7.5,10,  10,40,  0.05,0.30, 0.05],
+  ['xenia',      'Pulsing xenia (Xenia / Heteroxenia spp.)','Soft',7.5,10,10,40, 0.05,0.30, 0.02],
+  ['zoas',       'Zoanthids (Zoanthus spp.)',           'Soft', 7.5,10,  10,40,  0.05,0.30, 0.02],
+  ['palythoa',   'Palythoa (Palythoa spp.)',            'Soft', 7.5,10,  10,40,  0.05,0.30, 0.02],
+  ['gsp',        'Green star polyps (Briareum / Pachyclavularia)','Soft',7.5,10, 10,40, 0.05,0.30, 0.02],
+  ['mushroom',   'Mushrooms (Discosoma / Rhodactis spp.)','Soft',7.5,10, 10,40,  0.05,0.30, 0.01],
+  ['ricordea',   'Ricordea (Ricordea florida / yuma)',  'Soft', 7.5,10,  10,40,  0.05,0.30, 0.01],
+  ['kenyatree',  'Kenya tree (Capnella spp.)',          'Soft', 7.5,10,  10,40,  0.05,0.30, 0.03],
+  ['colt',       'Colt coral (Klyxum spp.)',            'Soft', 7.5,10,  10,40,  0.05,0.30, 0.03],
+  ['nephthea',   'Nephthea (Nephthea / Litophyton spp.)','Soft',7.5,10,  10,40,  0.05,0.30, 0.03],
+  ['anthelia',   'Waving hand (Anthelia spp.)',         'Soft', 7.5,10,  10,40,  0.05,0.30, 0.02],
+  ['clove',      'Clove polyps (Clavularia spp.)',      'Soft', 7.5,10,  10,40,  0.05,0.30, 0.02],
+  ['pipeorgan',  'Pipe organ (Tubipora musica)',        'Soft', 7.5,9.5, 10,40,  0.05,0.30, 0.15],
+  ['gorgonian',  'Gorgonian, photosynthetic (Pinnigorgia / Gorgonia spp.)','Soft',7.5,10, 10,40, 0.05,0.30, 0.05],
+  ['lobophytum', 'Devil’s hand (Lobophytum spp.)',      'Soft', 7.5,10,  10,40,  0.05,0.30, 0.05],
+  ['sympodium',  'Sympodium (Sympodium coeruleum)',     'Soft', 7.5,10,  10,40,  0.05,0.30, 0.02],
+  /* Tridacnid clams: serious calcifiers with published preferences for
+     stable, clean-ish water and measurable nitrate. */
+  ['crocea',     'Crocea clam (Tridacna crocea)',       'Clams',7.8,9.0,  2,20,  0.02,0.20, 1.2],
+  ['maxima',     'Maxima clam (Tridacna maxima)',       'Clams',7.8,9.0,  2,20,  0.02,0.20, 1.1],
+  ['derasa',     'Derasa clam (Tridacna derasa)',       'Clams',7.5,9.5,  2,25,  0.02,0.25, 1.0],
+  ['squamosa',   'Squamosa clam (Tridacna squamosa)',   'Clams',7.5,9.5,  2,25,  0.02,0.25, 1.0],
+  /* Fish: no calcification demand, but published nutrient sensitivities —
+     butterflyfish famously intolerant of high nitrate, clownfish famously
+     forgiving. Alkalinity bands are wide so they never fight the corals. */
+  ['copperband', 'Copperband butterflyfish (Chelmon rostratus)','Fish',7.0,11, 2,15, 0.02,0.20, 0],
+  ['threadfin',  'Threadfin butterflyfish (Chaetodon auriga)','Fish',7.0,11, 2,20, 0.02,0.25, 0],
+  ['butterfly',  'Butterflyfish — other (Chaetodon spp.)','Fish',7.0,11,  2,20,  0.02,0.25, 0],
+  ['lyretail',   'Lyretail anthias (Pseudanthias squamipinnis)','Fish',7.0,11, 2,25, 0.02,0.30, 0],
+  ['anthias',    'Anthias — other (Pseudanthias spp.)', 'Fish', 7.0,11,   2,25,  0.02,0.30, 0],
+  ['yellowtang', 'Yellow tang (Zebrasoma flavescens)',  'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['purpletang', 'Purple tang (Zebrasoma xanthurum)',   'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['regaltang',  'Regal / blue tang (Paracanthurus hepatus)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
+  ['koletang',   'Kole tang (Ctenochaetus strigosus)',  'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['powderblue', 'Powder blue tang (Acanthurus leucosternon)','Fish',7.0,11, 2,25, 0.02,0.30, 0],
+  ['tang',       'Tang — other (Acanthuridae)',         'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['ocellaris',  'Ocellaris clownfish (Amphiprion ocellaris)','Fish',7.0,11, 2,50, 0.02,0.50, 0],
+  ['percula',    'Percula clownfish (Amphiprion percula)','Fish',7.0,11,   2,50,  0.02,0.50, 0],
+  ['maroon',     'Maroon clownfish (Premnas biaculeatus)','Fish',7.0,11,   2,50,  0.02,0.50, 0],
+  ['clownfish',  'Clownfish — other (Amphiprion spp.)', 'Fish', 7.0,11,   2,50,  0.02,0.50, 0],
+  ['melanurus',  'Melanurus wrasse (Halichoeres melanurus)','Fish',7.0,11, 2,40,  0.02,0.40, 0],
+  ['fairywrasse','Fairy wrasse (Cirrhilabrus spp.)',    'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['wrasse',     'Wrasse — other reef-safe (Labridae)', 'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['coralbeauty','Coral beauty angel (Centropyge bispinosa)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
+  ['flameangel', 'Flame angelfish (Centropyge loricula)','Fish',7.0,11,    2,40,  0.02,0.40, 0],
+  ['dwarfangel', 'Dwarf angel — other (Centropyge spp.)','Fish',7.0,11,    2,40,  0.02,0.40, 0],
+  ['mandarin',   'Mandarin dragonet (Synchiropus splendidus)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
+  ['bluegreenchromis','Blue-green chromis (Chromis viridis)','Fish',7.0,11, 2,50, 0.02,0.50, 0],
+  ['yellowtaildamsel','Yellowtail damsel (Chrysiptera parasema)','Fish',7.0,11, 2,50, 0.02,0.50, 0],
+  ['chromis',    'Damsel / chromis — other (Pomacentridae)','Fish',7.0,11, 2,50,  0.02,0.50, 0],
+  ['diamondgoby','Diamond watchman goby (Valenciennea puellaris)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
+  ['clowngoby',  'Clown goby (Gobiodon okinawae)',      'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['tailspot',   'Tailspot blenny (Ecsenius stigmatura)','Fish',7.0,11,   2,40,  0.02,0.40, 0],
+  ['midas',      'Midas blenny (Ecsenius midas)',       'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['goby',       'Goby / blenny — other (Gobiidae / Blenniidae)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
+  ['moorishidol','Moorish idol (Zanclus cornutus)',     'Fish', 7.0,11,   2,15,  0.02,0.20, 0],
+  ['squarespot', 'Squarespot anthias (Pseudanthias pleurotaenia)','Fish',7.0,11, 2,25, 0.02,0.30, 0],
+  ['dispar',     'Dispar anthias (Pseudanthias dispar)','Fish', 7.0,11,   2,25,  0.02,0.30, 0],
+  ['bartletts',  'Bartlett’s anthias (Pseudanthias bartlettorum)','Fish',7.0,11, 2,25, 0.02,0.30, 0],
+  ['evansi',     'Evansi anthias (Pseudanthias evansi)','Fish', 7.0,11,   2,20,  0.02,0.25, 0],
+  ['yellowcoris','Yellow coris wrasse (Halichoeres chrysus)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
+  ['flasher',    'McCosker’s flasher wrasse (Paracheilinus mccoskeri)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
+  ['leopardwrasse','Leopard wrasse (Macropharyngodon meleagris)','Fish',7.0,11, 2,25, 0.02,0.30, 0],
+  ['lemonpeel',  'Lemonpeel angel (Centropyge flavissima)','Fish',7.0,11,  2,40,  0.02,0.40, 0],
+  ['cherub',     'Cherub angel (Centropyge argi)',      'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['bicolorangel','Bicolor angel (Centropyge bicolor)', 'Fish', 7.0,11,   2,30,  0.02,0.30, 0],
+  ['emperor',    'Emperor angelfish (Pomacanthus imperator)','Fish',7.0,11, 2,30, 0.02,0.30, 0],
+  ['regalangel', 'Regal angelfish (Pygoplites diacanthus)','Fish',7.0,11,  2,15,  0.02,0.20, 0],
+  ['frenchangel','French angelfish (Pomacanthus paru)', 'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['koran',      'Koran angelfish (Pomacanthus semicirculatus)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
+  ['queenangel', 'Queen angelfish (Holacanthus ciliaris)','Fish',7.0,11,   2,40,  0.02,0.40, 0],
+  ['yasha',      'Yasha goby (Stonogobiops yasha)',     'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['neongoby',   'Neon goby (Elacatinus oceanops)',     'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['orangespotgoby','Orange-spotted goby (Amblyeleotris guttata)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
+  ['engineergoby','Engineer goby (Pholidichthys leucotaenia)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
+  ['rainfordi',  'Court jester goby (Koumansetta rainfordi)','Fish',7.0,11, 2,30, 0.02,0.30, 0],
+  ['watchman',   'Yellow watchman goby (Cryptocentrus cinctus)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
+  ['firefish',   'Firefish (Nemateleotris magnifica)',  'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['lawnmower',  'Lawnmower blenny (Salarias fasciatus)','Fish',7.0,11,   2,40,  0.02,0.40, 0],
+  ['sixline',    'Six-line wrasse (Pseudocheilinus hexataenia)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
+  ['cardinal',   'Banggai cardinalfish (Pterapogon kauderni)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
+  ['foxface',    'Foxface rabbitfish (Siganus vulpinus)','Fish',7.0,11,   2,40,  0.02,0.40, 0],
+  ['gramma',     'Royal gramma (Gramma loreto)',        'Fish', 7.0,11,   2,50,  0.02,0.50, 0],
+  /* Inverts: anemones and Linckia stars want mature, clean, stable water;
+     snails and urchins calcify a little as they grow shell and spine. */
+  ['bta',        'Bubble tip anemone (Entacmaea quadricolor)','Inverts',7.5,9.5, 2,20, 0.03,0.20, 0.02],
+  ['rfa',        'Rock flower anemone (Phymanthus crucifer)','Inverts',7.5,9.5, 2,30, 0.03,0.25, 0.02],
+  ['cleanershrimp','Cleaner shrimp (Lysmata amboinensis)','Inverts',7.0,11,  2,40, 0.02,0.40, 0.02],
+  ['fireshrimp', 'Fire shrimp (Lysmata debelius)',      'Inverts',7.0,11,  2,40, 0.02,0.40, 0.02],
+  ['peppermint', 'Peppermint shrimp (Lysmata wurdemanni)','Inverts',7.0,11, 2,40, 0.02,0.40, 0.02],
+  ['linckia',    'Linckia starfish (Linckia laevigata)','Inverts',7.0,11,  2,15, 0.02,0.15, 0],
+  ['brittlestar','Brittle star (Ophiuroidea)',          'Inverts',7.0,11,  2,40, 0.02,0.40, 0],
+  ['urchin',     'Tuxedo urchin (Mespilia globulus)',   'Inverts',7.0,11,  2,40, 0.02,0.40, 0.05],
+  ['snails',     'Turbo / Trochus snails (Turbo / Trochus spp.)','Inverts',7.0,11, 2,40, 0.02,0.40, 0.03],
+  ['nassarius',  'Nassarius snail (Nassarius spp.)',    'Inverts',7.0,11,  2,40, 0.02,0.40, 0.02],
+  ['cerith',     'Cerith snail (Cerithium spp.)',       'Inverts',7.0,11,  2,40, 0.02,0.40, 0.02],
+  ['astrea',     'Astrea snail (Astraea tecta)',        'Inverts',7.0,11,  2,40, 0.02,0.40, 0.02],
+  ['bumblebee',  'Bumblebee snail (Engina mendicaria)', 'Inverts',7.0,11,  2,40, 0.02,0.40, 0.01],
+  ['conch',      'Fighting conch (Strombus alatus)',    'Inverts',7.0,11,  2,40, 0.02,0.40, 0.03],
+  ['hermit',     'Hermit crab — other (Paguroidea)',    'Inverts',7.0,11,  2,50, 0.02,0.50, 0.01],
+  ['bluelegged', 'Blue-leg hermit (Clibanarius tricolor)','Inverts',7.0,11, 2,50, 0.02,0.50, 0.01],
+  ['scarlethermit','Scarlet reef hermit (Paguristes cadenati)','Inverts',7.0,11, 2,50, 0.02,0.50, 0.01],
+  ['emerald',    'Emerald crab (Mithraculus sculptus)', 'Inverts',7.0,11,  2,40, 0.02,0.40, 0.01],
+  ['porcelain',  'Porcelain crab (Neopetrolisthes maculatus)','Inverts',7.0,11, 2,40, 0.02,0.40, 0.01],
+  ['sallylightfoot','Sally Lightfoot crab (Percnon gibbesi)','Inverts',7.0,11, 2,40, 0.02,0.40, 0.01],
+  ['coralbanded','Coral banded shrimp (Stenopus hispidus)','Inverts',7.0,11, 2,40, 0.02,0.40, 0.02],
+  ['sexyshrimp', 'Sexy shrimp (Thor amboinensis)',      'Inverts',7.0,11,  2,40, 0.02,0.40, 0.01],
+  ['pistol',     'Pistol shrimp (Alpheus spp.)',        'Inverts',7.0,11,  2,40, 0.02,0.40, 0.01],
+  ['harlequin',  'Harlequin shrimp (Hymenocera picta)', 'Inverts',7.0,11,  2,30, 0.02,0.30, 0.01],
+  ['carpet',     'Carpet anemone (Stichodactyla haddoni)','Inverts',7.5,9.5, 2,15, 0.02,0.15, 0.02],
+  ['lta',        'Long tentacle anemone (Macrodactyla doreensis)','Inverts',7.5,9.5, 2,20, 0.03,0.20, 0.02],
+  ['condy',      'Condy anemone (Condylactis gigantea)','Inverts',7.5,9.5,  2,30, 0.03,0.25, 0.02],
+  ['minimaxi',   'Maxi-mini carpet (Stichodactyla tapetum)','Inverts',7.5,9.5, 2,30, 0.03,0.25, 0.02],
+  ['longspine',  'Long-spine urchin (Diadema setosum)', 'Inverts',7.0,11,  2,40, 0.02,0.40, 0.05],
+  ['sandstar',   'Sand-sifting starfish (Astropecten polyacanthus)','Inverts',7.0,11, 2,30, 0.02,0.30, 0],
+  ['cucumber',   'Sea cucumber (Holothuria spp.)',      'Inverts',7.0,11,  2,30, 0.02,0.30, 0],
+  ['featherduster','Feather duster worm (Sabellastarte spp.)','Inverts',7.0,11, 2,40, 0.02,0.40, 0.01],
+  ['reeflobster','Reef lobster (Enoplometopus spp.)',   'Inverts',7.0,11,  2,40, 0.02,0.40, 0.01]
+].map(function(a){
+  return {id:a[0], name:a[1], group:a[2], alk:[a[3],a[4]], no3:[a[5],a[6]], po4:[a[7],a[8]], demand:a[9]};
+});
+/* Size classes: base alkalinity demand in dKH/day per 100 L for a demand
+   factor of 1.0. Calcium and magnesium follow the calcification ratio the
+   app already uses (20 ppm Ca and ~1.5 ppm Mg per 2.8 dKH). */
+var CORAL_SIZES = [
+  {id:'frag',  name:'Tiny / frag', f:0.008},
+  {id:'small', name:'Small',       f:0.02},
+  {id:'med',   name:'Medium',      f:0.05},
+  {id:'large', name:'Large',       f:0.10},
+  {id:'xl',    name:'Extra large', f:0.18}
+];
+/* Published dietary needs worth a reminder — keyed by species id. Shown as a
+   feeding check whenever a water change is planned, for stocked species only. */
+var FEED_NOTES = {
+  moorishidol:'sponge-based foods are part of its natural diet — offer a sponge-containing preparation daily',
+  regalangel:'a shy specialist feeder — sponge and tunicate preparations, fed often',
+  emperor:'large angels eat sponge matter in the wild — use an angel formula containing sponge',
+  frenchangel:'sponge matter belongs in its diet — use an angel formula containing sponge',
+  koran:'sponge matter belongs in its diet — use an angel formula containing sponge',
+  queenangel:'sponge matter belongs in its diet — use an angel formula containing sponge',
+  diamondgoby:'a sand-sifter that starves in clean tanks — target feed sinking meaty foods onto the substrate',
+  watchman:'target feed sinking foods near its burrow',
+  orangespotgoby:'target feed sinking foods near its burrow',
+  yasha:'target feed sinking foods near its burrow',
+  mandarin:'grazes copepods all day — keep the pod population up (or wean onto frozen) and target feed',
+  copperband:'often needs weaning — offer mysis pressed into a clam shell until it feeds confidently',
+  butterfly:'meaty and mysis feeds; watch that it is actually eating',
+  threadfin:'meaty and mysis feeds; watch that it is actually eating',
+  lyretail:'planktivore — several small feeds a day beat one large one',
+  squarespot:'planktivore — several small feeds a day beat one large one',
+  dispar:'planktivore — several small feeds a day beat one large one',
+  bartletts:'planktivore — several small feeds a day beat one large one',
+  evansi:'delicate planktivore — frequent small feeds are essential',
+  anthias:'planktivores — several small feeds a day beat one large one',
+  leopardwrasse:'a delicate feeder — enriched frozen foods several times daily while it settles',
+  suncoral:'non-photosynthetic — target feed each polyp meaty foods a few times a week',
+  goniopora:'benefits from fine particulate and phytoplankton feeds',
+  alveopora:'benefits from fine particulate and phytoplankton feeds',
+  harlequin:'eats only starfish — sustain it with chocolate-chip starfish',
+  bta:'offer a meaty chunk (silverside, prawn) every week or two',
+  carpet:'offer a meaty chunk every week or two',
+  lta:'offer a meaty chunk every week or two',
+  condy:'offer a meaty chunk every week or two',
+  minimaxi:'offer small meaty feeds every week or two',
+  rfa:'offer small meaty feeds every week or two',
+  featherduster:'a filter feeder — phytoplankton or fine particulate feeds keep the crown full',
+  crocea:'smaller clams especially benefit from regular phytoplankton',
+  maxima:'smaller clams especially benefit from regular phytoplankton',
+  derasa:'smaller clams especially benefit from regular phytoplankton',
+  squamosa:'smaller clams especially benefit from regular phytoplankton',
+  sandstar:'needs a mature sand bed to graze — they quietly starve in young tanks',
+  linckia:'grazes rock biofilm — only sustainable in mature tanks with plenty of live rock',
+  cucumber:'grazes sand-bed detritus — needs an established, mature bed',
+  engineergoby:'sinking meaty foods — make sure some reaches it past faster fish',
+  euphyllia:'benefits from a weekly meaty feed (mysis or chopped shellfish) onto the tentacles',
+  torch:'benefits from a weekly meaty feed onto the tentacles',
+  hammerbr:'benefits from a weekly meaty feed onto the tentacles',
+  hammerwall:'benefits from a weekly meaty feed onto the tentacles',
+  frogspawnbr:'benefits from a weekly meaty feed onto the tentacles',
+  frogspawnwall:'benefits from a weekly meaty feed onto the tentacles',
+  trachy:'target feed meaty pieces once or twice a week after lights out, when feeder tentacles show',
+  scolymia:'target feed meaty pieces weekly after lights out',
+  acan:'a night feeder — target feed meaty foods after lights out',
+  favia:'a night feeder — target feed meaty foods after lights out',
+  duncan:'responds strongly to target feeding meaty foods — feeds grow new heads faster',
+  candycane:'target feed meaty foods to each head weekly',
+  plate:'accepts meaty target feeds placed directly on the disc',
+  heliofungia:'accepts meaty target feeds placed among the tentacles',
+  chalice:'a night feeder — fine meaty or particulate feeds after lights out',
+  blasto:'target feed fine meaty foods after lights out',
+  cynarina:'target feed a meaty chunk weekly — it will balloon to take it',
+  elegance:'benefits from weekly meaty target feeds',
+  bubble:'occasional small meaty feeds when the feeder tentacles are out at dusk',
+  galaxea:'small meaty or particulate feeds in the evening'
+};
+function stockedFeedNotes(){
+  var cs = state.settings.corals || [], seen = {}, out = [];
+  cs.forEach(function(c){
+    if(seen[c.sp] || !FEED_NOTES[c.sp]) return;
+    seen[c.sp] = true;
+    var nm = coralById(c.sp).name;
+    out.push('<p><strong>' + esc(nm.replace(/\s*\(.*\)$/, '')) + ':</strong> ' + FEED_NOTES[c.sp] + '.</p>');
+  });
+  return out;
+}
+function coralById(id){ for(var i=0;i<CORALS.length;i++){ if(CORALS[i].id===id) return CORALS[i]; } return CORALS[0]; }
+function coralSizeById(id){ for(var i=0;i<CORAL_SIZES.length;i++){ if(CORAL_SIZES[i].id===id) return CORAL_SIZES[i]; } return CORAL_SIZES[0]; }
+
+/* Product library. `effects` is the change one unit (g or ml) makes in 100 litres:
+   alk in dKH, ca / mg / no3 in ppm. Every figure is editable in Setup, because
+   labels vary between batches and brands.
+   method: 'sump' = add dry to the sump, 'dissolve' = mix into RO/DI first,
+   'direct' = dose the liquid straight in. */
+var PRODUCTS = [
+  {id:'rs-abcplus', name:'Red Sea Foundation ABC+', form:'g', method:'sump',
+   effects:{ca:1.5, alk:0.21, mg:0.15}, maxSingle:60, scoops:[20,2],
+   note:'Label figure: 1 g in 100 L raises calcium by 1.5 ppm, with alkalinity and magnesium following in balance. The alkalinity and magnesium figures here are derived from the calcification ratio (20 ppm Ca to 2.8 dKH) since Red Sea do not publish them; adjust if you measure otherwise. Red Sea say to add the powder straight to the sump rather than dissolving it, never more than 60 g at once, with 10 minutes between scoops, and to use the single-element supplements for one-off corrections.'},
+  {id:'rs-a',   name:'Red Sea Foundation A — Calcium+ liquid',    form:'ml', method:'direct', effects:{ca:2}},
+  {id:'rs-b',   name:'Red Sea Foundation B — KH/Alkalinity liquid', form:'ml', method:'direct', effects:{alk:0.1}},
+  {id:'rs-c',   name:'Red Sea Foundation C — Magnesium liquid',   form:'ml', method:'direct', effects:{mg:1}},
+  {id:'rs-khp', name:'Red Sea KH/Alkalinity powder',              form:'g',  method:'dissolve', effects:{alk:0.33}},
+  {id:'soda',   name:'Soda ash (sodium carbonate)',               form:'g',  method:'dissolve', effects:{alk:0.53}},
+  {id:'bicarb', name:'Bicarbonate of soda',                       form:'g',  method:'dissolve', effects:{alk:0.33}},
+  {id:'cacl-di',name:'Calcium chloride dihydrate',                form:'g',  method:'dissolve', effects:{ca:2.73}},
+  {id:'cacl-an',name:'Calcium chloride, anhydrous',               form:'g',  method:'dissolve', effects:{ca:3.61}},
+  {id:'mg-blend',name:'Magnesium blend, 5:1 chloride to sulphate',form:'g',  method:'dissolve', effects:{mg:1.16}},
+  {id:'mgcl',   name:'Magnesium chloride hexahydrate',            form:'g',  method:'dissolve', effects:{mg:1.2}},
+  {id:'epsom',  name:'Epsom salt (magnesium sulphate)',           form:'g',  method:'dissolve', effects:{mg:0.99}},
+  {id:'nano3',  name:'Sodium nitrate',                            form:'g',  method:'dissolve', effects:{no3:7.3}},
+  {id:'gen-alk',name:'Alkalinity liquid — other brand',           form:'ml', method:'direct', effects:{alk:0.1}},
+  {id:'gen-ca', name:'Calcium liquid — other brand',              form:'ml', method:'direct', effects:{ca:0.5}},
+  {id:'gen-mg', name:'Magnesium liquid — other brand',            form:'ml', method:'direct', effects:{mg:1}}
+];
+/* ---------- ICP elements ----------
+   Setpoints are Triton's own published reference values for natural sea water,
+   filled in only where they are sourced. Everything else is left blank on
+   purpose: a Triton report prints its setpoint beside every element, so the
+   keeper copies it in and the app never contradicts the lab. `unit` is what
+   the report uses. `kind` decides how a deviation is read — 'need' elements
+   are consumed and can be topped up, 'toxic' ones only ever want removing. */
+var ICP_ELEMENTS = [
+  /* major ions, mg/l */
+  {k:'Na', n:'Sodium',      grp:'major', u:'mg/l', sp:10700, kind:'need'},
+  {k:'Ca', n:'Calcium',     grp:'major', u:'mg/l', sp:440,   kind:'need', maps:'ca'},
+  {k:'Mg', n:'Magnesium',   grp:'major', u:'mg/l', sp:1370,  kind:'need', maps:'mg'},
+  {k:'K',  n:'Potassium',   grp:'major', u:'mg/l', sp:400,   kind:'need'},
+  {k:'S',  n:'Sulphur',     grp:'major', u:'mg/l', sp:900,   kind:'need'},
+  {k:'Br', n:'Bromine',     grp:'major', u:'mg/l', sp:62,    kind:'need'},
+  {k:'B',  n:'Boron',       grp:'major', u:'mg/l', sp:4.5,   kind:'need'},
+  {k:'Sr', n:'Strontium',   grp:'major', u:'mg/l', sp:8,     kind:'need'},
+  /* trace, µg/l */
+  {k:'Li', n:'Lithium',     grp:'trace', u:'µg/l', sp:200,   kind:'need'},
+  {k:'Mo', n:'Molybdenum',  grp:'trace', u:'µg/l', sp:12,    kind:'need'},
+  {k:'Ni', n:'Nickel',      grp:'trace', u:'µg/l', sp:5,     kind:'need'},
+  {k:'I',  n:'Iodine',      grp:'trace', u:'µg/l', sp:null,  kind:'need'},
+  {k:'Fe', n:'Iron',        grp:'trace', u:'µg/l', sp:null,  kind:'need'},
+  {k:'Mn', n:'Manganese',   grp:'trace', u:'µg/l', sp:null,  kind:'need'},
+  {k:'Zn', n:'Zinc',        grp:'trace', u:'µg/l', sp:null,  kind:'need'},
+  {k:'Ba', n:'Barium',      grp:'trace', u:'µg/l', sp:null,  kind:'need'},
+  {k:'V',  n:'Vanadium',    grp:'trace', u:'µg/l', sp:null,  kind:'need'},
+  {k:'Cr', n:'Chromium',    grp:'trace', u:'µg/l', sp:null,  kind:'need'},
+  {k:'Co', n:'Cobalt',      grp:'trace', u:'µg/l', sp:null,  kind:'need'},
+  {k:'Si', n:'Silicon',     grp:'trace', u:'µg/l', sp:null,  kind:'need'},
+  {k:'P',  n:'Phosphorus',  grp:'trace', u:'µg/l', sp:null,  kind:'need'},
+  {k:'Be', n:'Beryllium',   grp:'trace', u:'µg/l', sp:null,  kind:'need'},
+  /* contaminants, µg/l — every one of these reads low-is-better */
+  {k:'Cu', n:'Copper',      grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic', note:'Copper is lethal to shrimp, snails and other inverts long before corals show it. Common sources are metal impellers, some medications and tap water.'},
+  {k:'Al', n:'Aluminium',   grp:'toxic', u:'µg/l', sp:2,   kind:'toxic', note:'Usually traced to aluminium-based phosphate media.'},
+  {k:'Pb', n:'Lead',        grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic'},
+  {k:'Hg', n:'Mercury',     grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic'},
+  {k:'Cd', n:'Cadmium',     grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic'},
+  {k:'Sn', n:'Tin',         grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic'},
+  {k:'Sb', n:'Antimony',    grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic'},
+  {k:'As', n:'Arsenic',     grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic'},
+  {k:'Ti', n:'Titanium',    grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic'},
+  {k:'Se', n:'Selenium',    grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic'},
+  {k:'La', n:'Lanthanum',   grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic', note:'Lanthanum chloride is used to strip phosphate; a reading here means some stayed in the water.'},
+  {k:'Sc', n:'Scandium',    grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic'},
+  {k:'W',  n:'Tungsten',    grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic'}
+];
+var ICP_GROUPS = [
+  {id:'major', name:'Major ions', sub:'The bulk chemistry of sea water, in mg/l.'},
+  {id:'trace', name:'Trace elements', sub:'Consumed by corals and depleted between water changes, in µg/l.'},
+  {id:'toxic', name:'Contaminants', sub:'Nothing here should be present. Lower is always better, in µg/l.'}
+];
+function icpEl(k){ for(var i=0;i<ICP_ELEMENTS.length;i++){ if(ICP_ELEMENTS[i].k===k) return ICP_ELEMENTS[i]; } return null; }
+
+var BIG3 = ['mg','alk','ca'];
+var UNITS = {alk:'dKH', ca:'ppm', mg:'ppm', no3:'ppm'};
+
+/* Salt mixes: gl is grams per litre of RO/DI to reach SPG 1.026, and `elements`
+   is the brand's published alkalinity / calcium / magnesium for freshly mixed
+   water at that strength (mid-points of their stated ranges). All editable in
+   the calculator, since batches vary. */
+var SALTS = [
+  {id:'rs-salt',     name:'Red Sea Salt',          gl:38.5, elements:{alk:8.0,  ca:415, mg:1210}},
+  {id:'rs-coralpro', name:'Red Sea Coral Pro',     gl:39.5, elements:{alk:12.0, ca:440, mg:1310}},
+  {id:'tm-proreef',  name:'Tropic Marin Pro-Reef', gl:37.4, elements:{alk:7.0,  ca:440, mg:1350}},
+  {id:'tm-classic',  name:'Tropic Marin Classic',  gl:37.5, elements:{alk:9.5,  ca:420, mg:1350}},
+  {id:'io',          name:'Instant Ocean',         gl:36.8, elements:{alk:11.0, ca:400, mg:1350}},
+  {id:'af',          name:'Aquaforest Reef Salt',  gl:38,   elements:{alk:8.1,  ca:430, mg:1380}},
+  {id:'other',       name:'Another brand',         gl:37,   elements:{alk:8.5,  ca:420, mg:1300}}
+];
+
+var DEFAULTS = {
+  tankName:'Reef tank',
+  tankType:'mixed',
+  netLitres:250,
+  volUnit:'L',
+  salinityUnit:'sg',
+  targets:JSON.parse(JSON.stringify(DEFAULT_TARGETS)),
+  shelf:[{id:'rs-abcplus'}],
+  caps:{alk:0.4, ca:20, mg:50},
+  saltMix:{brand:'rs-salt', strengths:{}, elements:{}},
+  reminders:{email:'', wc:7, test:7, dose:'1'},
+  doser:{alk:'rs-b', ca:'rs-a', mg:'rs-c'},
+  estimator:{total:null, rock:null, sand:null},
+  corals:[],
+  costs:{saltPrice:null, saltKg:null, roPerL:null, products:{}},
+  icp:[]
+};
+
+/* ---------- build tier ----------
+   One source, two builds. build.py rewrites the line below to produce
+   reef-lite.html and reef-pro.html, so no feature is ever deleted to make
+   the free version — it is only switched off. */
+var TIER = 'lite'; /* build:tier */
+var FEATURES = {
+  multiTank:   TIER === 'pro',
+  corrections: TIER === 'pro',
+  livestock:   TIER === 'pro',
+  costs:       TIER === 'pro',
+  csv:         TIER === 'pro'
+};
+
+var KEY = 'reef-tank-data-lite';
+
+/* ---------- tanks ----------
+   The vault holds every tank. state.settings and state.log are live
+   references into whichever tank is active, so the rest of the app carries
+   on addressing them exactly as it did when there was only one. */
+var vault = null;
+var state = {settings:clone(DEFAULTS), log:[], readings:{}};
+var memoryOnly = null;
+
+function uid(){ return 't' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+function tankById(id){
+  if(!vault) return null;
+  for(var i=0;i<vault.tanks.length;i++){ if(vault.tanks[i].id === id) return vault.tanks[i]; }
+  return null;
+}
+function blankTank(name){
+  var t = {id:uid(), settings:clone(DEFAULTS), log:[]};
+  if(name) t.settings.tankName = name;
+  return t;
+}
+/* Push the live references back into the vault. Called before every write,
+   because some code paths reassign state.log rather than mutating it. */
+function syncActive(){
+  var t = tankById(vault && vault.activeId);
+  if(t){ t.settings = state.settings; t.log = state.log; }
+}
+function useTank(id){
+  var t = tankById(id) || vault.tanks[0];
+  vault.activeId = t.id;
+  state.settings = t.settings;
+  state.log = t.log;
+  state.readings = {};
+}
+/* Read a stored payload of either shape: v2 holds many tanks, anything
+   earlier is a single tank and becomes the first one. */
+function adopt(data){
+  vault = {v:2, activeId:null, tanks:[]};
+  function ingest(settings, log, id){
+    var t = {id:id || uid(), settings:clone(DEFAULTS), log:[]};
+    state.settings = t.settings; state.log = t.log;
+    apply({settings:settings, log:log});
+    t.settings = state.settings; t.log = state.log;
+    vault.tanks.push(t);
+  }
+  if(data && data.v === 2 && data.tanks && data.tanks.length){
+    data.tanks.forEach(function(t){ ingest(t.settings, t.log, t.id); });
+    vault.activeId = data.activeId;
+  } else if(data && (data.settings || data.log)){
+    ingest(data.settings, data.log, null);
+  }
+  if(!vault.tanks.length) vault.tanks.push(blankTank());
+  if(!tankById(vault.activeId)) vault.activeId = vault.tanks[0].id;
+  useTank(vault.activeId);
+}
+
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
+function $(s){ return document.querySelector(s); }
+function num(v){ var n = parseFloat(v); return isFinite(n) ? n : null; }
+function fmt(v,dp){ if(v===null||v===undefined||!isFinite(v)) return '—'; return Number(v).toFixed(dp); }
+function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+function P(key){ for(var i=0;i<PARAMS.length;i++){ if(PARAMS[i].key===key) return PARAMS[i]; } return null; }
+
+/* Salinity is held internally in ppt but always shown as specific gravity (SPG),
+   to three decimals, matching a hobby refractometer. 35 ppt = 1.026 at 25 C. */
+function sgMode(){ return true; }
+function toDisp(key,v){
+  if(v===null||v===undefined||!isFinite(v)) return v;
+  return (key==='salinity' && sgMode()) ? 1 + v/1327 : v;
+}
+function toInternal(key,v){
+  if(v===null||v===undefined||!isFinite(v)) return v;
+  return (key==='salinity' && sgMode()) ? (v-1)*1327 : v;
+}
+function meta(key){
+  var p = P(key);
+  if(key==='salinity' && sgMode()) return {key:'salinity', name:p.name, unit:'SPG', dp:3, step:'0.001'};
+  return p;
+}
+function T(key){ return state.settings.targets[key] || DEFAULT_TARGETS[key]; }
+
+/* ---------- storage ----------
+   Tries the browser's own storage first so the file works standalone,
+   then Claude's artifact storage, then memory for the current session only. */
+var storageMode = 'memory';
+function save(){
+  syncActive();
+  var payload = JSON.stringify(vault);
+  try{
+    window.localStorage.setItem(KEY, payload);
+    storageMode = 'local';
+    return;
+  }catch(e){}
+  try{
+    if(window.storage && window.storage.set){
+      window.storage.set(KEY, payload).catch(function(){});
+      storageMode = 'host';
+      return;
+    }
+  }catch(e){}
+  memoryOnly = payload;
+  storageMode = 'memory';
+  flagMemoryOnly();
+}
+function load(cb){
+  try{
+    var raw = window.localStorage.getItem(KEY);
+    window.localStorage.setItem(KEY + ':probe', '1');
+    window.localStorage.removeItem(KEY + ':probe');
+    storageMode = 'local';
+    var parsed = null;
+    if(raw){ try{ parsed = JSON.parse(raw); }catch(e2){} }
+    adopt(parsed);
+    cb(); return;
+  }catch(e){}
+  try{
+    if(window.storage && window.storage.get){
+      storageMode = 'host';
+      window.storage.get(KEY).then(function(r){
+        var parsed = null;
+        if(r && r.value){ try{ parsed = JSON.parse(r.value); }catch(e2){} }
+        adopt(parsed);
+        cb();
+      }).catch(function(){ adopt(null); cb(); });
+      return;
+    }
+  }catch(e){}
+  storageMode = 'memory';
+  adopt(null);
+  flagMemoryOnly();
+  cb();
+}
+function flagMemoryOnly(){
+  var el = document.getElementById('storageNote');
+  if(el) el.textContent = 'This browser is not letting the page store anything, so the log will empty when you close the tab. Use Save backup file below to keep your history, and Load backup to bring it back.';
+}
+function apply(data){
+  if(!data) return;
+  if(data.settings){
+    var s = data.settings;
+    state.settings.tankName = s.tankName || DEFAULTS.tankName;
+    if(s.tankType && TANK_TYPES[s.tankType]) state.settings.tankType = s.tankType;
+    state.settings.netLitres = num(s.netLitres) || DEFAULTS.netLitres;
+    state.settings.volUnit = s.volUnit || 'L';
+    state.settings.salinityUnit = s.salinityUnit || 'sg';
+    if(s.caps) state.settings.caps = {alk:num(s.caps.alk)||0.4, ca:num(s.caps.ca)||20, mg:num(s.caps.mg)||50};
+    if(s.targets){ for(var k in DEFAULT_TARGETS){ if(s.targets[k]) state.settings.targets[k] = s.targets[k]; } }
+    if(Array.isArray(s.shelf)) state.settings.shelf = s.shelf;
+    if(s.saltMix) state.settings.saltMix = {brand:s.saltMix.brand || 'rs-salt', strengths:s.saltMix.strengths || {}, elements:s.saltMix.elements || {}, mode:s.saltMix.mode === 'fix' ? 'fix' : 'change'};
+    if(s.doser) state.settings.doser = {alk:s.doser.alk || 'rs-b', ca:s.doser.ca || 'rs-a', mg:s.doser.mg || 'rs-c'};
+    if(s.estimator) state.settings.estimator = {total:num(s.estimator.total), rock:num(s.estimator.rock), sand:num(s.estimator.sand)};
+    if(Array.isArray(s.corals)) state.settings.corals = s.corals.filter(function(c){ return c && c.sp && c.size; });
+    if(Array.isArray(s.icp)) state.settings.icp = s.icp;
+    if(s.costs) state.settings.costs = {saltPrice:num(s.costs.saltPrice), saltKg:num(s.costs.saltKg), roPerL:num(s.costs.roPerL), products:s.costs.products || {}};
+    if(s.reminders) state.settings.reminders = {
+      email:s.reminders.email || '',
+      wc:num(s.reminders.wc) || 7,
+      test:num(s.reminders.test) || 7,
+      dose:s.reminders.dose === '0' ? '0' : '1'
+    };
+  }
+  if(Array.isArray(data.log)) state.log = data.log;
+}
+
+/* ---------- comparator strip ---------- */
+function domain(key){
+  var t = T(key), span = t.high - t.low;
+  if(span <= 0) span = Math.max(t.high, 0.02) || 0.02;
+  var min = t.low - span*0.8, max = t.high + span*0.8;
+  if(min < 0 && t.low >= 0) min = 0;
+  return {min:min, max:max};
+}
+function pos(key,v){
+  var d = domain(key);
+  var p = ((v - d.min) / (d.max - d.min)) * 100;
+  return Math.max(0, Math.min(100, p));
+}
+function gradient(key){
+  var pl = pos(key, T(key).low), ph = pos(key, T(key).high);
+  var a = Math.max(0, pl - 9), b = Math.min(100, ph + 9);
+  return 'linear-gradient(90deg, rgba(255,95,109,.55) 0%, rgba(242,177,52,.55) '+a.toFixed(1)+'%, rgba(47,224,198,.5) '+pl.toFixed(1)+'%, rgba(47,224,198,.5) '+ph.toFixed(1)+'%, rgba(242,177,52,.55) '+b.toFixed(1)+'%, rgba(255,95,109,.55) 100%)';
+}
+function status(key,v){
+  if(v===null) return null;
+  var t = T(key), span = (t.high - t.low) || 0.02;
+  if(v >= t.low && v <= t.high) return 'good';
+  if(v >= t.low - span*0.25 && v <= t.high + span*0.25) return 'near';
+  return 'out';
+}
+function verdictText(key,v){
+  var s = status(key,v), t = T(key);
+  if(s === 'good') return ['In range','v-good'];
+  if(v < t.low) return [s==='near' ? 'A shade low' : 'Low','v-'+s];
+  return [s==='near' ? 'A shade high' : 'High','v-'+s];
+}
+
+/* ---------- test view ---------- */
+/* Tile layout: three to a row, then nutrients and the always-zero pair
+   (ammonia, nitrite) as half-width rows at the bottom. */
+var TILE_ORDER = ['temp','salinity','ph','ca','alk','mg','no3','po4','nh3','no2'];
+var TILE_HALF = ['no3','po4','nh3','no2'];
+function renderRows(){
+  var html = '';
+  TILE_ORDER.forEach(function(key){
+    var p = P(key);
+    if(!p) return;
+    var t = T(p.key), d = domain(p.key), m = meta(p.key);
+    html += '<div class="tile'+(TILE_HALF.indexOf(p.key)>-1?' half':'')+'" data-row="'+p.key+'">'+
+      '<div class="tile-name">'+p.name+'<small>target '+fmt(toDisp(p.key,t.target),m.dp)+(m.unit?' '+m.unit:'')+'</small></div>'+
+      '<div class="input-cluster">'+
+        '<input class="reading-input" type="number" inputmode="decimal" step="'+m.step+'" id="in-'+p.key+'" placeholder="—" aria-label="'+p.name+'">'+
+        (m.unit ? '<span class="unit">'+m.unit+'</span>' : '')+
+      '</div>'+
+      '<div><div class="strip"><div class="strip-track" style="background:'+gradient(p.key)+'"></div>'+
+        '<div class="needle hide" id="nd-'+p.key+'"></div></div>'+
+      '<div class="strip-foot"><span>'+fmt(toDisp(p.key,d.min),m.dp)+'</span>'+
+        '<span>'+fmt(toDisp(p.key,d.max),m.dp)+'</span></div>'+
+      '<span class="verdict" id="vd-'+p.key+'"></span></div>'+
+    '</div>';
+  });
+  $('#rows').innerHTML = html;
+  PARAMS.forEach(function(p){
+    var el = document.getElementById('in-'+p.key);
+    if(state.readings[p.key] !== undefined && state.readings[p.key] !== null){
+      var shown = toDisp(p.key, state.readings[p.key]);
+      el.value = p.key === 'salinity' ? Number(shown.toFixed(meta(p.key).dp)) : shown;
+    }
+    el.addEventListener('input', function(){
+      state.readings[p.key] = toInternal(p.key, num(el.value));
+      updateStrip(p.key);
+    });
+    updateStrip(p.key);
+  });
+}
+/* Stocked species whose published range the reading breaches — checked live
+   as readings are typed, strictest first. */
+function stockBreaches(key, v){
+  if(['alk','no3','po4'].indexOf(key) === -1) return [];
+  var cs = state.settings.corals || [], seen = {}, out = [];
+  cs.forEach(function(c){
+    if(seen[c.sp]) return;
+    seen[c.sp] = true;
+    var sp = coralById(c.sp);
+    if(v > sp[key][1]) out.push({name:sp.name, limit:sp[key][1], dir:'high'});
+    else if(v < sp[key][0]) out.push({name:sp.name, limit:sp[key][0], dir:'low'});
+  });
+  out.sort(function(a,b){ return a.dir === 'high' ? a.limit - b.limit : b.limit - a.limit; });
+  return out;
+}
+function updateStrip(key){
+  var p = meta(key), v = state.readings[key];
+  var nd = document.getElementById('nd-'+key), vd = document.getElementById('vd-'+key);
+  if(!nd) return;
+  if(v === null || v === undefined){ nd.classList.add('hide'); vd.textContent=''; vd.className='verdict'; vd.title=''; return; }
+  nd.classList.remove('hide');
+  nd.style.left = pos(key,v) + '%';
+  var br = stockBreaches(key, v);
+  if(br.length){
+    var first = br[0].name.replace(/\s*\(.*\)$/, '');
+    vd.textContent = '⚠ ' + (br[0].dir === 'high' ? 'High' : 'Low') + ' for ' + first +
+      (br.length > 1 ? ' +' + (br.length - 1) : '') + ' · ' + fmt(toDisp(key,v),p.dp) + ' ' + p.unit;
+    vd.className = 'verdict v-out';
+    vd.title = br.map(function(b){
+      return b.name + ' — published ' + (b.dir === 'high' ? 'ceiling' : 'floor') + ' ' + b.limit + ' ' + p.unit;
+    }).join('; ');
+    return;
+  }
+  var t = verdictText(key,v);
+  vd.textContent = t[0] + ' · ' + fmt(toDisp(key,v),p.dp) + ' ' + p.unit;
+  vd.className = 'verdict ' + t[1];
+  vd.title = '';
+}
+
+/* ---------- dosing maths ---------- */
+function libProduct(id){
+  for(var i=0;i<PRODUCTS.length;i++){ if(PRODUCTS[i].id === id) return PRODUCTS[i]; }
+  return null;
+}
+/* The shelf: what the user actually has, with any edited strengths applied. */
+function shelfList(){
+  var out = [];
+  (state.settings.shelf || []).forEach(function(entry){
+    var base = libProduct(entry.id) || {id:entry.id, name:entry.name || 'Custom product',
+      form:entry.form || 'g', method:entry.method || 'dissolve', effects:{}};
+    var eff = {};
+    ['alk','ca','mg','no3'].forEach(function(k){
+      var v = (entry.effects && entry.effects[k] !== undefined && entry.effects[k] !== '')
+        ? num(entry.effects[k]) : base.effects[k];
+      if(v && v > 0) eff[k] = v;
+    });
+    out.push({id:base.id, name:entry.name || base.name, form:entry.form || base.form,
+      method:entry.method || base.method, effects:eff, maxSingle:base.maxSingle,
+      scoops:base.scoops, note:base.note,
+      multi:(eff.alk?1:0) + (eff.ca?1:0) + (eff.mg?1:0) > 1});
+  });
+  return out;
+}
+function onShelf(id){
+  return (state.settings.shelf || []).some(function(e){ return e.id === id; });
+}
+function amt(v, form){
+  if(v >= 100) return Math.round(v) + ' ' + form;
+  if(v >= 10) return v.toFixed(0) + ' ' + form;
+  return v.toFixed(1) + ' ' + form;
+}
+/* How to physically add it. */
+function methodText(p, amount){
+  if(p.method === 'sump'){
+    var t = 'Add the dry powder straight to the sump, into strong flow — this one is not meant to be dissolved in top-up water.';
+    if(p.scoops && p.form === 'g'){
+      var big = Math.floor(amount / p.scoops[0]), rest = amount - big * p.scoops[0];
+      var small = Math.round(rest / p.scoops[1]);
+      var parts = [];
+      if(big) parts.push(big + ' × ' + p.scoops[0] + ' g scoop' + (big > 1 ? 's' : ''));
+      if(small) parts.push(small + ' × ' + p.scoops[1] + ' g scoop' + (small > 1 ? 's' : ''));
+      if(parts.length) t += ' That is ' + parts.join(' plus ') + '.';
+    }
+    if(p.maxSingle && amount > p.maxSingle){
+      t += ' Never more than ' + p.maxSingle + ' g at once, whatever the tank size — split it and leave 10 minutes between scoops.';
+    }
+    return t;
+  }
+  if(p.method === 'dissolve'){
+    var ml = Math.max(100, Math.round(amount * 10 / 50) * 50);
+    return 'Dissolve fully in about ' + ml + ' ml of RO/DI first, then dose slowly into high flow.';
+  }
+  return 'Dose slowly into high flow. No mixing needed.';
+}
+/* Work out what to add, given what is on the shelf.
+   Each product is dosed to whichever parameter runs out first, so nothing
+   overshoots; multi-element products go first, then singles top up the rest. */
+function planBigThree(){
+  var r = state.readings, L = state.settings.netLitres;
+  var need = {}, head = {}, tested = {};
+  BIG3.forEach(function(k){
+    if(r[k] === null || r[k] === undefined) return;
+    tested[k] = true;
+    need[k] = Math.max(0, T(k).target - r[k]);
+    head[k] = Math.max(0, T(k).high - r[k]);
+  });
+  var products = shelfList().filter(function(p){
+    return BIG3.some(function(k){ return p.effects[k]; });
+  });
+  products.sort(function(a,b){ return (b.multi ? 1 : 0) - (a.multi ? 1 : 0); });
+
+  var doses = [], untested = {}, blocked = [];
+  products.forEach(function(p){
+    var limit = Infinity, drives = false, blocker = null;
+    BIG3.forEach(function(k){
+      if(!p.effects[k]) return;
+      if(!tested[k]){ untested[k] = true; return; }
+      if(need[k] > 0.0001) drives = true;
+      /* Only ever dose up to target — never push a parameter that is already
+         there, even though there is headroom below its ceiling. */
+      var perUnit = p.effects[k] * 100 / L, cap = need[k] / perUnit;
+      if(cap < limit){ limit = cap; blocker = k; }
+    });
+    if(!drives) return;
+    if(!isFinite(limit) || limit < 0.05){
+      if(p.multi && blocker) blocked.push({p:p, k:blocker});
+      return;
+    }
+    var delivered = {}, days = 1;
+    BIG3.forEach(function(k){
+      if(!p.effects[k] || !tested[k]) return;
+      var d = limit * p.effects[k] * 100 / L;
+      delivered[k] = d;
+      need[k] = Math.max(0, need[k] - d);
+      head[k] = Math.max(0, head[k] - d);
+      var cap = state.settings.caps[k];
+      if(cap > 0) days = Math.max(days, Math.ceil(d / cap - 0.0001));
+    });
+    doses.push({p:p, amount:limit, delivered:delivered, days:days});
+  });
+  var short = {};
+  BIG3.forEach(function(k){ if(tested[k] && need[k] > 0.05 && r[k] < T(k).low) short[k] = need[k]; });
+  return {doses:doses, shortfall:short, untested:untested, blocked:blocked, empty:products.length === 0};
+}
+function d0(n){ return n; }
+function fixSuggestion(k){
+  if(k === 'alk') return 'soda ash, bicarbonate of soda, or a carbonate liquid such as Red Sea Foundation B';
+  if(k === 'ca') return 'calcium chloride, or a calcium liquid such as Red Sea Foundation A';
+  return 'a magnesium blend, or a magnesium liquid such as Red Sea Foundation C';
+}
+
+function buildCorrections(){
+  var r = state.readings, S = state.settings, L = S.netLitres, out = [], ok = [], shopping = [];
+  var used = false;
+  PARAMS.forEach(function(p){ if(r[p.key] !== null && r[p.key] !== undefined) used = true; });
+  if(!used) return null;
+
+  function inRange(k){ return status(k, r[k]) === 'good'; }
+  function have(k){ return r[k] !== null && r[k] !== undefined; }
+  function push(step,title,dose,body,cls,imgs){ out.push({step:step,title:title,dose:dose,body:body,cls:cls||'',imgs:imgs||null}); }
+
+  /* 1. livestock alarm */
+  if((have('nh3') && r.nh3 > T('nh3').high) || (have('no2') && r.no2 > T('no2').high)){
+    push('First','Ammonia or nitrite is detectable','Stop dosing anything else',
+      ['Anything above zero means the biological filter is not keeping up. Do a 25–30% water change with matched temperature and salinity, check for a dead animal or an overfeed, and hold off on the corrections below until both read zero.'],'crit');
+  }
+
+  /* 2. salinity */
+  if(have('salinity')){
+    var t = T('salinity'), sal = r.salinity;
+    if(sal < t.low){
+      var grams = L * (t.target - sal) * 1.05;
+      push('Then','Salinity is low', amt(grams,'g') + ' of salt mix',
+        ['Dissolve in RO/DI in a separate container and add over 24–48 hours — no more than about 0.001 SPG every couple of days. You are reading SPG ' + (1 + sal/1327).toFixed(3) + ' at 25 °C; the target is SPG ' + (1 + t.target/1327).toFixed(3) + '.',
+         'Correct salinity before you act on any calcium, magnesium or nutrient result: those readings all shift with it.']);
+    } else if(sal > t.high){
+      var ro = L * (sal - t.target) / sal;
+      push('Then','Salinity is high', ro.toFixed(1) + ' litres RO/DI',
+        ['Replace tank water with RO/DI in stages — no more than about 0.001 SPG every couple of days. Check the auto top-up is keeping pace with evaporation.',
+         'Correct salinity before you act on any calcium, magnesium or nutrient result: those readings all shift with it.']);
+    } else ok.push('Salinity SPG ' + (1 + sal/1327).toFixed(3));
+  }
+
+  /* 3. the big three, dosed from whatever is on the shelf */
+  var lows = [];
+  BIG3.forEach(function(k){
+    if(!have(k)) return;
+    var t = T(k), name = (k === 'alk' ? 'Alkalinity' : k === 'ca' ? 'Calcium' : 'Magnesium');
+    if(r[k] < t.low){ lows.push(k); return; }
+    if(r[k] > t.high){
+      if(k === 'mg'){
+        push('Note','Magnesium is high','Pause magnesium dosing',
+          ['Nothing consumes magnesium quickly, so let water changes bring it back. Worth re-testing before acting — magnesium kits are titration-heavy and easy to over-read.']);
+      } else if(k === 'alk'){
+        push('Then','Alkalinity is high','Stop alkalinity dosing',
+          ['Let consumption pull it down rather than chasing it with a water change — the drop is safer that way. If you dose automatically, cut the daily volume by roughly 20% and re-test in two days.',
+           'Above about 9.5 dKH, LPS tissue can recede at the skeleton edge and soft corals stay shut, especially if nutrients are low at the same time.',
+           have('no3') && r.no3 < T('no3').low ? 'Note the low nitrate alongside this: starved corals stop taking up alkalinity, which is often why it climbs.' : '']);
+      } else {
+        push('Note','Calcium is high','Pause calcium dosing',
+          ['Calcium sits high harmlessly for a while. Let water changes bring it in rather than correcting it directly.']);
+      }
+      return;
+    }
+    ok.push(name + ' ' + fmt(r[k], k === 'alk' ? 2 : 0) + ' ' + UNITS[k]);
+  });
+
+  if(lows.length){
+    var plan = planBigThree();
+
+    /* Published correction order: magnesium first (it keeps calcium carbonate
+       in solution — without it the other two precipitate straight back out),
+       then alkalinity, then calcium. Sort the dose cards to match. */
+    var ELEM_ORDER = {mg:0, alk:1, ca:2};
+    function dosePriority(d){
+      var m = 3;
+      BIG3.forEach(function(k){ if(d.p.effects[k] && ELEM_ORDER[k] < m) m = ELEM_ORDER[k]; });
+      return m;
+    }
+    plan.doses.sort(function(a,b){ return dosePriority(a) - dosePriority(b); });
+
+    if(lows.indexOf('mg') > -1){
+      push('First','Magnesium is low','Fix magnesium before the rest',
+        ['Below about 1250 ppm, calcium and alkalinity will not hold however much you dose, because calcium carbonate precipitates out instead of staying in solution.']);
+    }
+
+    if(plan.empty){
+      push('Then','Nothing on your shelf raises these','Add a supplement',
+        ['Go to Setup and tick what you actually have. Without at least one product that raises ' +
+         lows.map(function(k){ return k === 'alk' ? 'alkalinity' : k === 'ca' ? 'calcium' : 'magnesium'; }).join(' or ') +
+         ', there is no dose to work out.'],'crit');
+      lows.forEach(function(k){
+        var nm2 = k === 'alk' ? 'alkalinity' : k === 'ca' ? 'calcium' : 'magnesium';
+        shopping.push({key:k, why:'Nothing on your shelf raises ' + nm2 + ' — today’s low reading cannot even be corrected until you have a product for it.'});
+      });
+    }
+
+    plan.doses.forEach(function(d){
+      var got = BIG3.filter(function(k){ return d.delivered[k] > 0.005; }).map(function(k){
+        var nm = k === 'alk' ? 'alkalinity' : k === 'ca' ? 'calcium' : 'magnesium';
+        return nm + ' +' + fmt(d.delivered[k], k === 'alk' ? 2 : 0) + ' ' + UNITS[k];
+      }).join(', ');
+      var body = [];
+      if(got) body.push('That raises ' + got + '.');
+      body.push(d.days > 1
+        ? 'Split it over ' + d.days + ' days — roughly ' + amt(d.amount / d.days, d.p.form) + ' a day — to stay inside your daily limits.'
+        : 'Fine to add in one go.');
+      body.push(methodText(d.p, d.amount));
+      if(d.p.note) body.push(d.p.note);
+      push('Then', d.p.name, amt(d.amount, d.p.form), body);
+    });
+
+    if(plan.doses.length > 1){
+      push('While dosing','Dose in the order shown, and keep doses apart','Magnesium → alkalinity → calcium, an hour between them',
+        ['The order matters: magnesium stabilises the water so the others hold, alkalinity settles fastest, and calcium goes last. This is the standard published sequence for reef chemistry corrections.',
+         'Calcium and alkalinity supplements added together in the same spot will precipitate each other out, so you lose both and coat your heater. Different times, or different ends of the sump.']);
+    }
+
+    plan.blocked.forEach(function(b){
+      var nm = b.k === 'alk' ? 'Alkalinity' : b.k === 'ca' ? 'Calcium' : 'Magnesium';
+      push('Not this time', d0(b.p.name) + ' cannot help here', 'Use a single-element supplement instead',
+        [nm + ' is already at target, so any dose of a balanced product would push it higher just to move the parameter you actually need. That is the trade-off with an all-in-one powder.']);
+    });
+
+    var shortKeys = [];
+    for(var sk in plan.shortfall) shortKeys.push(sk);
+    if(shortKeys.length){
+      var lines = shortKeys.map(function(k){
+        var nm = k === 'alk' ? 'Alkalinity' : k === 'ca' ? 'Calcium' : 'Magnesium';
+        return nm + ' stays about ' + fmt(plan.shortfall[k], k === 'alk' ? 2 : 0) + ' ' + UNITS[k] +
+          ' below target. To close it you would need ' + fixSuggestion(k) + '.';
+      });
+      lines.push('This happens when a balanced product runs out of room: dosing more of it would push another parameter past its ceiling, so the calculator stops there.');
+      push('Still short', shortKeys.length > 1 ? 'Two parameters stay low' : 'One parameter stays low',
+        'Not everything can be fixed with what you have', lines, 'crit');
+      shortKeys.forEach(function(k){
+        var nm3 = k === 'alk' ? 'alkalinity' : k === 'ca' ? 'calcium' : 'magnesium';
+        shopping.push({key:k, why:'Your balanced product ran out of headroom today and ' + nm3 + ' stayed below target — a single-element supplement closes that gap without pushing anything else.'});
+      });
+    }
+
+    var untestedKeys = [];
+    for(var uk in plan.untested) untestedKeys.push(uk);
+    if(untestedKeys.length && plan.doses.length){
+      push('Worth knowing','Untested parameters are also being raised','Test before the next dose',
+        [untestedKeys.map(function(k){ return k === 'alk' ? 'alkalinity' : k === 'ca' ? 'calcium' : 'magnesium'; }).join(' and ') +
+         ' will move too, and the calculator has no reading to keep it inside its ceiling.']);
+    }
+  }
+
+  /* 6. nutrients */
+  if(have('no3')){
+    var tn = T('no3');
+    if(r.no3 > tn.high){
+      var pct = Math.min(30, ((r.no3 - tn.target) / r.no3) * 100);
+      var after = r.no3 * (1 - pct/100);
+      push('Then','Nitrate is high', Math.round(pct) + '% water change (' + (L*pct/100).toFixed(0) + ' litres)',
+        ['That brings nitrate to roughly ' + fmt(after,1) + ' ppm. ' + (after > tn.high ? 'Still above target — repeat weekly rather than doing one huge change.' : ''), 'No hurry here. A mixed LPS and soft coral reef runs perfectly well up to about 50 ppm, and corals are more often harmed by a fast drop than by the nitrate itself. Bring it down over weeks.',
+         'If it keeps climbing, the cause is import versus export: check feeding, skimmer performance, detritus in the sump, and whether the rock is releasing what it stored.']);
+    } else if(r.no3 < tn.low){
+      var g = ((tn.target - r.no3) * 0.137) * (L/100);
+      push('Then','Nitrate is low', amt(g,'g') + ' of sodium nitrate',
+        ['Dissolve in RO/DI and add a quarter of it a day while watching the corals. Zero nitrate is not clean water — it pales tissue, stalls growth and often drags phosphate down with it.',
+         'A commercial nitrate supplement at label dose does the same job with less arithmetic.']);
+      if(!onShelf('nano3')) shopping.push({key:'no3', why:'Nitrate reads below target and you have no nitrate supplement — sodium nitrate lets you raise it in small, controlled steps.'});
+    } else ok.push('Nitrate ' + fmt(r.no3,1) + ' ppm');
+  }
+  if(have('po4')){
+    var tp = T('po4');
+    if(r.po4 > tp.high){
+      var pctp = Math.min(30, ((r.po4 - tp.target) / r.po4) * 100);
+      push('Then','Phosphate is high', Math.round(pctp) + '% water change (' + (L*pctp/100).toFixed(0) + ' litres)',
+        ['Bring it down gradually over weeks — corals adjust their uptake slowly, and a fast drop causes more stress than the phosphate did. Pair the water change with GFO run gently, or lanthanum through a filter sock, and re-test every other day.']);
+    } else if(r.po4 < tp.low){
+      push('Then','Phosphate is low','Dose a phosphate supplement to label',
+        ['Work in small steps and re-test — the useful range here is a few hundredths of a ppm, so home-mixed solutions are easy to overshoot. Check nitrate at the same time; the two want to come up together.']);
+      shopping.push({key:'po4', why:'Phosphate reads below target — a bottled phosphate supplement dosed to label brings it up in the tiny steps this range needs.'});
+    } else ok.push('Phosphate ' + fmt(r.po4,3) + ' ppm');
+  }
+
+  /* 6b. livestock sensitivity flags: name the animals whose published
+     tolerance the current reading breaches, per the stocking list. */
+  (function(){
+    var cs = S.corals || [];
+    if(!cs.length) return;
+    var seen = {}, byGroup = {};
+    cs.forEach(function(c){
+      var sp = coralById(c.sp);
+      if(seen[sp.id]) return;
+      seen[sp.id] = true;
+      [['alk','alkalinity'],['no3','nitrate'],['po4','phosphate']].forEach(function(p){
+        var v = r[p[0]];
+        if(v === null || v === undefined) return;
+        var lo = sp[p[0]][0], hi = sp[p[0]][1];
+        if(v > hi){
+          (byGroup[p[0]+'|high'] = byGroup[p[0]+'|high'] || {param:p[1], key:p[0], dir:'high', list:[]}).list.push({name:sp.name, limit:hi, grp:sp.group});
+        } else if(v < lo){
+          (byGroup[p[0]+'|low'] = byGroup[p[0]+'|low'] || {param:p[1], key:p[0], dir:'low', list:[]}).list.push({name:sp.name, limit:lo, grp:sp.group});
+        }
+      });
+    });
+    for(var gk in byGroup){
+      var g = byGroup[gk], m = meta(g.key);
+      g.list.sort(function(a,b){ return g.dir === 'high' ? a.limit - b.limit : b.limit - a.limit; });
+      var names = g.list.map(function(x){
+        return x.name + ' (published ' + (g.dir === 'high' ? 'ceiling' : 'floor') + ' ' + fmt(x.limit, m.dp) + ' ' + m.unit + ')';
+      }).join('; ');
+      var tgt2 = T(g.key).target;
+      /* A photo of each animal at risk, fetched from Wikipedia by its
+         scientific name — single genus or binomial names only. */
+      var imgs = [];
+      g.list.forEach(function(x){
+        var mm = x.name.match(/\(([^)]+)\)\s*$/);
+        if(!mm) return;
+        var latin = mm[1];
+        if(latin.indexOf('/') > -1) return;
+        latin = latin.replace(/\s+spp\.?$/, '').trim();
+        if(latin) imgs.push({title:latin, name:x.name, grp:x.grp});
+      });
+      /* Published side effects, phrased for the kinds of livestock actually
+         affected. */
+      var gp = {};
+      g.list.forEach(function(x){ gp[x.grp] = true; });
+      var isFish = gp.Fish, isCoral = gp.SPS || gp.LPS || gp.Soft || gp.Clams, isInv = gp.Inverts;
+      var fx = [];
+      if(g.key === 'no3'){
+        if(g.dir === 'high'){
+          if(isFish) fx.push('in fish: chronic stress, a weakened immune system and — in tangs and angels especially — head and lateral line erosion');
+          if(isCoral) fx.push('in corals and clams: browning as zooxanthellae overgrow, dulled colour and slowed growth');
+          if(isInv) fx.push('in inverts: anemones shrink, wander or bleach, and sensitive stars and shrimp decline');
+        } else {
+          fx.push('pale, starved tissue and stalled growth in photosynthetic livestock');
+        }
+      } else if(g.key === 'po4'){
+        if(g.dir === 'high'){
+          if(isCoral) fx.push('in corals: calcification is chemically inhibited so skeletal growth slows, while nuisance algae gain ground');
+          if(isFish || isInv) fx.push('for fish and inverts the harm is mostly indirect — algae blooms and degrading water quality');
+        } else {
+          fx.push('corals pale and starve — phosphate is a nutrient, not just a pollutant');
+        }
+      } else if(g.key === 'alk'){
+        if(g.dir === 'high') fx.push('burnt tips and receding tissue at the growth edges, hardest on SPS');
+        else fx.push('slowed calcification and weaker skeletal growth');
+      }
+      push('Livestock',
+        g.param.charAt(0).toUpperCase() + g.param.slice(1) + ' is ' + (g.dir === 'high' ? 'above' : 'below') + ' what some of your livestock tolerate',
+        'Adjust gradually toward ' + fmt(toDisp(g.key, tgt2), m.dp) + ' ' + m.unit,
+        ['Affected: ' + names + '. You are reading ' + fmt(toDisp(g.key, r[g.key]), m.dp) + ' ' + m.unit + '.',
+         fx.length ? 'Published side effects — ' + fx.join('; ') + '.' : '',
+         g.key === 'no3' || g.key === 'po4'
+           ? (g.dir === 'high'
+              ? 'Bring it down in steps with the water change planner — 10–20% at a time, days apart. The speed of the drop stresses livestock more than the level itself, so walk it, don’t yank it.'
+              : 'Raise it slowly with small feedings or dosing — sensitive livestock dislike swings in either direction.')
+           : 'Move alkalinity within your daily limit only — the corrections above already pace it safely.'],
+        g.dir === 'high' ? 'crit' : '', imgs);
+    }
+  })();
+
+  /* 7. advisories */
+  if(have('ph')){
+    var tph = T('ph');
+    if(r.ph < tph.low){
+      push('Watch','pH is low','Air, not chemicals',
+        ['Low pH with healthy alkalinity is nearly always indoor CO₂. Run the skimmer air line to a window, add a CO₂ scrubber, or run refugium lighting at night. Do not raise pH by pushing alkalinity up.']);
+    } else if(r.ph > tph.high){
+      push('Watch','pH is high','Re-test before acting',
+        ['Above 8.4 usually means a kalkwasser or limewater overdose, or a probe due for calibration. Check alkalinity alongside it.']);
+    } else ok.push('pH ' + fmt(r.ph,2));
+  }
+  if(have('temp')){
+    var tt = T('temp');
+    if(r.temp < tt.low || r.temp > tt.high){
+      push('Watch','Temperature is off target','Move it 0.5 °C a day at most',
+        [r.temp < tt.low ? 'Check the heater and its controller before assuming the room is cold.' : 'Fans across the surface drop a degree or two cheaply; check the return pump is not overheating a small sump.']);
+    } else ok.push('Temperature ' + fmt(r.temp,1) + ' °C');
+  }
+
+  /* combined note */
+  if(have('alk') && have('ca') && have('mg') && r.alk < T('alk').low && r.ca < T('ca').low && r.mg < T('mg').low){
+    push('Overall','All three are depleted','Water change first',
+      ['When alkalinity, calcium and magnesium have all dropped together, a 20% water change resets all three at once and in the right proportions. Then start a daily routine sized to consumption instead of correcting after the fact.']);
+  }
+
+  /* 8. fine-tuning: parameters already in the green, nudged toward the exact
+     optimum. Calcification elements get real doses; nutrients get gentle
+     guidance with a hard floor — published guidance is unambiguous that zero
+     nitrate or phosphate starves corals. */
+  var TUNE_TOL = {alk:0.15, ca:5, mg:15};
+  function fineTuneDose(k, deficit){
+    var prods = shelfList().filter(function(p){ return p.effects[k]; });
+    if(!prods.length) return null;
+    prods.sort(function(a,b){ return (a.multi ? 1 : 0) - (b.multi ? 1 : 0); });
+    var p = prods[0];
+    return {p:p, amount:deficit * L / 100 / p.effects[k]};
+  }
+  ['alk','ca','mg'].forEach(function(k){
+    if(!have(k) || status(k, r[k]) !== 'good') return;
+    var t3 = T(k), dev = t3.target - r[k];
+    var dp3 = k === 'alk' ? 2 : 0;
+    var nm = k === 'alk' ? 'Alkalinity' : k === 'ca' ? 'Calcium' : 'Magnesium';
+    if(dev > TUNE_TOL[k]){
+      var ft = fineTuneDose(k, dev);
+      if(!ft) return;
+      var days3 = S.caps[k] > 0 ? Math.ceil(dev / S.caps[k] - 0.0001) : 1;
+      push('Fine-tune', nm + ' is in range — a touch under optimum', amt(ft.amount, ft.p.form) + ' of ' + ft.p.name,
+        ['You are in the green at ' + fmt(r[k], dp3) + ' ' + UNITS[k] + '. This optional nudge closes the last ' +
+         fmt(dev, dp3) + ' ' + UNITS[k] + ' to the optimum of ' + fmt(t3.target, dp3) + ' — worth doing for the calcification elements, which reward sitting right on target.',
+         days3 > 1 ? 'Split it over ' + days3 + ' days to stay inside your daily limit.' : 'Small enough to add in one go.',
+         ft.p.multi ? 'A balanced product, so the other two elements rise in proportion — fine while they also sit at or under their optimums.' : ''], 'ok');
+    } else if(dev < -TUNE_TOL[k]){
+      push('Fine-tune', nm + ' is in range — a touch over optimum', 'Trim the daily dose slightly',
+        ['You are at ' + fmt(r[k], dp3) + ' ' + UNITS[k] + ' against an optimum of ' + fmt(t3.target, dp3) +
+         '. Nothing to correct — let consumption drift it down, and if you dose daily, cut the rate by roughly 10% and re-test in a week.'], 'ok');
+    }
+  });
+  if(have('no3') && status('no3', r.no3) === 'good'){
+    var tn2 = T('no3'), devN = r.no3 - tn2.target;
+    if(devN > 2){
+      var pctN = Math.min(15, (devN / r.no3) * 100);
+      push('Fine-tune', 'Nitrate is in range — above optimum', Math.round(pctN) + '% water change, or slightly stronger export',
+        ['At ' + fmt(r.no3, 1) + ' ppm against an optimum of ' + fmt(tn2.target, 1) + '. Entirely optional — this range is healthy.',
+         'Never chase nitrate below ' + fmt(tn2.low, 0) + ' ppm: at zero, corals pale, growth stalls, and ultra-low-nutrient tanks invite dinoflagellates. The floor matters as much as the ceiling.'], 'ok');
+    } else if(devN < -2 && r.no3 >= tn2.low){
+      var gN = ((tn2.target - r.no3) * 0.137) * (L / 100);
+      push('Fine-tune', 'Nitrate is in range — below optimum', amt(gN, 'g') + ' of sodium nitrate, or feed a touch more',
+        ['At ' + fmt(r.no3, 1) + ' ppm against an optimum of ' + fmt(tn2.target, 1) + '. A gentle lift keeps corals fed — deliberately not zero.'], 'ok');
+    }
+  }
+  if(have('po4') && status('po4', r.po4) === 'good'){
+    var tp2 = T('po4'), devP = r.po4 - tp2.target;
+    if(devP > 0.02){
+      push('Fine-tune', 'Phosphate is in range — above optimum', 'Run GFO a little harder, or a small water change',
+        ['At ' + fmt(r.po4, 3) + ' ppm against an optimum of ' + fmt(tp2.target, 3) + '. Optional polish only.',
+         'Never strip phosphate below ' + fmt(tp2.low, 2) + ' ppm — it is an essential nutrient, and driving it to zero starves corals faster than a high reading harms them.'], 'ok');
+    } else if(devP < -0.02 && r.po4 >= tp2.low){
+      push('Fine-tune', 'Phosphate is in range — below optimum', 'Ease the export slightly, or feed a touch more',
+        ['At ' + fmt(r.po4, 3) + ' ppm against an optimum of ' + fmt(tp2.target, 3) + '. Nudge it up gently — the floor of ' + fmt(tp2.low, 2) + ' ppm exists because zero phosphate is harmful, not clean.'], 'ok');
+    }
+  }
+
+  return {actions:out, ok:ok, shopping:shopping};
+}
+
+function renderResults(quiet){
+  var res = buildCorrections();
+  var el = $('#results');
+  if(!res){ el.innerHTML = '<div class="empty"><strong>Nothing to work from yet</strong>Enter at least one reading above.</div>'; return; }
+  var html = '';
+  var allFine = res.actions.length > 0 && res.actions.every(function(a){ return a.step === 'Fine-tune'; });
+  if(allFine){
+    html += '<div class="fix ok"><h3>Everything is inside your targets</h3><p>Nothing needs correcting — below is optional polish toward the optimums. Corals value stability over perfection, so treat these as gentle nudges, never chores.</p></div>';
+  }
+  if(res.actions.length === 0){
+    html += '<div class="fix ok"><h3>Everything is inside your targets</h3><p>No corrections needed. Keep the dosing routine as it is and test again on schedule — stability is worth more than any single number.</p></div>';
+  } else {
+    res.actions.forEach(function(a){
+      html += '<div class="fix '+a.cls+'"><div class="step">'+esc(a.step)+'</div><h3>'+esc(a.title)+'</h3>'+
+        '<div class="dose">'+esc(a.dose)+'</div>';
+      a.body.forEach(function(b){ if(b) html += '<p>'+esc(b)+'</p>'; });
+      if(a.imgs && a.imgs.length){
+        html += '<div class="lv-imgs">';
+        a.imgs.forEach(function(im){
+          html += '<span class="lv-img" data-wiki="'+esc(im.title)+'" data-grp="'+esc(im.grp || '')+'" title="'+esc(im.name)+'"></span>';
+        });
+        html += '</div>';
+      }
+      html += '</div>';
+    });
+  }
+  if(res.ok.length){
+    html += '<div class="card"><div class="eyebrow">On target</div><div class="chips">';
+    res.ok.forEach(function(o){ html += '<span class="chip">'+esc(o)+'</span>'; });
+    html += '</div></div>';
+  }
+  html += shoppingCard(res.shopping || []);
+  html += '<div class="btn-row"><button class="primary" id="btnSave">Save to log</button></div>';
+  el.innerHTML = html;
+  var sv = document.getElementById('btnSave');
+  if(sv) sv.addEventListener('click', saveEntry);
+  hydrateSpeciesImages(el);
+  if(quiet !== true) el.scrollIntoView({behavior:'smooth', block:'start'});
+}
+/* Fill .lv-img placeholders with a photo of the species. Corals search
+   Wikimedia Commons for an aquarium photograph first (wild reef-scape lead
+   images are unhelpful for identifying what is in a tank); everything else,
+   and any coral without an aquarium shot, uses the Wikipedia lead photo.
+   Cached per session; silent when offline. */
+/* Species photographs were fetched from Wikipedia and Wikimedia Commons.
+   Those are licensed works — most require attribution, some require
+   share-alike — which is not something to ship inside a paid app without
+   credit, and an offline reviewer only ever saw the gaps where they failed
+   to load. Removed outright: the app now makes no network requests at all,
+   and the stocking list reads perfectly well without them. */
+function hydrateSpeciesImages(root){ return; }
+
+/* One settings change re-renders every live view, so whatever is currently
+   on screen — tiles, corrections, salt card, log, uptake — follows it. */
+function refreshAll(){
+  renderHeader();
+  renderRows();
+  renderSetup();
+  renderSaltCalc();
+  renderLog();
+  if($('#results').innerHTML) renderResults(true);
+}
+
+/* ---------- ICP: entry, assessment and what to actually do ----------
+   Two levers are honest here without inventing product data. A water change
+   moves any element towards the level in freshly mixed salt water, and that
+   is arithmetic we can do exactly from the net volume. A shortfall can be
+   stated as the mass the tank is missing, which lets any brand of supplement
+   be used against it. Anything beyond that, the app says it cannot do. */
+function icpLast(){
+  var l = state.settings.icp || [];
+  return l.length ? l[l.length-1] : null;
+}
+function renderIcpForm(){
+  var last = icpLast(), prev = (last && last.values) || {}, sps = (last && last.setpoints) || {};
+  var html = '';
+  ICP_GROUPS.forEach(function(g){
+    html += '<div class="icp-grp"><h4>' + esc(g.name) + '</h4><div class="hint" style="margin-bottom:4px">' + esc(g.sub) + '</div>';
+    ICP_ELEMENTS.filter(function(e){ return e.grp === g.id; }).forEach(function(e){
+      var v = prev[e.k], sp = (sps[e.k] !== undefined && sps[e.k] !== null) ? sps[e.k] : e.sp;
+      html += '<div class="icp-row">' +
+        '<div class="icp-el"><b>' + e.k + '</b><span>' + esc(e.n) + '</span></div>' +
+        '<div><span class="icp-lab">Analysis ' + e.u + '</span>' +
+          '<input type="number" step="any" inputmode="decimal" data-icp="' + e.k + '" value="' + (v === undefined || v === null ? '' : v) + '"></div>' +
+        '<div><span class="icp-lab">Setpoint</span>' +
+          '<input type="number" step="any" inputmode="decimal" data-icpsp="' + e.k + '" value="' + (sp === null || sp === undefined ? '' : sp) + '"></div>' +
+      '</div>';
+    });
+    html += '</div>';
+  });
+  $('#icpForm').innerHTML = html;
+  if(!$('#icpDate').value) $('#icpDate').value = new Date().toISOString().slice(0,10);
+}
+function readIcpForm(){
+  var values = {}, setpoints = {};
+  $('#icpForm').querySelectorAll('[data-icp]').forEach(function(inp){
+    var v = num(inp.value);
+    if(v !== null) values[inp.getAttribute('data-icp')] = v;
+  });
+  $('#icpForm').querySelectorAll('[data-icpsp]').forEach(function(inp){
+    var v = num(inp.value);
+    if(v !== null) setpoints[inp.getAttribute('data-icpsp')] = v;
+  });
+  return {t:$('#icpDate').value || new Date().toISOString().slice(0,10), lab:'triton', values:values, setpoints:setpoints};
+}
+/* Fraction of the volume to replace to carry `cur` to `target`, given that
+   new water arrives at `mix`. Returns null when a water change cannot get
+   there — which is the useful answer, not a failure. */
+function dilutionFraction(cur, target, mix){
+  if(cur === target) return 0;
+  var denom = cur - mix;
+  if(Math.abs(denom) < 1e-12) return null;
+  var f = (cur - target) / denom;
+  if(f <= 0 || f > 1) return null;
+  return f;
+}
+function icpSetpoint(rep, e){
+  var sp = rep.setpoints && rep.setpoints[e.k];
+  return (sp === undefined || sp === null) ? e.sp : sp;
+}
+/* Deviation band. Trace elements swing widely between reports, so the tolerance
+   is proportional rather than absolute; contaminants get no tolerance at all. */
+function icpVerdict(e, v, sp){
+  if(sp === null || sp === undefined) return 'unset';
+  if(e.kind === 'toxic') return v > sp ? 'metal' : 'ok';
+  if(sp === 0) return v > 0 ? 'high' : 'ok';
+  var d = (v - sp) / sp;
+  if(d < -0.30) return 'low';
+  if(d >  0.30) return 'high';
+  return 'ok';
+}
+function assessIcp(rep){
+  var L = state.settings.netLitres, out = [], ok = [], unset = [];
+  ICP_ELEMENTS.forEach(function(e){
+    var v = rep.values[e.k];
+    if(v === undefined || v === null) return;
+    var sp = icpSetpoint(rep, e), verdict = icpVerdict(e, v, sp);
+    if(verdict === 'unset'){ unset.push(e.k); return; }
+    if(verdict === 'ok'){ ok.push(e.k); return; }
+
+    var body = '', why = e.note || '';
+    if(verdict === 'metal' || verdict === 'high'){
+      /* Freshly mixed water is assumed clean of contaminants; for the major
+         ions the salt brand's own published level is the floor. */
+      var mix = 0;
+      if(e.maps === 'ca') mix = currentSaltElements().ca;
+      if(e.maps === 'mg') mix = currentSaltElements().mg;
+      var f = dilutionFraction(v, sp, mix);
+      if(f === null){
+        body = 'At ' + fmt(v, v < 10 ? 2 : 0) + ' ' + e.u + ' against a setpoint of ' + sp + '. A water change will not bring this down, because the replacement water is not lower than the target. Find the source first.';
+      } else {
+        var pct = Math.round(f * 100), litres = Math.round(f * L);
+        if(pct > 40){
+          body = 'At ' + fmt(v, v < 10 ? 2 : 0) + ' ' + e.u + ' against ' + sp + '. Reaching the setpoint in one go would mean replacing ' + pct + '% of the tank — too much at once. Run 20% changes weekly and re-test after three.';
+        } else {
+          body = 'At ' + fmt(v, v < 10 ? 2 : 0) + ' ' + e.u + ' against ' + sp + '. A ' + pct + '% water change — about ' + litres + ' litres of your ' + Math.round(L) + ' — brings it to the setpoint.';
+        }
+      }
+      if(e.kind === 'toxic' && !why) why = 'Track down where it is entering from, or it will simply climb back.';
+      out.push({cls:e.kind === 'toxic' ? 'metal' : 'high', title:e.n + ' (' + e.k + ') is high', body:body, why:why, rank:e.kind === 'toxic' ? 0 : 2});
+    } else {
+      /* Shortfall expressed as mass, so any brand can be measured against it. */
+      var deficit = sp - v;
+      var mg = e.u === 'mg/l' ? deficit * L : deficit * L / 1000;
+      var mass = mg >= 1000 ? fmt(mg/1000, 1) + ' g' : mg >= 1 ? fmt(mg, 1) + ' mg' : fmt(mg*1000, 0) + ' µg';
+      body = 'At ' + fmt(v, v < 10 ? 2 : 0) + ' ' + e.u + ' against a setpoint of ' + sp + '. Your ' + Math.round(L) + ' litres are short by about ' + mass + ' of elemental ' + e.n.toLowerCase() + '.';
+      if(e.maps === 'ca' || e.maps === 'mg'){
+        body += ' This one the app already doses for — enter it on the test screen and work out corrections.';
+      } else if(onShelf('rs-abcplus') && (e.k === 'Sr' || e.k === 'K')){
+        why = 'A routine water change with fresh salt replaces this steadily; a single-element supplement is only worth it if the next report says the same.';
+      } else {
+        why = 'Nothing on your shelf lists ' + e.n.toLowerCase() + ', so the app has no dose to give you. A water change with fresh salt is the usual first answer.';
+      }
+      out.push({cls:'low', title:e.n + ' (' + e.k + ') is low', body:body, why:why, rank:e.maps ? 1 : 3});
+    }
+  });
+  out.sort(function(a,b){ return a.rank - b.rank; });
+  return {findings:out, ok:ok, unset:unset};
+}
+function renderIcp(rep){
+  if(!rep){ $('#icpOut').innerHTML = ''; return; }
+  var a = assessIcp(rep), h = '';
+  var when = new Date(rep.t);
+  h += '<div class="sub" style="margin-top:12px"><b>Report of ' + when.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) + '</b> · ' +
+       Object.keys(rep.values).length + ' elements entered · ' + a.ok.length + ' at setpoint</div>';
+  if(!a.findings.length){
+    h += '<div class="icp-find ok"><h5>Nothing needs correcting</h5><p>Every element you entered sits within range of its setpoint.</p></div>';
+  }
+  a.findings.forEach(function(f){
+    h += '<div class="icp-find ' + f.cls + '"><h5>' + esc(f.title) + '</h5><p>' + esc(f.body) + '</p>' +
+         (f.why ? '<p class="why">' + esc(f.why) + '</p>' : '') + '</div>';
+  });
+  if(a.unset.length){
+    h += '<div class="hint" style="margin-top:10px">No setpoint entered for ' + a.unset.join(', ') +
+         ', so these were skipped. Copy the setpoint from your report to have them read.</div>';
+  }
+  $('#icpOut').innerHTML = h;
+}
+
+/* ---------- suggested purchases ----------
+   Driven by what today's calculation actually needed and could not do with
+   the shelf as it stands. Images are drawn in-app, so nothing depends on a
+   shop's website. */
+var SHOP_PREF = {alk:['rs-b','rs-khp','soda'], ca:['rs-a','cacl-di'], mg:['rs-c','mgcl'], no3:['nano3']};
+var SHOP_LABEL = {alk:'KH', ca:'Ca', mg:'Mg', no3:'NO3', po4:'PO4'};
+/* No remote imagery: every product tile is drawn in the app, so nothing
+   depends on a manufacturer's CDN staying put — and nothing carries a
+   trademark that is not ours to use. */
+var PRODUCT_IMG = {};
+function productSVG(form, label, isRedSea){
+  var accent = isRedSea ? '#ec1c24' : '#64707c';
+  if(form === 'ml'){
+    return '<svg class="shop-img" viewBox="0 0 64 84" aria-hidden="true">'+
+      '<rect x="24" y="4" width="16" height="10" rx="2" fill="'+accent+'"/>'+
+      '<rect x="26" y="13" width="12" height="7" fill="#c9ced3"/>'+
+      '<rect x="14" y="20" width="36" height="58" rx="7" fill="'+accent+'"/>'+
+      '<rect x="19" y="34" width="26" height="26" rx="3" fill="#fff"/>'+
+      '<text x="32" y="51" text-anchor="middle" font-size="10" font-family="Montserrat,sans-serif" font-weight="700" fill="#1b2733">'+esc(label)+'</text>'+
+      '</svg>';
+  }
+  return '<svg class="shop-img" viewBox="0 0 64 84" aria-hidden="true">'+
+    '<rect x="8" y="14" width="48" height="11" rx="3" fill="'+accent+'"/>'+
+    '<rect x="12" y="25" width="40" height="53" rx="5" fill="'+accent+'"/>'+
+    '<rect x="17" y="38" width="30" height="28" rx="3" fill="#fff"/>'+
+    '<text x="32" y="56" text-anchor="middle" font-size="10" font-family="Montserrat,sans-serif" font-weight="700" fill="#1b2733">'+esc(label)+'</text>'+
+    '</svg>';
+}
+function shoppingCard(items){
+  if(!items.length) return '';
+  var seen = {}, rows = '';
+  items.forEach(function(sug){
+    if(seen[sug.key]) return;
+    seen[sug.key] = true;
+    var prod = null, alt = null;
+    (SHOP_PREF[sug.key] || []).forEach(function(id){
+      if(onShelf(id)) return;
+      var p = libProduct(id);
+      if(!p) return;
+      if(!prod) prod = p;
+      else if(!alt) alt = p;
+    });
+    if(sug.key === 'po4') prod = {name:'Phosphate supplement — any reef brand', form:'ml'};
+    if(!prod) return;
+    var photo = prod.id && PRODUCT_IMG[prod.id];
+    var imgHtml = photo
+      ? '<img class="shop-photo" src="'+photo+'" alt="" loading="lazy" '+
+        'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'">'+
+        '<span style="display:none">'+productSVG(prod.form, SHOP_LABEL[sug.key] || '', true)+'</span>'
+      : productSVG(prod.form, SHOP_LABEL[sug.key] || '', prod.name.indexOf('Red Sea') === 0);
+    rows += '<div class="shop-row">'+imgHtml+
+      '<div><b>'+esc(prod.name)+'</b>'+
+      (alt ? '<div class="hint" style="margin-top:2px">Dry-goods alternative: '+esc(alt.name)+'</div>' : '')+
+      '<p class="hint" style="margin-top:4px">'+esc(sug.why)+'</p></div></div>';
+  });
+  if(!rows) return '';
+  return '<div class="card"><div class="card-title">Suggested purchases</div>'+
+    '<div class="sub">Based on what today’s numbers needed and what your shelf could not do. Once bought, tick it in Setup → What’s on your shelf and every dose is worked out for you.</div>'+
+    '<div style="margin-top:6px">'+rows+'</div></div>';
+}
+
+function saveEntry(){
+  var vals = {}, any = false;
+  PARAMS.forEach(function(p){
+    var v = state.readings[p.key];
+    if(v !== null && v !== undefined){ vals[p.key] = v; any = true; }
+  });
+  if(!any){ toast('Nothing to save'); return; }
+  state.log.unshift({date:new Date().toISOString(), values:vals});
+  save();
+  renderLog();
+  toast('Saved to log');
+}
+
+/* ---------- log ---------- */
+function renderLog(){
+  var list = $('#logList');
+  function bindTrendCard(){
+    $('#trendCard').querySelectorAll('[data-chart]').forEach(function(b){
+      b.addEventListener('click', function(){
+        chartKey = b.getAttribute('data-chart');
+        renderLog();
+      });
+    });
+    $('#trendCard').querySelectorAll('[data-doseprod]').forEach(function(s){
+      s.addEventListener('change', function(){
+        state.settings.doser = state.settings.doser || {};
+        state.settings.doser[s.getAttribute('data-doseprod')] = s.value;
+        save();
+        renderLog();
+      });
+    });
+  }
+  if(!state.log.length){
+    /* No tests yet — but the stocking-based uptake estimate still renders. */
+    $('#trendCard').innerHTML = consumptionCard();
+    list.innerHTML = '<div class="empty"><strong>No tests logged yet</strong>Save a set of readings and they will build up here, with a graph of every parameter you log.</div>';
+    bindTrendCard();
+    return;
+  }
+  $('#trendCard').innerHTML = chartCard() + consumptionCard();
+  bindTrendCard();
+  var html = '';
+  state.log.forEach(function(e, i){
+    var d = new Date(e.date);
+    html += '<div class="entry"><div class="entry-top">'+
+      '<span class="entry-date">'+d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})+
+      ' · '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})+'</span>'+
+      '<button class="small ghost" data-del="'+i+'">Delete</button></div><div class="entry-vals">';
+    PARAMS.forEach(function(p){
+      if(e.values[p.key] === undefined) return;
+      var m = meta(p.key);
+      html += '<span><i>'+p.name.slice(0,4)+'</i> '+fmt(toDisp(p.key,e.values[p.key]),m.dp)+'</span>';
+    });
+    html += '</div></div>';
+  });
+  list.innerHTML = html;
+  list.querySelectorAll('[data-del]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var i = parseInt(b.getAttribute('data-del'), 10);
+      var e = state.log[i];
+      var when = e ? new Date(e.date).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}) : 'this test';
+      if(!confirm('Delete the test from ' + when + '? This cannot be undone.')) return;
+      state.log.splice(i, 1);
+      save(); renderLog(); renderHeader();
+    });
+  });
+}
+/* Full-width history graph at the top of the log, one parameter at a time. */
+var chartKey = null;
+function chartCard(){
+  var avail = PARAMS.filter(function(p){
+    return state.log.some(function(e){ return e.values[p.key] !== undefined; });
+  });
+  if(!avail.length) return '';
+  var keys = avail.map(function(p){ return p.key; });
+  if(!chartKey || keys.indexOf(chartKey) === -1) chartKey = keys.indexOf('alk') > -1 ? 'alk' : keys[0];
+  var tabs = '';
+  avail.forEach(function(p){
+    tabs += '<button class="chart-tab'+(p.key===chartKey?' on':'')+'" data-chart="'+p.key+'">'+p.name+'</button>';
+  });
+  return '<div class="card"><div class="card-title">Logged results</div>'+
+    '<div class="sub">Shaded band is your target range. Tap a parameter to change the graph.</div>'+
+    '<div class="chart-tabs">'+tabs+'</div>'+chartSVG(chartKey)+'</div>';
+}
+function chartSVG(key){
+  var t = T(key), m = meta(key);
+  var entries = [];
+  for(var i = state.log.length - 1; i >= 0; i--){
+    var e = state.log[i];
+    if(e.values[key] !== undefined) entries.push({d:new Date(e.date), v:e.values[key]});
+  }
+  if(!entries.length) return '';
+  var vals = entries.map(function(x){ return x.v; });
+  var lo = Math.min.apply(null, vals.concat([t.low])), hi = Math.max.apply(null, vals.concat([t.high]));
+  var pad = (hi - lo) * 0.15 || Math.abs(hi) * 0.1 || 1; lo -= pad; hi += pad;
+  var W = 320, H = 150;
+  function X(i){ return entries.length === 1 ? W/2 : (i/(entries.length-1))*W; }
+  function Y(v){ return H - ((v - lo)/(hi - lo))*H; }
+  var line = entries.map(function(x,i){ return X(i).toFixed(1)+','+Y(x.v).toFixed(1); }).join(' ');
+  var dots = entries.map(function(x,i){ return 'M'+X(i).toFixed(1)+' '+Y(x.v).toFixed(1)+'h0.01'; }).join('');
+  var bandTop = Y(t.high), bandH = Y(t.low) - Y(t.high);
+  var last = entries[entries.length-1];
+  var vt = verdictText(key, last.v);
+  function dl(d){ return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}); }
+  return '<div class="chart-head"><span class="'+vt[1]+'">Latest '+fmt(toDisp(key,last.v),m.dp)+(m.unit?' '+m.unit:'')+' · '+vt[0]+'</span>'+
+    '<span style="color:var(--muted)">'+entries.length+' result'+(entries.length>1?'s':'')+'</span></div>'+
+    '<svg class="chart-svg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" role="img" aria-label="'+P(key).name+' history">'+
+    '<rect x="0" y="'+bandTop.toFixed(1)+'" width="'+W+'" height="'+Math.max(1,bandH).toFixed(1)+'" fill="var(--band)"/>'+
+    (entries.length > 1 ? '<polyline points="'+line+'" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>' : '')+
+    '<path d="'+dots+'" stroke="var(--dot)" stroke-width="6" stroke-linecap="round" vector-effect="non-scaling-stroke" fill="none"/>'+
+    '</svg>'+
+    '<div class="strip-foot"><span>'+dl(entries[0].d)+'</span><span>'+dl(last.d)+'</span></div>';
+}
+
+/* ---------- uptake & dosing from the log ----------
+   Consumption is measured from intervals where a level FELL between two
+   timestamped tests. Intervals where it rose (a dose or water change happened
+   in between) are left out, so the rate reflects what the corals are using. */
+function uptakeStats(key){
+  var es = [];
+  for(var i = state.log.length - 1; i >= 0; i--){
+    var e = state.log[i];
+    if(e.values[key] !== undefined) es.push({t:new Date(e.date).getTime(), v:e.values[key]});
+  }
+  var totDrop = 0, totDays = 0, used = 0, skipped = 0;
+  for(var j = 1; j < es.length; j++){
+    var days = (es[j].t - es[j-1].t) / 86400000;
+    if(days < 0.5) continue;
+    var d = es[j-1].v - es[j].v;
+    if(d > 0){ totDrop += d; totDays += days; used++; }
+    else skipped++;
+  }
+  if(used < 1 || totDays < 0.9) return null;
+  return {perDay: totDrop/totDays, used:used, skipped:skipped};
+}
+/* When no rate can be computed, say why in plain English. */
+function uptakeWhy(key){
+  var n = 0, gaps = 0, rises = 0, prev = null;
+  for(var i = state.log.length - 1; i >= 0; i--){
+    var e = state.log[i];
+    if(e.values[key] === undefined) continue;
+    n++;
+    if(prev){
+      var days = (new Date(e.date).getTime() - prev.t) / 86400000;
+      if(days >= 0.5){
+        gaps++;
+        if(e.values[key] >= prev.v) rises++;
+      }
+    }
+    prev = {t:new Date(e.date).getTime(), v:e.values[key]};
+  }
+  if(n < 2) return 'needs two logged tests a few days apart';
+  if(gaps === 0) return 'tests too close together — leave at least half a day';
+  return 'levels only rose between tests so far — test just before dosing and the rate appears';
+}
+/* Every product that raises a given element — the full library plus any
+   custom shelf products — with shelf-edited strengths applied. */
+function doserProducts(k){
+  var strengths = {};
+  shelfList().forEach(function(p){ if(p.effects[k]) strengths[p.id] = p.effects[k]; });
+  var list = [];
+  PRODUCTS.forEach(function(p){
+    if(!p.effects[k]) return;
+    list.push({id:p.id, name:p.name, form:p.form, method:p.method,
+      eff:strengths[p.id] || p.effects[k],
+      multi:(p.effects.alk?1:0) + (p.effects.ca?1:0) + (p.effects.mg?1:0) > 1});
+  });
+  (state.settings.shelf || []).forEach(function(e){
+    if(libProduct(e.id)) return;
+    if(e.effects && num(e.effects[k]) > 0){
+      list.push({id:e.id, name:e.name || 'Custom product', form:e.form || 'g',
+        method:e.method || 'dissolve', eff:num(e.effects[k]), multi:false});
+    }
+  });
+  return list;
+}
+function consumptionCard(){
+  var NAMES = {alk:'Alkalinity', ca:'Calcium', mg:'Magnesium'};
+  var stats = [];
+  BIG3.forEach(function(k){
+    var s = uptakeStats(k);
+    if(s) stats.push({key:k, s:s});
+  });
+  /* No measurement yet for an element? Fall back to the stocking estimate
+     from the corals set in the ⚙ panel, marked ≈ until the log takes over. */
+  var estU = stockingUptake();
+  if(estU){
+    ['alk','ca','mg'].forEach(function(k){
+      if(stats.some(function(x){ return x.key === k; })) return;
+      if(estU[k] > 0.0005) stats.push({key:k, s:{perDay:estU[k], used:0, skipped:0}, est:true});
+    });
+  }
+  var ORDER3 = ['alk','ca','mg'];
+  stats.sort(function(a,b){ return ORDER3.indexOf(a.key) - ORDER3.indexOf(b.key); });
+  var net = state.settings.netLitres;
+  var rows = '', doseFields = '', costTotal = 0, anyCost = false;
+  function fnum(v){ return v >= 100 ? String(Math.round(v)) : v >= 10 ? v.toFixed(0) : v.toFixed(1); }
+  var anyEst = stats.some(function(x){ return x.est; });
+  /* Every element gets a row, in a fixed order — with the reason spelled out
+     when a rate cannot be computed yet, instead of silently missing. */
+  function doserSelect(k){
+    var opts = doserProducts(k);
+    if(!opts.length) return null;
+    var sel = (state.settings.doser || {})[k];
+    if(!opts.some(function(o){ return o.id === sel; })){
+      var def = (DEFAULTS.doser || {})[k];
+      sel = opts.some(function(o){ return o.id === def; }) ? def : opts[0].id;
+    }
+    var optHtml = '';
+    opts.forEach(function(o){
+      optHtml += '<option value="'+o.id+'"'+(o.id === sel ? ' selected' : '')+'>'+esc(o.name)+'</option>';
+    });
+    return {sel:sel, chosen:opts.filter(function(o){ return o.id === sel; })[0], optHtml:optHtml};
+  }
+  ORDER3.forEach(function(k){
+    var x = stats.filter(function(s){ return s.key === k; })[0];
+    if(!x){
+      rows += '<div class="wc-row"><span>'+NAMES[k]+'</span>'+
+        '<span class="hint" style="text-align:right;max-width:68%">'+uptakeWhy(k)+'</span></div>';
+      /* The product picker still shows, so it can be chosen ahead of the data. */
+      var pending = doserSelect(k);
+      if(pending){
+        doseFields += '<div class="field" style="margin-top:10px;margin-bottom:0">'+
+          '<label>'+NAMES[k]+' product</label>'+
+          '<select data-doseprod="'+k+'">'+pending.optHtml+'</select>'+
+          '<div class="hint">Weekly amount appears here once the log can measure this element’s uptake — '+uptakeWhy(k)+'.</div></div>';
+      }
+      return;
+    }
+    var dp = (k === 'alk') ? 2 : 1, dpw = (k === 'alk') ? 1 : 0;
+    rows += '<div class="wc-row"><span>'+NAMES[k]+'</span>'+
+      '<span class="mono">'+(x.est ? '≈ ' : '')+fmt(x.s.perDay,dp)+' '+UNITS[k]+'/day · <b>'+fmt(x.s.perDay*7,dpw)+' '+UNITS[k]+'/week</b></span></div>';
+    var opts = doserProducts(k);
+    if(!opts.length) return;
+    var sel = (state.settings.doser || {})[k];
+    if(!opts.some(function(o){ return o.id === sel; })){
+      var def = (DEFAULTS.doser || {})[k];
+      sel = opts.some(function(o){ return o.id === def; }) ? def : opts[0].id;
+    }
+    var chosen = opts.filter(function(o){ return o.id === sel; })[0];
+    var weekly = x.s.perDay * 7 * net / 100 / chosen.eff;
+    var daily = weekly / 7;
+    var optHtml = '';
+    opts.forEach(function(o){
+      optHtml += '<option value="'+o.id+'"'+(o.id === sel ? ' selected' : '')+'>'+esc(o.name)+'</option>';
+    });
+    var cp = (costSettings().products || {})[chosen.id];
+    var costTxt = '';
+    if(cp && cp.price > 0 && cp.size > 0){
+      var wkCost = weekly / cp.size * cp.price;
+      costTotal += wkCost; anyCost = true;
+      costTxt = ' ≈ £' + wkCost.toFixed(2) + ' a week.';
+    }
+    doseFields += '<div class="field" style="margin-top:10px;margin-bottom:0">'+
+      '<label>'+NAMES[k]+' product</label>'+
+      '<select data-doseprod="'+k+'">'+optHtml+'</select>'+
+      '<div class="hint"><b>'+fnum(weekly)+' '+chosen.form+' a week — set a doser to '+fnum(daily)+' '+chosen.form+' a day.'+costTxt+'</b>'+
+      (chosen.form === 'g' ? ' A dry product: dissolve each day’s dose in RO/DI first, or pick a liquid — they suit dosing pumps better.' : '')+
+      (chosen.multi ? ' Balanced product: set the rate by alkalinity and watch the other two against their targets.' : '')+
+      '</div></div>';
+  });
+  var skippedTot = stats.reduce(function(n,x){ return n + x.s.skipped; }, 0);
+  var html = '<div class="card"><div class="card-title">Weekly uptake &amp; dosing</div>'+
+    '<div class="sub">Worked out from your timestamped log — only counting stretches where a level fell between tests, so doses and water changes in between don’t muddy the rate.</div>'+
+    '<div class="wc-rows">'+rows+'</div>';
+  if(doseFields){
+    html += '<div style="margin-top:12px"><div class="eyebrow">Dose to match uptake</div>'+doseFields+
+      (anyCost ? '<div class="hint" style="margin-top:8px"><b>Dosing total ≈ £'+costTotal.toFixed(2)+' a week</b> at these rates and your prices (set in ⚙).</div>' : '')+
+      '<div class="hint" style="margin-top:10px">Start at these rates, re-test in a week, and nudge the dose — not the tank. When dose matches uptake the graph goes flat, which is exactly what corals want.</div></div>';
+  }
+  if(anyEst){
+    html += '<div class="hint" style="margin-top:8px">≈ figures are estimated from the corals in your ⚙ settings — measured uptake from your log replaces them automatically as tests build up.</div>';
+  }
+  if(skippedTot > 0){
+    html += '<div class="hint" style="margin-top:6px">'+skippedTot+' interval'+(skippedTot>1?'s':'')+' where the level rose '+(skippedTot>1?'were':'was')+' left out of the average.</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+/* ---------- setup ---------- */
+function shelfEntry(id){
+  var list = state.settings.shelf || [];
+  for(var i=0;i<list.length;i++){ if(list[i].id === id) return list[i]; }
+  return null;
+}
+function renderShelf(){
+  var items = PRODUCTS.slice();
+  (state.settings.shelf || []).forEach(function(e){
+    if(!libProduct(e.id)) items.push({id:e.id, name:e.name, form:e.form, method:e.method, effects:e.effects || {}, custom:true});
+  });
+  var html = '';
+  items.forEach(function(prod){
+    var on = onShelf(prod.id), entry = shelfEntry(prod.id) || {};
+    html += '<div class="prod'+(on ? ' on' : '')+'">'+
+      '<button class="prod-toggle" data-toggle="'+prod.id+'" aria-pressed="'+on+'">'+
+        '<span class="tick">'+(on ? '✓' : '+')+'</span><span>'+esc(prod.name)+'</span></button>';
+    if(on){
+      var base = libProduct(prod.id) || prod, form = entry.form || base.form;
+      html += '<div class="prod-eff">';
+      ['alk','ca','mg','no3'].forEach(function(k){
+        var b = base.effects[k];
+        var v = (entry.effects && entry.effects[k] !== undefined) ? entry.effects[k] : b;
+        if(v === undefined) return;
+        html += '<label>'+(k === 'alk' ? 'dKH' : UNITS[k])+' / '+form+' / 100 L'+
+          '<input type="number" step="0.01" inputmode="decimal" data-eff="'+prod.id+'|'+k+'" value="'+v+'"></label>';
+      });
+      html += '</div>';
+      if(base.note) html += '<p class="prod-note">'+esc(base.note)+'</p>';
+      if(prod.custom) html += '<div style="margin:0 0 12px 26px"><button class="small ghost" data-remove="'+prod.id+'">Remove this product</button></div>';
+    }
+    html += '</div>';
+  });
+  $('#shelfFields').innerHTML = html;
+
+  $('#shelfFields').querySelectorAll('[data-toggle]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var id = b.getAttribute('data-toggle');
+      var list = state.settings.shelf || [];
+      if(onShelf(id)){
+        state.settings.shelf = list.filter(function(e){ return e.id !== id; });
+      } else {
+        list.push({id:id}); state.settings.shelf = list;
+      }
+      save(); renderShelf(); renderLog();
+      if($('#results').innerHTML) renderResults(true);
+    });
+  });
+  $('#shelfFields').querySelectorAll('[data-eff]').forEach(function(inp){
+    inp.addEventListener('change', function(){
+      var bits = inp.getAttribute('data-eff').split('|'), v = num(inp.value);
+      var entry = shelfEntry(bits[0]);
+      if(!entry || v === null || v <= 0) return;
+      entry.effects = entry.effects || {};
+      entry.effects[bits[1]] = v;
+      save(); renderLog();
+      if($('#results').innerHTML) renderResults(true);
+    });
+  });
+  $('#shelfFields').querySelectorAll('[data-remove]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var id = b.getAttribute('data-remove');
+      state.settings.shelf = (state.settings.shelf || []).filter(function(e){ return e.id !== id; });
+      save(); renderShelf();
+    });
+  });
+}
+function renderCustomForm(){
+  $('#customForm').innerHTML =
+    '<div class="field"><label for="cpName">Product name</label><input type="text" id="cpName" placeholder="e.g. Tropic Marin All-For-Reef"></div>'+
+    '<div class="grid2">'+
+      '<div class="field"><label for="cpForm">Measured in</label><select id="cpForm"><option value="ml">millilitres</option><option value="g">grams</option></select></div>'+
+      '<div class="field"><label for="cpMethod">How it goes in</label><select id="cpMethod">'+
+        '<option value="direct">Dose it straight in</option>'+
+        '<option value="dissolve">Dissolve in RO/DI first</option>'+
+        '<option value="sump">Dry, into the sump</option></select></div>'+
+    '</div>'+
+    '<div class="sub" style="margin-bottom:8px">What one unit does in 100 litres, from the label. Leave a box empty if it does not affect that parameter.</div>'+
+    '<div class="grid3">'+
+      '<div class="field"><label>dKH</label><input type="number" step="0.01" inputmode="decimal" id="cpAlk"></div>'+
+      '<div class="field"><label>ppm Ca</label><input type="number" step="0.01" inputmode="decimal" id="cpCa"></div>'+
+      '<div class="field"><label>ppm Mg</label><input type="number" step="0.01" inputmode="decimal" id="cpMg"></div>'+
+    '</div>'+
+    '<div class="btn-row" style="margin-bottom:0"><button class="primary small" id="cpSave">Add to shelf</button>'+
+    '<button class="small ghost" id="cpCancel">Cancel</button></div>';
+
+  $('#cpSave').addEventListener('click', function(){
+    var name = ($('#cpName').value || '').trim();
+    if(!name){ toast('Give it a name first'); return; }
+    var eff = {};
+    [['alk','#cpAlk'],['ca','#cpCa'],['mg','#cpMg']].forEach(function(pair){
+      var v = num($(pair[1]).value);
+      if(v && v > 0) eff[pair[0]] = v;
+    });
+    if(!Object.keys(eff).length){ toast('Add at least one strength figure'); return; }
+    state.settings.shelf = state.settings.shelf || [];
+    state.settings.shelf.push({id:'custom-' + Date.now(), name:name,
+      form:$('#cpForm').value, method:$('#cpMethod').value, effects:eff});
+    save();
+    $('#customForm').style.display = 'none';
+    renderShelf();
+    toast('Added to your shelf');
+  });
+  $('#cpCancel').addEventListener('click', function(){ $('#customForm').style.display = 'none'; });
+}
+
+function renderSetup(){
+  $('#setTankName').value = state.settings.tankName;
+  $('#setVolUnit').value = state.settings.volUnit;
+  $('#setVolume').value = state.settings.volUnit === 'gal'
+    ? +(state.settings.netLitres / 3.78541).toFixed(1)
+    : +state.settings.netLitres.toFixed(0);
+  $('#capAlk').value = state.settings.caps.alk;
+  $('#capCa').value = state.settings.caps.ca;
+  $('#capMg').value = state.settings.caps.mg;
+
+  var prof = TANK_TYPES[state.settings.tankType || 'mixed'];
+  $('#tgtSub').textContent = 'Active profile: ' + prof.name + '. Low and high set the green band on each strip; target is what corrections aim for.';
+  $('#provSub').textContent = 'Published values for your tank type: ' + prof.name + '.';
+  $('#provBody').innerHTML = prof.blurb;
+
+  renderShelf();
+
+  var trows = '';
+  PARAMS.forEach(function(p){
+    var t = T(p.key), m = meta(p.key);
+    function box(which){
+      var val = toDisp(p.key, t[which]);
+      if(p.key === 'salinity') val = Number(val.toFixed(m.dp));
+      return '<input type="number" step="'+m.step+'" inputmode="decimal" data-tgt="'+p.key+'|'+which+'" value="'+val+'">';
+    }
+    trows += '<div class="tgt-row"><span class="nm">'+p.name+'<br><span class="tgt-head">'+(m.unit||'—')+'</span></span>'+
+      box('low') + box('target') + box('high') + '</div>';
+  });
+  $('#targetRows').innerHTML = trows;
+
+  $('#targetRows').querySelectorAll('[data-tgt]').forEach(function(inp){
+    inp.addEventListener('change', function(){
+      var parts = inp.getAttribute('data-tgt').split('|'), v = num(inp.value);
+      if(v === null) return;
+      state.settings.targets[parts[0]][parts[1]] = toInternal(parts[0], v);
+      save(); refreshAll();
+    });
+  });
+}
+function renderHeader(){
+  $('#tankName').textContent = state.settings.tankName;
+  var s = state.settings;
+  var vol = s.volUnit === 'gal' ? (s.netLitres/3.78541).toFixed(0)+' US gal' : s.netLitres.toFixed(0)+' L';
+  var prof = TANK_TYPES[s.tankType || 'mixed'];
+  $('#tankMeta').innerHTML = prof.short + ' · ' + vol + ' net<br>' + (state.log.length ? state.log.length + ' tests logged' : 'no tests yet');
+  renderTankBar();
+}
+
+/* ---------- tank switching ---------- */
+function renderTankBar(){
+  var bar = document.getElementById('tankBar');
+  if(!bar) return;
+  if(!FEATURES.multiTank || !vault || vault.tanks.length < 2){ bar.innerHTML = ''; bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  bar.innerHTML = vault.tanks.map(function(t){
+    return '<button type="button" data-tank="' + esc(t.id) + '"' + (t.id === vault.activeId ? ' class="on"' : '') +
+           '>' + esc(t.settings.tankName || 'Tank') + '</button>';
+  }).join('');
+  bar.querySelectorAll('[data-tank]').forEach(function(b){
+    b.addEventListener('click', function(){ switchTank(b.getAttribute('data-tank')); });
+  });
+}
+function switchTank(id){
+  if(!vault || id === vault.activeId) return;
+  save();
+  useTank(id);
+  $('#results').innerHTML = '';
+  refreshAll(); renderCorals(); populateTank(); renderTankPicker();
+  toast('Now on ' + (state.settings.tankName || 'this tank'));
+}
+function renderTankPicker(){
+  var sel = document.getElementById('tankPick');
+  if(!sel || !vault) return;
+  sel.innerHTML = vault.tanks.map(function(t){
+    return '<option value="' + esc(t.id) + '"' + (t.id === vault.activeId ? ' selected' : '') +
+           '>' + esc(t.settings.tankName || 'Tank') + '</option>';
+  }).join('');
+  var del = document.getElementById('btnDelTank');
+  if(del) del.disabled = vault.tanks.length < 2;
+}
+/* Lite keeps every Pro control in the page but switched off, so a tank set up
+   in Pro is never damaged by opening it here. */
+function applyTier(){
+  document.querySelectorAll('[data-pro]').forEach(function(el){
+    var name = el.getAttribute('data-pro');
+    var open = {'More than one tank':FEATURES.multiTank,
+                'Livestock-refined targets':FEATURES.livestock,
+                'Running costs':FEATURES.costs};
+    if(open[name]) return;
+    var card = document.createElement('div');
+    card.className = 'locked';
+    card.innerHTML = '<div class="locked-t">' + esc(name) + '</div>' +
+                     '<div class="locked-b">' + esc(el.getAttribute('data-why') || '') + '</div>' +
+                     '<div class="locked-n">In Reef Parameters Pro</div>';
+    el.parentNode.insertBefore(card, el);
+    el.style.display = 'none';
+  });
+}
+function upsell(title, why){
+  return '<div class="locked"><div class="locked-t">' + esc(title) + '</div>' +
+         '<div class="locked-b">' + esc(why) + '</div>' +
+         '<div class="locked-n">In Reef Parameters Pro</div></div>';
+}
+
+/* ---------- salt mix & water change calculator ---------- */
+function saltById(id){ for(var i=0;i<SALTS.length;i++){ if(SALTS[i].id===id) return SALTS[i]; } return SALTS[0]; }
+function smSettings(){
+  if(!state.settings.saltMix) state.settings.saltMix = clone(DEFAULTS.saltMix);
+  if(!state.settings.saltMix.elements) state.settings.saltMix.elements = {};
+  return state.settings.saltMix;
+}
+/* Published levels for the chosen brand, with any user overrides applied. */
+function saltElements(id){
+  var base = saltById(id).elements, ov = smSettings().elements[id] || {};
+  return {
+    alk: num(ov.alk) || base.alk,
+    ca:  num(ov.ca)  || base.ca,
+    mg:  num(ov.mg)  || base.mg
+  };
+}
+/* The selected brand's published element levels, with any on-screen edits. */
+function currentSaltElements(){
+  var b = smSettings().brand;
+  return {
+    alk: num($('#smElAlk').value) || saltElements(b).alk,
+    ca:  num($('#smElCa').value)  || saltElements(b).ca,
+    mg:  num($('#smElMg').value)  || saltElements(b).mg
+  };
+}
+function volLitres(v){ return state.settings.volUnit === 'gal' ? v * 3.78541 : v; }
+function volSuffix(){ return state.settings.volUnit === 'gal' ? ' US gal' : ' L'; }
+function spg(ppt){ return (1 + ppt/1327).toFixed(3); }
+function fillBrandFields(){
+  var sm = smSettings();
+  $('#smStrength').value = sm.strengths[sm.brand] || saltById(sm.brand).gl;
+  var el = saltElements(sm.brand);
+  $('#smElAlk').value = el.alk;
+  $('#smElCa').value = el.ca;
+  $('#smElMg').value = el.mg;
+}
+function renderSaltCalc(){
+  var sm = smSettings();
+  var opts = '';
+  SALTS.forEach(function(s){ opts += '<option value="'+s.id+'"'+(s.id===sm.brand?' selected':'')+'>'+esc(s.name)+'</option>'; });
+  $('#smBrand').innerHTML = opts;
+  fillBrandFields();
+  var volSel = $('#wcVol'), kept = volSel.value;
+  var volOpts = '<option value="">Choose…</option>';
+  for(var v5 = 5; v5 <= 100; v5 += 5){ volOpts += '<option value="'+v5+'"'+(String(v5)===kept?' selected':'')+'>'+v5+' L</option>'; }
+  volSel.innerHTML = volOpts;
+  $('#wcTgt').value = Number(toDisp('salinity', T('salinity').target).toFixed(3));
+  var curR = latestReading('salinity');
+  $('#wcCur').value = Number(toDisp('salinity', curR ? curR.v : T('salinity').target).toFixed(3));
+  setMode(sm.mode || 'change');
+}
+/* One card, one decision: a water change (salinity correction folded into the
+   new water) or a stand-alone salinity fix with no water change. */
+function setMode(m){
+  var sm = smSettings();
+  sm.mode = (m === 'fix') ? 'fix' : 'change';
+  save();
+  document.querySelectorAll('.mode-tab').forEach(function(b){
+    b.classList.toggle('on', b.getAttribute('data-mode') === sm.mode);
+  });
+  var isFix = sm.mode === 'fix';
+  $('#wcVolField').style.display = isFix ? 'none' : '';
+  $('#modeSub').textContent = isFix
+    ? 'Corrects the tank’s salinity on its own — no water change. Doses are sized to your net volume of ' + state.settings.netLitres.toFixed(0) + ' L.'
+    : 'The new water’s salinity is tuned so the tank lands on target — enter your RO/DI volume for the exact salt weight, plus the knock-on effect on the major elements.';
+  calcWC();
+}
+/* Rows for a plain-RO dilution: every element falls by the same factor as
+   the salt. Shows now → after when a reading exists, else the percentage. */
+function dilutionRows(factor){
+  var rows = '';
+  [['alk','Alkalinity'],['ca','Calcium'],['mg','Magnesium'],['no3','Nitrate'],['po4','Phosphate']].forEach(function(p){
+    var c = latestReading(p[0]);
+    var m = meta(p[0]);
+    var txt = '−' + Math.round((1 - factor) * 100) + '%';
+    if(c) txt = fmt(c.v, m.dp) + ' → ' + fmt(c.v * factor, m.dp) + ' ' + m.unit;
+    rows += '<div class="wc-row"><span>'+p[1]+'</span><span class="mono">'+txt+'</span></div>';
+  });
+  return rows;
+}
+/* Stand-alone salinity correction: no water change, sized to the tank's
+   net volume. High → staged RO/DI dilution. Low → staged dissolved salt,
+   with the knock-on lift to the major elements from the salt's published
+   contents. */
+function calcFix(){
+  var sm = smSettings(), out = $('#wcOut');
+  $('#wcPct').textContent = '';
+  var net = state.settings.netLitres;
+  var gl = num($('#smStrength').value) || saltById(sm.brand).gl;
+  var tgt = toInternal('salinity', num($('#wcTgt').value));
+  if(tgt === null || tgt <= 0) tgt = T('salinity').target;
+  var cur = toInternal('salinity', num($('#wcCur').value));
+  if(cur === null || cur <= 0) cur = tgt;
+  if(Math.abs(cur - tgt) <= 0.4){
+    out.innerHTML = '<div class="fix ok"><div class="step">Salinity</div><h3>On target</h3>'+
+      '<p>The tank is already at SPG '+spg(tgt)+' — nothing to correct. Re-test once temperature settles if the sample was warm.</p></div>';
+    return;
+  }
+  var stages;
+  if(cur > tgt){
+    var swap = net * (cur - tgt) / cur;
+    var swapIn = state.settings.volUnit === 'gal' ? swap / 3.78541 : swap;
+    stages = Math.max(1, Math.ceil((cur - tgt) / 1.33));
+    out.innerHTML = '<div class="fix"><div class="step">Salinity is high</div><h3>Dilute with RO/DI</h3>'+
+      '<div class="dose">Replace '+swapIn.toFixed(1)+volSuffix()+' with plain RO/DI</div>'+
+      '<p>Remove tank water and top back up with plain RO/DI — no salt — to bring SPG '+spg(cur)+' down to '+spg(tgt)+'.</p>'+
+      (stages > 1
+        ? '<p>Split it into '+stages+' stages of about '+(swapIn/stages).toFixed(1)+volSuffix()+' each, a day or two apart — no more than about 0.001 SPG per step with livestock.</p>'
+        : '<p>Small enough to do in one go.</p>')+
+      '<p>Plain RO carries nothing, so it thins everything equally — the major elements drop by about '+Math.round((1 - tgt/cur)*100)+'% along with the salt:</p>'+
+      '<div class="wc-rows">'+dilutionRows(tgt/cur)+'</div>'+
+      '<p>Re-test them after the final stage, before any supplement dosing.</p></div>';
+    return;
+  }
+  var grams = net * (tgt - cur) * gl / 35;
+  stages = Math.max(1, Math.ceil((tgt - cur) / 1.33));
+  var el = currentSaltElements();
+  /* The dissolved salt is, in effect, this many litres of full-strength new
+     water spread across the tank — the elements rise by that share. */
+  var eqL = grams / gl;
+  var rows = '';
+  [['alk','Alkalinity'],['ca','Calcium'],['mg','Magnesium']].forEach(function(p){
+    var d = el[p[0]] * eqL / net;
+    var c = latestReading(p[0]);
+    var dp = p[0] === 'alk' ? 2 : 0;
+    var txt = '+' + fmt(d, p[0] === 'alk' ? 2 : 1) + ' ' + UNITS[p[0]];
+    if(c) txt = fmt(c.v, dp) + ' → ' + fmt(c.v + d, dp) + ' ' + UNITS[p[0]];
+    rows += '<div class="wc-row"><span>'+p[1]+'</span><span class="mono">'+txt+'</span></div>';
+  });
+  out.innerHTML = '<div class="fix"><div class="step">Salinity is low</div><h3>'+esc(saltById(sm.brand).name)+'</h3>'+
+    '<div class="dose">'+amt(grams,'g')+' dissolved, over '+stages+' stage'+(stages > 1 ? 's' : '')+'</div>'+
+    '<p>Never add dry salt to a stocked tank. Dissolve each stage fully in a jug of RO/DI and pour slowly into high flow'+
+    (stages > 1 ? ' — about '+amt(grams/stages,'g')+' per stage, a day or two apart, no more than about 0.001 SPG per step.' : '.')+'</p>'+
+    '<p>Because reef salt is not just sodium chloride, it also lifts the major elements by roughly its published amounts:</p>'+
+    '<div class="wc-rows">'+rows+'</div>'+
+    '<p>Re-test alkalinity, calcium and magnesium once salinity settles, before any supplement dosing.</p></div>';
+}
+/* Latest known value for a parameter: today's entry first, then the log. */
+function latestReading(k){
+  if(state.readings[k] !== null && state.readings[k] !== undefined) return {v:state.readings[k], src:'today'};
+  for(var i=0;i<state.log.length;i++){
+    if(state.log[i].values[k] !== undefined) return {v:state.log[i].values[k], src:'log'};
+  }
+  return null;
+}
+var WC_KEYS = ['salinity','alk','ca','mg','no3','po4'];
+function wcPrediction(f, curSal, mixSal){
+  var el = currentSaltElements();
+  /* What the new water brings in: salt at the tuned mix salinity, published
+     elements, and effectively zero nutrients. */
+  var mix = {salinity:mixSal, alk:el.alk, ca:el.ca, mg:el.mg, no3:0, po4:0};
+  var out = [];
+  WC_KEYS.forEach(function(k){
+    if(k === 'salinity'){
+      out.push({key:'salinity', now:curSal, src:'today', after:curSal*(1-f) + mixSal*f});
+      return;
+    }
+    var c = latestReading(k);
+    if(!c) return;
+    out.push({key:k, now:c.v, src:c.src, after:c.v*(1-f) + mix[k]*f});
+  });
+  return out;
+}
+function calcWC(driver){
+  var sm = smSettings(), out = $('#wcOut');
+  if(sm.mode === 'fix'){ calcFix(); return; }
+  var net = state.settings.netLitres;
+  var gl = num($('#smStrength').value) || saltById(sm.brand).gl;
+  var tgtSal = toInternal('salinity', num($('#wcTgt').value));
+  if(tgtSal === null || tgtSal <= 0) tgtSal = T('salinity').target;
+  var cur = toInternal('salinity', num($('#wcCur').value));
+  if(cur === null || cur <= 0) cur = tgtSal;
+  /* The new water's salinity is tuned so the tank lands on target after the
+     swap — leaner than target if the tank is running high, richer if low.
+     Guard rails: one change never moves the tank more than about 0.001 SPG,
+     and the mix itself stays inside SPG 1.020–1.030. */
+  function mixFor(f){
+    var ideal = cur + (tgtSal - cur) / f;
+    var lo = Math.max(26.6, cur - 1.33 / f);
+    var hi = Math.min(39.8, cur + 1.33 / f);
+    return Math.min(Math.max(ideal, lo), hi);
+  }
+  var L = num($('#wcVol').value);
+  if(!L || L <= 0){
+    $('#wcPct').textContent = 'Pick an RO/DI volume — 10–20% of your ' + net.toFixed(0) + ' L system is the usual weekly change.';
+    out.innerHTML = '';
+    return;
+  }
+  var f = Math.min(0.9, L / net);
+  var mixSal = mixFor(f);
+  var afterSal = cur + f * (mixSal - cur);
+  $('#wcPct').textContent = 'That is ' + Math.round(f*100) + '% of your ' + net.toFixed(0) + ' L system. Mix the new water to SPG ' + spg(mixSal) + '.';
+  var grams = L * gl * mixSal / 35;
+  var preds = wcPrediction(f, cur, mixSal);
+  if(!preds.length){
+    out.innerHTML = '<div class="empty" style="padding:14px 8px">Enter today’s readings above (or save a test to the log) first — the prediction needs a starting point.</div>';
+    return;
+  }
+  var usesLog = preds.some(function(p){ return p.src === 'log'; });
+  var rows = '';
+  preds.forEach(function(p){
+    var m = meta(p.key), vt = verdictText(p.key, p.after);
+    rows += '<div class="wc-row"><span>'+P(p.key).name+'</span>'+
+      '<span class="mono">'+fmt(toDisp(p.key,p.now),m.dp)+' → <b class="'+vt[1]+'">'+fmt(toDisp(p.key,p.after),m.dp)+'</b>'+(m.unit?' '+m.unit:'')+'</span></div>';
+  });
+  /* Parameters with no reading still get an estimated resulting level: assume
+     the tank sits at its target, blend with the new water, and mark it ≈. */
+  var known = preds.map(function(p){ return p.key; });
+  var elPub = currentSaltElements();
+  var anyAssumed = false;
+  [['alk','Alkalinity'],['ca','Calcium'],['mg','Magnesium']].forEach(function(p){
+    if(known.indexOf(p[0]) > -1) return;
+    anyAssumed = true;
+    var m2 = meta(p[0]);
+    var estAfter = T(p[0]).target * (1 - f) + elPub[p[0]] * f;
+    rows += '<div class="wc-row"><span>'+p[1]+'</span><span class="mono">≈ '+fmt(estAfter, m2.dp)+' '+m2.unit+
+      ' · drawn '+Math.round(f*100)+'% toward '+elPub[p[0]]+' (published)</span></div>';
+  });
+  [['no3','Nitrate'],['po4','Phosphate']].forEach(function(p){
+    if(known.indexOf(p[0]) > -1) return;
+    anyAssumed = true;
+    var m3 = meta(p[0]);
+    var estAfter2 = T(p[0]).target * (1 - f);
+    rows += '<div class="wc-row"><span>'+p[1]+' (waste)</span><span class="mono">≈ '+fmt(estAfter2, m3.dp)+' '+m3.unit+
+      ' · −'+Math.round(f*100)+'% diluted out</span></div>';
+  });
+  var walkNote = '';
+  if(Math.abs(afterSal - tgtSal) > 0.15){
+    walkNote = '<p>Salinity lands at SPG '+spg(afterSal)+' this time — deliberately not all the way to '+spg(tgtSal)+', because one change should not swing the tank more than about 0.001 SPG. Repeat at your next water change and the app keeps walking it in until you hit target.</p>';
+  }
+  out.innerHTML = '<div class="fix ok"><div class="step">Water change</div><h3>'+esc(saltById(sm.brand).name)+'</h3>'+
+    '<div class="dose">'+amt(grams,'g')+' into '+L+' L of RO/DI</div>'+
+    '<p>That weight brings the new water to exactly SPG '+spg(mixSal)+(Math.abs(mixSal - tgtSal) > 0.15 ? ' — tuned off-target on purpose, to pull the tank back to '+spg(tgtSal) : '')+'. Mix until fully clear, heat, aerate and match the tank’s temperature, then swap it for the same volume of tank water. Predicted readings afterwards:</p>'+
+    '<div class="wc-rows">'+rows+'</div>'+
+    walkNote+
+    '<p>New salt water carries no nitrate or phosphate, so those waste products dilute down. The rest are pulled toward the salt’s published levels'+(usesLog ? '. Starting figures marked from your latest log — re-test before dosing if they are old.' : '.')+
+    (anyAssumed ? ' Rows marked ≈ assume the tank is sitting at its target — enter or log a reading for the true figure.' : '')+'</p>'+
+    (function(){
+      var co = costSettings(), bits = [], tot = 0;
+      if(co.saltPrice > 0 && co.saltKg > 0){ var sc = grams/1000 * (co.saltPrice/co.saltKg); tot += sc; bits.push('salt £'+sc.toFixed(2)); }
+      if(co.roPerL > 0){ var rc = L * co.roPerL; tot += rc; bits.push('RO £'+rc.toFixed(2)); }
+      return bits.length ? '<p>Cost of this change ≈ <b>£'+tot.toFixed(2)+'</b> ('+bits.join(' + ')+') at the prices in your ⚙ settings.</p>' : '';
+    })()+
+    (function(){
+      var feeds = stockedFeedNotes();
+      return feeds.length
+        ? '<div class="step" style="margin-top:12px">Feeding check — while you’re at the tank</div>' + feeds.join('')
+        : '';
+    })()+
+    '<div class="btn-row" style="margin-bottom:0">'+
+    '<button class="small" id="wcLog">Save to log</button>'+
+    '<button class="small primary" id="wcApply">Calculate adjustments</button></div></div>';
+  function applyPreds(){
+    preds.forEach(function(p){ state.readings[p.key] = p.after; });
+    renderRows();
+  }
+  $('#wcLog').addEventListener('click', function(){
+    applyPreds();
+    saveEntry();
+  });
+  $('#wcApply').addEventListener('click', function(){
+    applyPreds();
+    renderResults();
+    toast('Corrections now show the post-change top-up');
+  });
+}
+
+/* ---------- misc ---------- */
+var toastTimer;
+function toast(msg){
+  var t = $('#toast'); t.textContent = msg; t.classList.add('on');
+  clearTimeout(toastTimer); toastTimer = setTimeout(function(){ t.classList.remove('on'); }, 1900);
+}
+function csv(){
+  var head = ['date'].concat(PARAMS.map(function(p){ var m = meta(p.key); return m.name + (m.unit ? ' ('+m.unit+')' : ''); }));
+  var rows = [head.join(',')];
+  state.log.slice().reverse().forEach(function(e){
+    var line = [new Date(e.date).toISOString()];
+    PARAMS.forEach(function(p){
+      if(e.values[p.key] === undefined){ line.push(''); return; }
+      var m = meta(p.key);
+      line.push(Number(toDisp(p.key, e.values[p.key]).toFixed(m.dp)));
+    });
+    rows.push(line.join(','));
+  });
+  return rows.join('\n');
+}
+
+/* ---------- wiring ---------- */
+document.querySelectorAll('nav button').forEach(function(b){
+  b.addEventListener('click', function(){
+    document.querySelectorAll('nav button').forEach(function(x){ x.classList.remove('on'); });
+    document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('on'); });
+    b.classList.add('on');
+    $('#view-'+b.getAttribute('data-view')).classList.add('on');
+    window.scrollTo({top:0});
+    if(b.getAttribute('data-view') === 'log') renderLog();
+    if(b.getAttribute('data-view') === 'setup') renderSetup();
+  });
+});
+$('#btnCalc').addEventListener('click', function(){
+  if(!FEATURES.corrections){
+    $('#results').innerHTML = upsell('Corrections worked out for you',
+      'Pro reads today\'s numbers against your targets, works the doses from the products you have ticked on the shelf, splits anything too large across several days and tells you what is still short afterwards — in the order to do it.');
+    $('#results').scrollIntoView({behavior:'smooth', block:'nearest'});
+    return;
+  }
+  renderResults();
+});
+$('#btnLogNow').addEventListener('click', saveEntry);
+$('#btnClear').addEventListener('click', function(){
+  state.readings = {};
+  renderRows();
+  $('#results').innerHTML = '';
+});
+$('#setTankName').addEventListener('change', function(){
+  state.settings.tankName = this.value || 'Reef tank'; save(); renderHeader();
+});
+$('#setVolume').addEventListener('change', function(){
+  var v = num(this.value);
+  if(!v || v <= 0) return;
+  state.settings.netLitres = state.settings.volUnit === 'gal' ? v * 3.78541 : v;
+  save(); refreshAll();
+});
+$('#setVolUnit').addEventListener('change', function(){
+  state.settings.volUnit = this.value; save(); refreshAll(); populateTank();
+});
+$('#smBrand').addEventListener('change', function(){
+  var sm = smSettings();
+  sm.brand = this.value;
+  save(); fillBrandFields(); calcWC();
+});
+$('#smStrength').addEventListener('change', function(){
+  var v = num(this.value), sm = smSettings();
+  if(v && v > 0){ sm.strengths[sm.brand] = v; save(); }
+  calcWC();
+});
+[['smElAlk','alk'],['smElCa','ca'],['smElMg','mg']].forEach(function(pair){
+  $('#'+pair[0]).addEventListener('change', function(){
+    var v = num(this.value), sm = smSettings();
+    if(v && v > 0){
+      sm.elements[sm.brand] = sm.elements[sm.brand] || {};
+      sm.elements[sm.brand][pair[1]] = v;
+      save();
+    }
+    calcWC();
+  });
+});
+document.querySelectorAll('.mode-tab').forEach(function(b){
+  b.addEventListener('click', function(){ setMode(b.getAttribute('data-mode')); });
+});
+$('#wcVol').addEventListener('change', function(){ calcWC(); });
+$('#wcTgt').addEventListener('input', function(){ calcWC(); });
+$('#wcCur').addEventListener('input', function(){ calcWC(); });
+
+/* ---------- tank settings cog & reminders ---------- */
+function remSettings(){
+  if(!state.settings.reminders) state.settings.reminders = clone(DEFAULTS.reminders);
+  return state.settings.reminders;
+}
+function estSettings(){
+  if(!state.settings.estimator) state.settings.estimator = clone(DEFAULTS.estimator);
+  return state.settings.estimator;
+}
+/* Rock and sand are mostly aragonite (~2.7 kg/L solid), and their pores hold
+   water — so each kilo only displaces about 0.4 L. */
+function calcEstimate(){
+  var gal = state.settings.volUnit === 'gal';
+  var tIn = num($('#estTotal').value);
+  var rock = num($('#estRock').value) || 0;
+  var sand = num($('#estSand').value) || 0;
+  var out = $('#estOut');
+  if(!tIn || tIn <= 0){
+    out.textContent = 'Enter the total system volume as filled (display plus sump), with rough rock and sand weights — each kilo displaces about 0.4 L.';
+    return null;
+  }
+  var totalL = gal ? tIn * 3.78541 : tIn;
+  var netL = Math.max(0, totalL - 0.4 * rock - 0.4 * sand);
+  var show = gal ? (netL / 3.78541).toFixed(1) + ' US gal' : netL.toFixed(0) + ' L';
+  out.innerHTML = 'Estimated net water: <b>' + show + '</b>' +
+    (rock || sand ? ' — rock displaces about ' + (0.4 * rock).toFixed(0) + ' L, sand about ' + (0.4 * sand).toFixed(0) + ' L.' : '.');
+  return netL;
+}
+/* Narrow the tank-type bands to the overlap of the selected corals'
+   published preferred ranges. If the ranges genuinely conflict, settle on
+   the middle ground and say so. */
+function refinedBands(){
+  var prof = TANK_TYPES[state.settings.tankType || 'mixed'].targets;
+  var cs = state.settings.corals || [];
+  var res = {conflict:false};
+  ['alk','no3','po4'].forEach(function(p){
+    var lo = prof[p].low, hi = prof[p].high;
+    cs.forEach(function(c){
+      var sp = coralById(c.sp);
+      lo = Math.max(lo, sp[p][0]);
+      hi = Math.min(hi, sp[p][1]);
+    });
+    if(lo >= hi){
+      res.conflict = true;
+      var mid = (lo + hi) / 2, half = p === 'alk' ? 0.3 : p === 'no3' ? 2 : 0.02;
+      lo = mid - half; hi = mid + half;
+    }
+    /* Keep the profile's published target wherever it still fits the
+       refined band; clamp it in only when the band excludes it. */
+    res[p] = {low:lo, high:hi, target:Math.min(Math.max(prof[p].target, lo), hi)};
+  });
+  return res;
+}
+/* Stocking-based demand estimate: alkalinity per day from coral sizes and
+   demand factors, calcium and magnesium via the calcification ratio. */
+function stockingUptake(){
+  var cs = state.settings.corals || [];
+  if(!cs.length) return null;
+  var alk100 = 0;
+  cs.forEach(function(c){ alk100 += coralSizeById(c.size).f * coralById(c.sp).demand * (c.qty || 1); });
+  if(alk100 <= 0) return null;
+  var alkDay = alk100 * 100 / state.settings.netLitres;
+  return {alk:alkDay, ca:alkDay * 7.14, mg:alkDay * 0.71};
+}
+function renderCorals(){
+  var cs = state.settings.corals || [];
+  var html = '';
+  if(cs.length){
+    /* A review table: size and quantity stay editable as the tank
+       establishes — frags become colonies, shoals grow. */
+    html = '<div class="stock-row stock-head"><span>Species</span><span>Size</span><span>Qty</span><span></span></div>';
+    cs.forEach(function(c, i){
+      var spd = coralById(c.sp);
+      var counted = spd.group === 'Fish' || spd.group === 'Inverts';
+      var szOpts = '';
+      CORAL_SIZES.forEach(function(s){
+        szOpts += '<option value="'+s.id+'"'+(s.id === c.size ? ' selected' : '')+'>'+s.name+'</option>';
+      });
+      html += '<div class="stock-row"><span class="stock-name" title="'+esc(spd.name)+'">'+esc(spd.name)+'</span>'+
+        '<select data-stsize="'+i+'">'+szOpts+'</select>'+
+        (counted
+          ? '<input type="number" min="1" step="1" inputmode="numeric" data-stqty="'+i+'" value="'+(c.qty || 1)+'">'
+          : '<span class="stock-dash">—</span>')+
+        '<button class="stock-rm" data-rmcoral="'+i+'" aria-label="Remove">✕</button></div>';
+    });
+  }
+  var feeds = stockedFeedNotes();
+  if(feeds.length){
+    html += '<div style="margin-top:12px"><div class="eyebrow">Feeding needs for this stock</div>'+
+      '<div style="font-size:12px;color:#8fa6b3;line-height:1.55;margin-top:6px">'+feeds.join('')+'</div></div>';
+  }
+  $('#coralChips').innerHTML = html;
+  function stockChanged(msg){
+    applyStocking();
+    save(); refreshAll(); renderCorals();
+    toast(msg || 'Targets updated to your stocking');
+  }
+  $('#coralChips').querySelectorAll('[data-rmcoral]').forEach(function(b){
+    b.addEventListener('click', function(){
+      cs.splice(parseInt(b.getAttribute('data-rmcoral'), 10), 1);
+      stockChanged();
+    });
+  });
+  $('#coralChips').querySelectorAll('[data-stsize]').forEach(function(s){
+    s.addEventListener('change', function(){
+      cs[parseInt(s.getAttribute('data-stsize'), 10)].size = s.value;
+      stockChanged('Stocking updated — targets and demand follow');
+    });
+  });
+  $('#coralChips').querySelectorAll('[data-stqty]').forEach(function(q){
+    q.addEventListener('change', function(){
+      var v = Math.max(1, Math.round(num(q.value) || 1));
+      cs[parseInt(q.getAttribute('data-stqty'), 10)].qty = v;
+      stockChanged('Stocking updated — targets and demand follow');
+    });
+  });
+  var info;
+  if(cs.length){
+    var b = refinedBands();
+    info = 'Refined from published care ranges: alkalinity '+b.alk.low.toFixed(1)+'–'+b.alk.high.toFixed(1)+
+      ' dKH (target '+b.alk.target.toFixed(1)+'), nitrate '+Math.round(b.no3.low)+'–'+Math.round(b.no3.high)+
+      ' ppm, phosphate '+b.po4.low.toFixed(2)+'–'+b.po4.high.toFixed(2)+' ppm.'+
+      (b.conflict ? ' Your corals’ preferred ranges do not fully overlap — this is the best middle ground.' : '');
+    var est = stockingUptake();
+    if(est) info += ' Estimated demand from this stocking: about '+est.alk.toFixed(2)+' dKH a day ('+
+      (est.alk*7).toFixed(1)+' a week), with calcium and magnesium in ratio.';
+  } else {
+    info = 'Nothing added yet — targets follow the tank type alone.';
+  }
+  $('#coralInfo').textContent = info;
+}
+function costSettings(){
+  if(!state.settings.costs) state.settings.costs = clone(DEFAULTS.costs);
+  if(!state.settings.costs.products) state.settings.costs.products = {};
+  return state.settings.costs;
+}
+/* Price rows for whichever products the doser planner currently uses. */
+function renderCostProducts(){
+  var c = costSettings();
+  var ids = [], seen = {};
+  ['alk','ca','mg'].forEach(function(k){
+    var id = (state.settings.doser || {})[k] || (DEFAULTS.doser || {})[k];
+    if(id && !seen[id]){ seen[id] = true; ids.push(id); }
+  });
+  var html = '';
+  ids.forEach(function(id){
+    var p = libProduct(id);
+    if(!p) return;
+    var saved = c.products[id] || {};
+    html += '<div class="grid2" style="margin-top:2px">'+
+      '<div class="field" style="margin-bottom:8px"><label>'+esc(p.name.split(' — ')[0])+' (£)</label>'+
+      '<input type="number" step="0.01" inputmode="decimal" data-costprice="'+id+'" value="'+(saved.price || '')+'"></div>'+
+      '<div class="field" style="margin-bottom:8px"><label>Container size ('+p.form+')</label>'+
+      '<input type="number" step="1" inputmode="decimal" data-costsize="'+id+'" value="'+(saved.size || '')+'"></div></div>';
+  });
+  $('#costProducts').innerHTML = html;
+  $('#costProducts').querySelectorAll('[data-costprice],[data-costsize]').forEach(function(inp){
+    inp.addEventListener('change', function(){
+      var id = inp.getAttribute('data-costprice') || inp.getAttribute('data-costsize');
+      var cc = costSettings();
+      cc.products[id] = cc.products[id] || {};
+      if(inp.hasAttribute('data-costprice')) cc.products[id].price = num(inp.value);
+      else cc.products[id].size = num(inp.value);
+      save(); renderLog();
+    });
+  });
+}
+function populateTank(){
+  $('#setTankName').value = state.settings.tankName;
+  $('#setTankType').value = state.settings.tankType || 'mixed';
+  if(!$('#coralSp').options.length){
+    var groups = {}, spHtml = '';
+    CORALS.forEach(function(c){ (groups[c.group] = groups[c.group] || []).push(c); });
+    ['SPS','LPS','Soft','Clams','Fish','Inverts'].forEach(function(g){
+      spHtml += '<optgroup label="'+g+'">';
+      /* Alphabetical within each subsection, so a species is easy to find. */
+      (groups[g] || []).sort(function(a,b){ return a.name.localeCompare(b.name); })
+        .forEach(function(c){ spHtml += '<option value="'+c.id+'">'+esc(c.name)+'</option>'; });
+      spHtml += '</optgroup>';
+    });
+    $('#coralSp').innerHTML = spHtml;
+    var szHtml = '';
+    CORAL_SIZES.forEach(function(s){ szHtml += '<option value="'+s.id+'">'+s.name+'</option>'; });
+    $('#coralSize').innerHTML = szHtml;
+    /* Quantity only applies to fish and inverts — corals and clams go in
+       individual by individual. */
+    $('#coralSp').addEventListener('change', function(){
+      var g = coralById(this.value).group;
+      $('#coralQtyField').style.display = (g === 'Fish' || g === 'Inverts') ? '' : 'none';
+      $('#coralQty').value = 1;
+    });
+  }
+  var g0 = coralById($('#coralSp').value).group;
+  $('#coralQtyField').style.display = (g0 === 'Fish' || g0 === 'Inverts') ? '' : 'none';
+  renderCorals();
+  $('#setVolUnit').value = state.settings.volUnit;
+  $('#setVolume').value = state.settings.volUnit === 'gal'
+    ? +(state.settings.netLitres / 3.78541).toFixed(1)
+    : +state.settings.netLitres.toFixed(0);
+  var est = estSettings(), gal = state.settings.volUnit === 'gal';
+  $('#estTotalLabel').textContent = 'Total volume (' + (gal ? 'US gal' : 'L') + ')';
+  $('#estTotal').value = est.total ? (gal ? +(est.total / 3.78541).toFixed(1) : +est.total.toFixed(0)) : '';
+  $('#estRock').value = est.rock || '';
+  $('#estSand').value = est.sand || '';
+  calcEstimate();
+  var r = remSettings();
+  $('#setEmail').value = r.email;
+  $('#remWC').value = r.wc;
+  $('#remTest').value = r.test;
+  $('#remDose').value = r.dose;
+  var co = costSettings();
+  $('#costSaltPrice').value = co.saltPrice || '';
+  $('#costSaltKg').value = co.saltKg || '';
+  $('#costRo').value = co.roPerL || '';
+  renderCostProducts();
+}
+$('#btnCog').addEventListener('click', function(){
+  populateTank();
+  $('#tankModal').classList.add('on');
+});
+$('#btnCogDone').addEventListener('click', function(){ $('#tankModal').classList.remove('on'); });
+$('#btnIcpOpen').addEventListener('click', function(){
+  renderIcpForm();
+  $('#icpModal').classList.add('on');
+});
+$('#btnIcpCancel').addEventListener('click', function(){ $('#icpModal').classList.remove('on'); });
+$('#icpModal').addEventListener('click', function(e){ if(e.target === this) this.classList.remove('on'); });
+$('#btnIcpSave').addEventListener('click', function(){
+  var rep = readIcpForm();
+  if(!Object.keys(rep.values).length){ toast('Nothing entered yet'); return; }
+  state.settings.icp = (state.settings.icp || []).concat([rep]);
+  save();
+  $('#icpModal').classList.remove('on');
+  renderIcp(rep);
+  $('#icpCard').scrollIntoView({behavior:'smooth', block:'start'});
+});
+$('#btnIcpLast').addEventListener('click', function(){
+  var last = icpLast();
+  if(!last){ toast('No ICP report saved yet'); return; }
+  renderIcp(last);
+});
+$('#btnCog').addEventListener('click', function(){ renderTankPicker(); });
+if($('#tankPick')) $('#tankPick').addEventListener('change', function(){ switchTank(this.value); });
+if($('#btnAddTank')) $('#btnAddTank').addEventListener('click', function(){
+  save();
+  var t = blankTank('Tank ' + (vault.tanks.length + 1));
+  vault.tanks.push(t);
+  useTank(t.id);
+  save();
+  $('#results').innerHTML = '';
+  refreshAll(); renderCorals(); populateTank(); renderTankPicker();
+  $('#setTankName').focus(); $('#setTankName').select();
+  toast('Tank added — give it a name');
+});
+if($('#btnCopyTank')) $('#btnCopyTank').addEventListener('click', function(){
+  save();
+  var t = blankTank();
+  t.settings = clone(state.settings);
+  t.settings.tankName = (state.settings.tankName || 'Reef tank') + ' copy';
+  vault.tanks.push(t);
+  useTank(t.id);
+  save();
+  $('#results').innerHTML = '';
+  refreshAll(); renderCorals(); populateTank(); renderTankPicker();
+  toast('Setup copied, log starts empty');
+});
+if($('#btnDelTank')) $('#btnDelTank').addEventListener('click', function(){
+  if(vault.tanks.length < 2){ toast('This is your only tank'); return; }
+  var name = state.settings.tankName || 'this tank';
+  if(!confirm('Delete ' + name + ' and its ' + state.log.length + ' logged test' + (state.log.length === 1 ? '' : 's') + '? This cannot be undone.')) return;
+  vault.tanks = vault.tanks.filter(function(t){ return t.id !== vault.activeId; });
+  useTank(vault.tanks[0].id);
+  save();
+  $('#results').innerHTML = '';
+  refreshAll(); renderCorals(); populateTank(); renderTankPicker();
+  toast(name + ' deleted');
+});
+$('#tankModal').addEventListener('click', function(e){
+  if(e.target === this) this.classList.remove('on');
+});
+$('#setTankType').addEventListener('change', function(){
+  var prof = TANK_TYPES[this.value];
+  if(!prof) return;
+  state.settings.tankType = this.value;
+  state.settings.targets = clone(prof.targets);
+  state.settings.caps = clone(prof.caps);
+  applyStocking();
+  save();
+  refreshAll(); renderCorals();
+  toast(prof.name + ' targets applied' + ((state.settings.corals || []).length ? ', refined to your stocking' : ''));
+});
+['estTotal','estRock','estSand'].forEach(function(id){
+  $('#'+id).addEventListener('input', function(){
+    var est = estSettings(), gal = state.settings.volUnit === 'gal';
+    var t = num($('#estTotal').value);
+    est.total = t ? (gal ? t * 3.78541 : t) : null;
+    est.rock = num($('#estRock').value);
+    est.sand = num($('#estSand').value);
+    save();
+    calcEstimate();
+  });
+});
+$('#btnUseEst').addEventListener('click', function(){
+  var netL = calcEstimate();
+  if(!netL){ toast('Enter the total volume first'); return; }
+  state.settings.netLitres = Math.round(netL);
+  save();
+  refreshAll();
+  $('#setVolume').value = state.settings.volUnit === 'gal'
+    ? +(netL / 3.78541).toFixed(1) : Math.round(netL);
+  toast('Net volume set to ' + Math.round(netL) + ' L — every dose now uses it');
+});
+/* Stocking shapes the targets automatically: every add or remove re-derives
+   the alk / nitrate / phosphate bands from the tank type plus the published
+   ranges of everything kept. An empty list means the profile alone. */
+function applyStocking(){
+  var b = refinedBands();
+  ['alk','no3','po4'].forEach(function(k){
+    state.settings.targets[k] = {
+      low:+b[k].low.toFixed(2), target:+b[k].target.toFixed(2), high:+b[k].high.toFixed(2)
+    };
+  });
+  return b;
+}
+$('#btnAddCoral').addEventListener('click', function(){
+  state.settings.corals = state.settings.corals || [];
+  var sp = $('#coralSp').value, size = $('#coralSize').value;
+  var g = coralById(sp).group;
+  var counted = (g === 'Fish' || g === 'Inverts');
+  var qty = counted ? Math.max(1, Math.round(num($('#coralQty').value) || 1)) : 1;
+  /* Same fish or invert at the same size merges into one entry's count. */
+  var existing = counted ? state.settings.corals.filter(function(c){ return c.sp === sp && c.size === size; })[0] : null;
+  if(existing){ existing.qty = (existing.qty || 1) + qty; }
+  else { state.settings.corals.push(counted ? {sp:sp, size:size, qty:qty} : {sp:sp, size:size}); }
+  var b = applyStocking();
+  save(); refreshAll(); renderCorals();
+  toast('Targets updated to your stocking' + (b.conflict ? ' — ranges partly conflict, middle ground used' : ''));
+});
+[['costSaltPrice','saltPrice'],['costSaltKg','saltKg'],['costRo','roPerL']].forEach(function(pair){
+  $('#'+pair[0]).addEventListener('change', function(){
+    costSettings()[pair[1]] = num(this.value);
+    save(); calcWC();
+  });
+});
+$('#setEmail').addEventListener('change', function(){
+  remSettings().email = this.value.trim(); save();
+});
+$('#remWC').addEventListener('change', function(){
+  var v = num(this.value); if(v && v >= 1){ remSettings().wc = Math.round(v); save(); }
+});
+$('#remTest').addEventListener('change', function(){
+  var v = num(this.value); if(v && v >= 1){ remSettings().test = Math.round(v); save(); }
+});
+$('#remDose').addEventListener('change', function(){
+  remSettings().dose = this.value; save();
+});
+/* Build a calendar file of repeating maintenance events. Alerts fire on the
+   device; the email alarm reaches the inbox where the calendar service
+   supports it. */
+function buildIcs(){
+  var r = remSettings(), name = state.settings.tankName;
+  function pad2(n){ return (n < 10 ? '0' : '') + n; }
+  function dstamp(d, hh, mm){
+    return d.getFullYear() + pad2(d.getMonth()+1) + pad2(d.getDate()) + 'T' + pad2(hh) + pad2(mm) + '00';
+  }
+  var start = new Date(); start.setDate(start.getDate() + 1);
+  var stamp = dstamp(new Date(), 12, 0);
+  var mail = r.email;
+  function vevent(uid, title, desc, hh, mm, interval){
+    var e = ['BEGIN:VEVENT',
+      'UID:' + uid + '@reef-app',
+      'DTSTAMP:' + stamp,
+      'DTSTART:' + dstamp(start, hh, mm),
+      'DURATION:PT30M',
+      'RRULE:FREQ=DAILY;INTERVAL=' + interval,
+      'SUMMARY:' + title,
+      'DESCRIPTION:' + desc,
+      'BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:' + title,'TRIGGER:-PT0M','END:VALARM'];
+    if(mail){
+      e = e.concat(['BEGIN:VALARM','ACTION:EMAIL',
+        'ATTENDEE:mailto:' + mail,
+        'SUMMARY:' + title,
+        'DESCRIPTION:' + desc,
+        'TRIGGER:-PT0M','END:VALARM']);
+    }
+    e.push('END:VEVENT');
+    return e;
+  }
+  var lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Reef App//Reminders//EN','CALSCALE:GREGORIAN'];
+  lines = lines.concat(vevent('reef-wc', 'Water change — ' + name,
+    'Plan it in the Reef app: salt weight and predicted parameters are worked out for you.', 10, 0, r.wc));
+  lines = lines.concat(vevent('reef-test', 'Test & log — ' + name,
+    'Test the water and save the readings to the Reef app log to keep the uptake figures sharp.', 9, 0, r.test));
+  if(r.dose === '1'){
+    lines = lines.concat(vevent('reef-dose', 'Daily dose — ' + name,
+      'Dose to match uptake — the amounts are on the Reef app log page.', 8, 30, 1));
+  }
+  lines.push('END:VCALENDAR');
+  return lines.join('\r\n');
+}
+$('#btnIcs').addEventListener('click', function(){
+  try{
+    var blob = new Blob([buildIcs()], {type:'text/calendar'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'reef-reminders.ics';
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); document.body.removeChild(a); }, 500);
+    toast('Calendar file saved — open it to add the reminders');
+  }catch(e){ toast('This browser blocked the download'); }
+});
+['capAlk','capCa','capMg'].forEach(function(id){
+  $('#'+id).addEventListener('change', function(){
+    var k = id.replace('cap','').toLowerCase(), v = num(this.value);
+    if(v && v > 0){ state.settings.caps[k] = v; save(); if($('#results').innerHTML) renderResults(true); }
+  });
+});
+$('#btnAddProduct').addEventListener('click', function(){
+  var box = $('#customForm');
+  if(box.style.display === 'block'){ box.style.display = 'none'; return; }
+  renderCustomForm();
+  box.style.display = 'block';
+});
+$('#btnResetTargets').addEventListener('click', function(){
+  var prof = TANK_TYPES[state.settings.tankType || 'mixed'];
+  state.settings.targets = clone(prof.targets);
+  state.settings.caps = clone(prof.caps);
+  applyStocking();
+  save(); refreshAll(); toast(prof.name + ' targets restored' + ((state.settings.corals || []).length ? ', refined to your stocking' : ''));
+});
+$('#btnExport').addEventListener('click', function(){
+  if(!FEATURES.csv){ toast('Copy log as CSV is a Pro feature — Save backup file keeps everything'); return; }
+  if(!state.log.length){ toast('Log is empty'); return; }
+  var text = csv();
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){ toast('CSV copied'); }, function(){ fallbackCopy(text); });
+  } else fallbackCopy(text);
+});
+function fallbackCopy(text){
+  var ta = document.createElement('textarea');
+  ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.select();
+  try{ document.execCommand('copy'); toast('CSV copied'); }catch(e){ toast('Copy failed'); }
+  document.body.removeChild(ta);
+}
+$('#btnBackup').addEventListener('click', function(){
+  syncActive();
+  var payload = JSON.stringify(vault, null, 2);
+  try{
+    var blob = new Blob([payload], {type:'application/json'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'reef-backup-' + new Date().toISOString().slice(0,10) + '.json';
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); document.body.removeChild(a); }, 500);
+    toast('Backup saved');
+  }catch(e){ toast('This browser blocked the download'); }
+});
+$('#btnRestore').addEventListener('click', function(){ $('#restoreFile').click(); });
+$('#restoreFile').addEventListener('change', function(){
+  var f = this.files && this.files[0];
+  if(!f) return;
+  var fr = new FileReader();
+  fr.onload = function(){
+    try{
+      var data = JSON.parse(fr.result);
+      adopt(data);
+      save();
+      $('#results').innerHTML = '';
+      refreshAll(); renderCorals(); populateTank(); renderTankPicker();
+      toast(vault.tanks.length > 1 ? 'Backup loaded — ' + vault.tanks.length + ' tanks' : 'Backup loaded');
+    }catch(e){ toast('That file could not be read'); }
+  };
+  fr.readAsText(f);
+  this.value = '';
+});
+$('#btnWipe').addEventListener('click', function(){
+  if(!state.log.length){ toast('Log is already empty'); return; }
+  if(confirm('Erase every logged test? This cannot be undone.')){
+    state.log = []; save(); renderLog(); renderHeader(); toast('Log erased');
+  }
+});
+
+load(function(){
+  applyTier();
+  renderTankPicker();
+  renderHeader();
+  renderRows();
+  renderLog();
+  renderSetup();
+  renderSaltCalc();
+});
+})();
+</script>
+</body>
+</html>
