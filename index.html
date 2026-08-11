@@ -138,6 +138,15 @@ button.small{padding:8px 11px;font-size:13px}
 .chip{font-family:"IBM Plex Mono",monospace;font-size:11px;padding:5px 9px;border-radius:20px;border:1px solid var(--line);color:var(--good)}
 .coral-chip{font-family:"IBM Plex Mono",monospace;font-size:11px;padding:5px 10px;border-radius:20px;border:1px solid var(--line);background:var(--panel);color:var(--foam);cursor:pointer}
 
+/* stock list table */
+.stock-row{display:grid;grid-template-columns:minmax(0,1.7fr) 1fr 56px 30px;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}
+.stock-row:last-child{border-bottom:0}
+.stock-head{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted)}
+.stock-name{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stock-row select,.stock-row input{padding:7px 8px;font-size:13px;width:100%;min-width:0}
+.stock-dash{color:var(--muted);text-align:center}
+.stock-rm{background:none;border:0;color:var(--muted);font-size:14px;padding:5px;border-radius:8px;cursor:pointer}
+
 /* shelf */
 .prod{border-bottom:1px solid var(--line);padding:4px 0}
 .prod:last-child{border-bottom:0}
@@ -249,9 +258,10 @@ nav button.on{color:var(--titrant)}
 
     <h3 class="salt-sub">Livestock in the tank</h3>
     <div class="sub">Add what you actually keep — corals, clams, fish and inverts — and how big it is. Targets refine to the overlap of their published care ranges (a butterflyfish caps nitrate, a Linckia starfish demands cleaner water still), and calcifiers drive the demand estimate until your log can measure the real thing.</div>
-    <div class="grid2" style="margin-top:10px">
+    <div class="grid3" style="margin-top:10px">
       <div class="field" style="margin-bottom:8px"><label for="coralSp">Species</label><select id="coralSp"></select></div>
       <div class="field" style="margin-bottom:8px"><label for="coralSize">Size</label><select id="coralSize"></select></div>
+      <div class="field" style="margin-bottom:8px" id="coralQtyField"><label for="coralQty">Quantity</label><input type="number" id="coralQty" inputmode="numeric" step="1" min="1" value="1"></div>
     </div>
     <div class="btn-row" style="margin-top:0"><button class="small" id="btnAddCoral">Add coral</button></div>
     <div class="chips" id="coralChips" style="margin-top:2px"></div>
@@ -560,6 +570,12 @@ var CORALS = [
   ['mandarin',   'Mandarin dragonet (Synchiropus splendidus)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
   ['chromis',    'Chromis / damselfish (Chromis / Chrysiptera spp.)','Fish',7.0,11, 2,50, 0.02,0.50, 0],
   ['goby',       'Goby / blenny (Gobiodon / Ecsenius spp.)','Fish',7.0,11, 2,40,  0.02,0.40, 0],
+  ['watchman',   'Yellow watchman goby (Cryptocentrus cinctus)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
+  ['firefish',   'Firefish (Nemateleotris magnifica)',  'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['lawnmower',  'Lawnmower blenny (Salarias fasciatus)','Fish',7.0,11,   2,40,  0.02,0.40, 0],
+  ['sixline',    'Six-line wrasse (Pseudocheilinus hexataenia)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
+  ['cardinal',   'Banggai cardinalfish (Pterapogon kauderni)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
+  ['foxface',    'Foxface rabbitfish (Siganus vulpinus)','Fish',7.0,11,   2,40,  0.02,0.40, 0],
   ['gramma',     'Royal gramma (Gramma loreto)',        'Fish', 7.0,11,   2,50,  0.02,0.50, 0],
   /* Inverts: anemones and Linckia stars want mature, clean, stable water;
      snails and urchins calcify a little as they grow shell and spine. */
@@ -572,7 +588,30 @@ var CORALS = [
   ['brittlestar','Brittle star (Ophiuroidea)',          'Inverts',7.0,11,  2,40, 0.02,0.40, 0],
   ['urchin',     'Tuxedo urchin (Mespilia globulus)',   'Inverts',7.0,11,  2,40, 0.02,0.40, 0.05],
   ['snails',     'Turbo / Trochus snails (Turbo / Trochus spp.)','Inverts',7.0,11, 2,40, 0.02,0.40, 0.03],
-  ['hermit',     'Hermit crabs (Paguroidea)',           'Inverts',7.0,11,  2,50, 0.02,0.50, 0.01]
+  ['nassarius',  'Nassarius snail (Nassarius spp.)',    'Inverts',7.0,11,  2,40, 0.02,0.40, 0.02],
+  ['cerith',     'Cerith snail (Cerithium spp.)',       'Inverts',7.0,11,  2,40, 0.02,0.40, 0.02],
+  ['astrea',     'Astrea snail (Astraea tecta)',        'Inverts',7.0,11,  2,40, 0.02,0.40, 0.02],
+  ['bumblebee',  'Bumblebee snail (Engina mendicaria)', 'Inverts',7.0,11,  2,40, 0.02,0.40, 0.01],
+  ['conch',      'Fighting conch (Strombus alatus)',    'Inverts',7.0,11,  2,40, 0.02,0.40, 0.03],
+  ['hermit',     'Hermit crabs (Paguroidea)',           'Inverts',7.0,11,  2,50, 0.02,0.50, 0.01],
+  ['bluelegged', 'Blue-leg hermit (Clibanarius tricolor)','Inverts',7.0,11, 2,50, 0.02,0.50, 0.01],
+  ['scarlethermit','Scarlet reef hermit (Paguristes cadenati)','Inverts',7.0,11, 2,50, 0.02,0.50, 0.01],
+  ['emerald',    'Emerald crab (Mithraculus sculptus)', 'Inverts',7.0,11,  2,40, 0.02,0.40, 0.01],
+  ['porcelain',  'Porcelain crab (Neopetrolisthes maculatus)','Inverts',7.0,11, 2,40, 0.02,0.40, 0.01],
+  ['sallylightfoot','Sally Lightfoot crab (Percnon gibbesi)','Inverts',7.0,11, 2,40, 0.02,0.40, 0.01],
+  ['coralbanded','Coral banded shrimp (Stenopus hispidus)','Inverts',7.0,11, 2,40, 0.02,0.40, 0.02],
+  ['sexyshrimp', 'Sexy shrimp (Thor amboinensis)',      'Inverts',7.0,11,  2,40, 0.02,0.40, 0.01],
+  ['pistol',     'Pistol shrimp (Alpheus spp.)',        'Inverts',7.0,11,  2,40, 0.02,0.40, 0.01],
+  ['harlequin',  'Harlequin shrimp (Hymenocera picta)', 'Inverts',7.0,11,  2,30, 0.02,0.30, 0.01],
+  ['carpet',     'Carpet anemone (Stichodactyla haddoni)','Inverts',7.5,9.5, 2,15, 0.02,0.15, 0.02],
+  ['lta',        'Long tentacle anemone (Macrodactyla doreensis)','Inverts',7.5,9.5, 2,20, 0.03,0.20, 0.02],
+  ['condy',      'Condy anemone (Condylactis gigantea)','Inverts',7.5,9.5,  2,30, 0.03,0.25, 0.02],
+  ['minimaxi',   'Maxi-mini carpet (Stichodactyla tapetum)','Inverts',7.5,9.5, 2,30, 0.03,0.25, 0.02],
+  ['longspine',  'Long-spine urchin (Diadema setosum)', 'Inverts',7.0,11,  2,40, 0.02,0.40, 0.05],
+  ['sandstar',   'Sand-sifting starfish (Astropecten polyacanthus)','Inverts',7.0,11, 2,30, 0.02,0.30, 0],
+  ['cucumber',   'Sea cucumber (Holothuria spp.)',      'Inverts',7.0,11,  2,30, 0.02,0.30, 0],
+  ['featherduster','Feather duster worm (Sabellastarte spp.)','Inverts',7.0,11, 2,40, 0.02,0.40, 0.01],
+  ['reeflobster','Reef lobster (Enoplometopus spp.)',   'Inverts',7.0,11,  2,40, 0.02,0.40, 0.01]
 ].map(function(a){
   return {id:a[0], name:a[1], group:a[2], alk:[a[3],a[4]], no3:[a[5],a[6]], po4:[a[7],a[8]], demand:a[9]};
 });
@@ -1937,25 +1976,56 @@ function stockingUptake(){
   var cs = state.settings.corals || [];
   if(!cs.length) return null;
   var alk100 = 0;
-  cs.forEach(function(c){ alk100 += coralSizeById(c.size).f * coralById(c.sp).demand; });
+  cs.forEach(function(c){ alk100 += coralSizeById(c.size).f * coralById(c.sp).demand * (c.qty || 1); });
   if(alk100 <= 0) return null;
   var alkDay = alk100 * 100 / state.settings.netLitres;
   return {alk:alkDay, ca:alkDay * 7.14, mg:alkDay * 0.71};
 }
 function renderCorals(){
   var cs = state.settings.corals || [];
-  var chips = '';
-  cs.forEach(function(c, i){
-    chips += '<button class="coral-chip" data-rmcoral="'+i+'" title="Tap to remove">'+
-      esc(coralById(c.sp).name)+' · '+coralSizeById(c.size).name+' ✕</button>';
-  });
-  $('#coralChips').innerHTML = chips;
+  var html = '';
+  if(cs.length){
+    /* A review table: size and quantity stay editable as the tank
+       establishes — frags become colonies, shoals grow. */
+    html = '<div class="stock-row stock-head"><span>Species</span><span>Size</span><span>Qty</span><span></span></div>';
+    cs.forEach(function(c, i){
+      var spd = coralById(c.sp);
+      var counted = spd.group === 'Fish' || spd.group === 'Inverts';
+      var szOpts = '';
+      CORAL_SIZES.forEach(function(s){
+        szOpts += '<option value="'+s.id+'"'+(s.id === c.size ? ' selected' : '')+'>'+s.name+'</option>';
+      });
+      html += '<div class="stock-row"><span class="stock-name" title="'+esc(spd.name)+'">'+esc(spd.name)+'</span>'+
+        '<select data-stsize="'+i+'">'+szOpts+'</select>'+
+        (counted
+          ? '<input type="number" min="1" step="1" inputmode="numeric" data-stqty="'+i+'" value="'+(c.qty || 1)+'">'
+          : '<span class="stock-dash">—</span>')+
+        '<button class="stock-rm" data-rmcoral="'+i+'" aria-label="Remove">✕</button></div>';
+    });
+  }
+  $('#coralChips').innerHTML = html;
+  function stockChanged(msg){
+    applyStocking();
+    save(); refreshAll(); renderCorals();
+    toast(msg || 'Targets updated to your stocking');
+  }
   $('#coralChips').querySelectorAll('[data-rmcoral]').forEach(function(b){
     b.addEventListener('click', function(){
       cs.splice(parseInt(b.getAttribute('data-rmcoral'), 10), 1);
-      applyStocking();
-      save(); refreshAll(); renderCorals();
-      toast('Targets updated to your stocking');
+      stockChanged();
+    });
+  });
+  $('#coralChips').querySelectorAll('[data-stsize]').forEach(function(s){
+    s.addEventListener('change', function(){
+      cs[parseInt(s.getAttribute('data-stsize'), 10)].size = s.value;
+      stockChanged('Stocking updated — targets and demand follow');
+    });
+  });
+  $('#coralChips').querySelectorAll('[data-stqty]').forEach(function(q){
+    q.addEventListener('change', function(){
+      var v = Math.max(1, Math.round(num(q.value) || 1));
+      cs[parseInt(q.getAttribute('data-stqty'), 10)].qty = v;
+      stockChanged('Stocking updated — targets and demand follow');
     });
   });
   var info;
@@ -1988,7 +2058,16 @@ function populateTank(){
     var szHtml = '';
     CORAL_SIZES.forEach(function(s){ szHtml += '<option value="'+s.id+'">'+s.name+'</option>'; });
     $('#coralSize').innerHTML = szHtml;
+    /* Quantity only applies to fish and inverts — corals and clams go in
+       individual by individual. */
+    $('#coralSp').addEventListener('change', function(){
+      var g = coralById(this.value).group;
+      $('#coralQtyField').style.display = (g === 'Fish' || g === 'Inverts') ? '' : 'none';
+      $('#coralQty').value = 1;
+    });
   }
+  var g0 = coralById($('#coralSp').value).group;
+  $('#coralQtyField').style.display = (g0 === 'Fish' || g0 === 'Inverts') ? '' : 'none';
   renderCorals();
   $('#setVolUnit').value = state.settings.volUnit;
   $('#setVolume').value = state.settings.volUnit === 'gal'
@@ -2060,7 +2139,14 @@ function applyStocking(){
 }
 $('#btnAddCoral').addEventListener('click', function(){
   state.settings.corals = state.settings.corals || [];
-  state.settings.corals.push({sp:$('#coralSp').value, size:$('#coralSize').value});
+  var sp = $('#coralSp').value, size = $('#coralSize').value;
+  var g = coralById(sp).group;
+  var counted = (g === 'Fish' || g === 'Inverts');
+  var qty = counted ? Math.max(1, Math.round(num($('#coralQty').value) || 1)) : 1;
+  /* Same fish or invert at the same size merges into one entry's count. */
+  var existing = counted ? state.settings.corals.filter(function(c){ return c.sp === sp && c.size === size; })[0] : null;
+  if(existing){ existing.qty = (existing.qty || 1) + qty; }
+  else { state.settings.corals.push(counted ? {sp:sp, size:size, qty:qty} : {sp:sp, size:size}); }
   var b = applyStocking();
   save(); refreshAll(); renderCorals();
   toast('Targets updated to your stocking' + (b.conflict ? ' — ranges partly conflict, middle ground used' : ''));
