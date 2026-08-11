@@ -1426,6 +1426,63 @@ function buildCorrections(){
       ['When alkalinity, calcium and magnesium have all dropped together, a 20% water change resets all three at once and in the right proportions. Then start a daily routine sized to consumption instead of correcting after the fact.']);
   }
 
+  /* 8. fine-tuning: parameters already in the green, nudged toward the exact
+     optimum. Calcification elements get real doses; nutrients get gentle
+     guidance with a hard floor — published guidance is unambiguous that zero
+     nitrate or phosphate starves corals. */
+  var TUNE_TOL = {alk:0.15, ca:5, mg:15};
+  function fineTuneDose(k, deficit){
+    var prods = shelfList().filter(function(p){ return p.effects[k]; });
+    if(!prods.length) return null;
+    prods.sort(function(a,b){ return (a.multi ? 1 : 0) - (b.multi ? 1 : 0); });
+    var p = prods[0];
+    return {p:p, amount:deficit * L / 100 / p.effects[k]};
+  }
+  ['alk','ca','mg'].forEach(function(k){
+    if(!have(k) || status(k, r[k]) !== 'good') return;
+    var t3 = T(k), dev = t3.target - r[k];
+    var dp3 = k === 'alk' ? 2 : 0;
+    var nm = k === 'alk' ? 'Alkalinity' : k === 'ca' ? 'Calcium' : 'Magnesium';
+    if(dev > TUNE_TOL[k]){
+      var ft = fineTuneDose(k, dev);
+      if(!ft) return;
+      var days3 = S.caps[k] > 0 ? Math.ceil(dev / S.caps[k] - 0.0001) : 1;
+      push('Fine-tune', nm + ' is in range — a touch under optimum', amt(ft.amount, ft.p.form) + ' of ' + ft.p.name,
+        ['You are in the green at ' + fmt(r[k], dp3) + ' ' + UNITS[k] + '. This optional nudge closes the last ' +
+         fmt(dev, dp3) + ' ' + UNITS[k] + ' to the optimum of ' + fmt(t3.target, dp3) + ' — worth doing for the calcification elements, which reward sitting right on target.',
+         days3 > 1 ? 'Split it over ' + days3 + ' days to stay inside your daily limit.' : 'Small enough to add in one go.',
+         ft.p.multi ? 'A balanced product, so the other two elements rise in proportion — fine while they also sit at or under their optimums.' : ''], 'ok');
+    } else if(dev < -TUNE_TOL[k]){
+      push('Fine-tune', nm + ' is in range — a touch over optimum', 'Trim the daily dose slightly',
+        ['You are at ' + fmt(r[k], dp3) + ' ' + UNITS[k] + ' against an optimum of ' + fmt(t3.target, dp3) +
+         '. Nothing to correct — let consumption drift it down, and if you dose daily, cut the rate by roughly 10% and re-test in a week.'], 'ok');
+    }
+  });
+  if(have('no3') && status('no3', r.no3) === 'good'){
+    var tn2 = T('no3'), devN = r.no3 - tn2.target;
+    if(devN > 2){
+      var pctN = Math.min(15, (devN / r.no3) * 100);
+      push('Fine-tune', 'Nitrate is in range — above optimum', Math.round(pctN) + '% water change, or slightly stronger export',
+        ['At ' + fmt(r.no3, 1) + ' ppm against an optimum of ' + fmt(tn2.target, 1) + '. Entirely optional — this range is healthy.',
+         'Never chase nitrate below ' + fmt(tn2.low, 0) + ' ppm: at zero, corals pale, growth stalls, and ultra-low-nutrient tanks invite dinoflagellates. The floor matters as much as the ceiling.'], 'ok');
+    } else if(devN < -2 && r.no3 >= tn2.low){
+      var gN = ((tn2.target - r.no3) * 0.137) * (L / 100);
+      push('Fine-tune', 'Nitrate is in range — below optimum', amt(gN, 'g') + ' of sodium nitrate, or feed a touch more',
+        ['At ' + fmt(r.no3, 1) + ' ppm against an optimum of ' + fmt(tn2.target, 1) + '. A gentle lift keeps corals fed — deliberately not zero.'], 'ok');
+    }
+  }
+  if(have('po4') && status('po4', r.po4) === 'good'){
+    var tp2 = T('po4'), devP = r.po4 - tp2.target;
+    if(devP > 0.02){
+      push('Fine-tune', 'Phosphate is in range — above optimum', 'Run GFO a little harder, or a small water change',
+        ['At ' + fmt(r.po4, 3) + ' ppm against an optimum of ' + fmt(tp2.target, 3) + '. Optional polish only.',
+         'Never strip phosphate below ' + fmt(tp2.low, 2) + ' ppm — it is an essential nutrient, and driving it to zero starves corals faster than a high reading harms them.'], 'ok');
+    } else if(devP < -0.02 && r.po4 >= tp2.low){
+      push('Fine-tune', 'Phosphate is in range — below optimum', 'Ease the export slightly, or feed a touch more',
+        ['At ' + fmt(r.po4, 3) + ' ppm against an optimum of ' + fmt(tp2.target, 3) + '. Nudge it up gently — the floor of ' + fmt(tp2.low, 2) + ' ppm exists because zero phosphate is harmful, not clean.'], 'ok');
+    }
+  }
+
   return {actions:out, ok:ok, shopping:shopping};
 }
 
@@ -1434,6 +1491,10 @@ function renderResults(quiet){
   var el = $('#results');
   if(!res){ el.innerHTML = '<div class="empty"><strong>Nothing to work from yet</strong>Enter at least one reading above.</div>'; return; }
   var html = '';
+  var allFine = res.actions.length > 0 && res.actions.every(function(a){ return a.step === 'Fine-tune'; });
+  if(allFine){
+    html += '<div class="fix ok"><h3>Everything is inside your targets</h3><p>Nothing needs correcting — below is optional polish toward the optimums. Corals value stability over perfection, so treat these as gentle nudges, never chores.</p></div>';
+  }
   if(res.actions.length === 0){
     html += '<div class="fix ok"><h3>Everything is inside your targets</h3><p>No corrections needed. Keep the dosing routine as it is and test again on schedule — stability is worth more than any single number.</p></div>';
   } else {
