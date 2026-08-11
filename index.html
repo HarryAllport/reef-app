@@ -591,6 +591,27 @@ var CORALS = [
   ['tailspot',   'Tailspot blenny (Ecsenius stigmatura)','Fish',7.0,11,   2,40,  0.02,0.40, 0],
   ['midas',      'Midas blenny (Ecsenius midas)',       'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
   ['goby',       'Goby / blenny — other (Gobiidae / Blenniidae)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
+  ['moorishidol','Moorish idol (Zanclus cornutus)',     'Fish', 7.0,11,   2,15,  0.02,0.20, 0],
+  ['squarespot', 'Squarespot anthias (Pseudanthias pleurotaenia)','Fish',7.0,11, 2,25, 0.02,0.30, 0],
+  ['dispar',     'Dispar anthias (Pseudanthias dispar)','Fish', 7.0,11,   2,25,  0.02,0.30, 0],
+  ['bartletts',  'Bartlett’s anthias (Pseudanthias bartlettorum)','Fish',7.0,11, 2,25, 0.02,0.30, 0],
+  ['evansi',     'Evansi anthias (Pseudanthias evansi)','Fish', 7.0,11,   2,20,  0.02,0.25, 0],
+  ['yellowcoris','Yellow coris wrasse (Halichoeres chrysus)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
+  ['flasher',    'McCosker’s flasher wrasse (Paracheilinus mccoskeri)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
+  ['leopardwrasse','Leopard wrasse (Macropharyngodon meleagris)','Fish',7.0,11, 2,25, 0.02,0.30, 0],
+  ['lemonpeel',  'Lemonpeel angel (Centropyge flavissima)','Fish',7.0,11,  2,40,  0.02,0.40, 0],
+  ['cherub',     'Cherub angel (Centropyge argi)',      'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['bicolorangel','Bicolor angel (Centropyge bicolor)', 'Fish', 7.0,11,   2,30,  0.02,0.30, 0],
+  ['emperor',    'Emperor angelfish (Pomacanthus imperator)','Fish',7.0,11, 2,30, 0.02,0.30, 0],
+  ['regalangel', 'Regal angelfish (Pygoplites diacanthus)','Fish',7.0,11,  2,15,  0.02,0.20, 0],
+  ['frenchangel','French angelfish (Pomacanthus paru)', 'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['koran',      'Koran angelfish (Pomacanthus semicirculatus)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
+  ['queenangel', 'Queen angelfish (Holacanthus ciliaris)','Fish',7.0,11,   2,40,  0.02,0.40, 0],
+  ['yasha',      'Yasha goby (Stonogobiops yasha)',     'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['neongoby',   'Neon goby (Elacatinus oceanops)',     'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['orangespotgoby','Orange-spotted goby (Amblyeleotris guttata)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
+  ['engineergoby','Engineer goby (Pholidichthys leucotaenia)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
+  ['rainfordi',  'Court jester goby (Koumansetta rainfordi)','Fish',7.0,11, 2,30, 0.02,0.30, 0],
   ['watchman',   'Yellow watchman goby (Cryptocentrus cinctus)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
   ['firefish',   'Firefish (Nemateleotris magnifica)',  'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
   ['lawnmower',  'Lawnmower blenny (Salarias fasciatus)','Fish',7.0,11,   2,40,  0.02,0.40, 0],
@@ -2113,7 +2134,9 @@ function populateTank(){
     CORALS.forEach(function(c){ (groups[c.group] = groups[c.group] || []).push(c); });
     ['SPS','LPS','Soft','Clams','Fish','Inverts'].forEach(function(g){
       spHtml += '<optgroup label="'+g+'">';
-      (groups[g] || []).forEach(function(c){ spHtml += '<option value="'+c.id+'">'+esc(c.name)+'</option>'; });
+      /* Alphabetical within each subsection, so a species is easy to find. */
+      (groups[g] || []).sort(function(a,b){ return a.name.localeCompare(b.name); })
+        .forEach(function(c){ spHtml += '<option value="'+c.id+'">'+esc(c.name)+'</option>'; });
       spHtml += '</optgroup>';
     });
     $('#coralSp').innerHTML = spHtml;
