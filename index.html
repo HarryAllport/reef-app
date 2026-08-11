@@ -147,6 +147,11 @@ button.small{padding:8px 11px;font-size:13px}
 .stock-dash{color:var(--muted);text-align:center}
 .stock-rm{background:none;border:0;color:var(--muted);font-size:14px;padding:5px;border-radius:8px;cursor:pointer}
 
+/* species photos on livestock alerts */
+.lv-imgs{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:flex-start}
+.lv-img:empty{display:none}
+.lv-img img{height:74px;width:100px;object-fit:cover;border-radius:8px;border:1px solid var(--line);display:block}
+
 /* shelf */
 .prod{border-bottom:1px solid var(--line);padding:4px 0}
 .prod:last-child{border-bottom:0}
@@ -1114,7 +1119,7 @@ function buildCorrections(){
 
   function inRange(k){ return status(k, r[k]) === 'good'; }
   function have(k){ return r[k] !== null && r[k] !== undefined; }
-  function push(step,title,dose,body,cls){ out.push({step:step,title:title,dose:dose,body:body,cls:cls||''}); }
+  function push(step,title,dose,body,cls,imgs){ out.push({step:step,title:title,dose:dose,body:body,cls:cls||'',imgs:imgs||null}); }
 
   /* 1. livestock alarm */
   if((have('nh3') && r.nh3 > T('nh3').high) || (have('no2') && r.no2 > T('no2').high)){
@@ -1293,6 +1298,17 @@ function buildCorrections(){
         return x.name + ' (published ' + (g.dir === 'high' ? 'ceiling' : 'floor') + ' ' + fmt(x.limit, m.dp) + ' ' + m.unit + ')';
       }).join('; ');
       var tgt2 = T(g.key).target;
+      /* A photo of each animal at risk, fetched from Wikipedia by its
+         scientific name — single genus or binomial names only. */
+      var imgs = [];
+      g.list.forEach(function(x){
+        var mm = x.name.match(/\(([^)]+)\)\s*$/);
+        if(!mm) return;
+        var latin = mm[1];
+        if(latin.indexOf('/') > -1) return;
+        latin = latin.replace(/\s+spp\.?$/, '').trim();
+        if(latin) imgs.push({title:latin, name:x.name});
+      });
       push('Livestock',
         g.param.charAt(0).toUpperCase() + g.param.slice(1) + ' is ' + (g.dir === 'high' ? 'above' : 'below') + ' what some of your livestock tolerate',
         'Adjust gradually toward ' + fmt(toDisp(g.key, tgt2), m.dp) + ' ' + m.unit,
@@ -1302,7 +1318,7 @@ function buildCorrections(){
               ? 'Bring it down in steps with the water change planner — 10–20% at a time, days apart. The speed of the drop stresses livestock more than the level itself, so walk it, don’t yank it.'
               : 'Raise it slowly with small feedings or dosing — sensitive livestock dislike swings in either direction.')
            : 'Move alkalinity within your daily limit only — the corrections above already pace it safely.'],
-        g.dir === 'high' ? 'crit' : '');
+        g.dir === 'high' ? 'crit' : '', imgs);
     }
   })();
 
@@ -1346,6 +1362,13 @@ function renderResults(quiet){
       html += '<div class="fix '+a.cls+'"><div class="step">'+esc(a.step)+'</div><h3>'+esc(a.title)+'</h3>'+
         '<div class="dose">'+esc(a.dose)+'</div>';
       a.body.forEach(function(b){ if(b) html += '<p>'+esc(b)+'</p>'; });
+      if(a.imgs && a.imgs.length){
+        html += '<div class="lv-imgs">';
+        a.imgs.forEach(function(im){
+          html += '<span class="lv-img" data-wiki="'+esc(im.title)+'" title="'+esc(im.name)+'"></span>';
+        });
+        html += '<span class="hint" style="align-self:flex-end">Photos: Wikipedia</span></div>';
+      }
       html += '</div>';
     });
   }
@@ -1358,7 +1381,34 @@ function renderResults(quiet){
   el.innerHTML = html;
   var sv = document.getElementById('btnSave');
   if(sv) sv.addEventListener('click', saveEntry);
+  hydrateSpeciesImages(el);
   if(quiet !== true) el.scrollIntoView({behavior:'smooth', block:'start'});
+}
+/* Fill .lv-img placeholders with each species' Wikipedia lead photo, looked
+   up by scientific name. Cached per session; silent when offline. */
+var wikiImgCache = {};
+function hydrateSpeciesImages(root){
+  if(!window.fetch) return;
+  root.querySelectorAll('[data-wiki]').forEach(function(spn){
+    var t = spn.getAttribute('data-wiki');
+    function place(url){
+      if(!url || spn.querySelector('img')) return;
+      var img = document.createElement('img');
+      img.src = url;
+      img.alt = spn.title;
+      img.loading = 'lazy';
+      spn.appendChild(img);
+    }
+    if(wikiImgCache[t] !== undefined){ place(wikiImgCache[t]); return; }
+    fetch('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(t.replace(/ /g, '_')))
+      .then(function(res){ return res.ok ? res.json() : null; })
+      .then(function(j){
+        var url = (j && j.thumbnail && j.thumbnail.source) || null;
+        wikiImgCache[t] = url;
+        place(url);
+      })
+      .catch(function(){ wikiImgCache[t] = null; });
+  });
 }
 /* One settings change re-renders every live view, so whatever is currently
    on screen — tiles, corrections, salt card, log, uptake — follows it. */
