@@ -868,6 +868,17 @@ function buildCorrections(){
   if(lows.length){
     var plan = planBigThree();
 
+    /* Published correction order: magnesium first (it keeps calcium carbonate
+       in solution — without it the other two precipitate straight back out),
+       then alkalinity, then calcium. Sort the dose cards to match. */
+    var ELEM_ORDER = {mg:0, alk:1, ca:2};
+    function dosePriority(d){
+      var m = 3;
+      BIG3.forEach(function(k){ if(d.p.effects[k] && ELEM_ORDER[k] < m) m = ELEM_ORDER[k]; });
+      return m;
+    }
+    plan.doses.sort(function(a,b){ return dosePriority(a) - dosePriority(b); });
+
     if(lows.indexOf('mg') > -1){
       push('First','Magnesium is low','Fix magnesium before the rest',
         ['Below about 1250 ppm, calcium and alkalinity will not hold however much you dose, because calcium carbonate precipitates out instead of staying in solution.']);
@@ -896,8 +907,9 @@ function buildCorrections(){
     });
 
     if(plan.doses.length > 1){
-      push('While dosing','Keep the doses apart','At least an hour between them',
-        ['Calcium and alkalinity supplements added together in the same spot will precipitate each other out, so you lose both and coat your heater. Different times, or different ends of the sump.']);
+      push('While dosing','Dose in the order shown, and keep doses apart','Magnesium → alkalinity → calcium, an hour between them',
+        ['The order matters: magnesium stabilises the water so the others hold, alkalinity settles fastest, and calcium goes last. This is the standard published sequence for reef chemistry corrections.',
+         'Calcium and alkalinity supplements added together in the same spot will precipitate each other out, so you lose both and coat your heater. Different times, or different ends of the sump.']);
     }
 
     plan.blocked.forEach(function(b){
