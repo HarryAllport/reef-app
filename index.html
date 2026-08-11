@@ -150,7 +150,7 @@ button.small{padding:8px 11px;font-size:13px}
 /* species photos on livestock alerts */
 .lv-imgs{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:flex-start}
 .lv-img:empty{display:none}
-.lv-img img{height:74px;width:100px;object-fit:cover;border-radius:8px;border:1px solid var(--line);display:block}
+.lv-img img{height:96px;width:130px;object-fit:cover;border-radius:8px;border:1px solid var(--line);display:block}
 
 /* the email field earns some room */
 #setEmail{padding:14px 12px;font-size:17px}
@@ -160,6 +160,7 @@ button.small{padding:8px 11px;font-size:13px}
 .shop-row:last-child{border-bottom:0}
 .shop-row b{font-size:14px}
 .shop-img{width:52px;height:68px;flex:0 0 52px;display:block}
+.shop-photo{width:84px;height:84px;flex:0 0 84px;object-fit:contain;display:block;border-radius:8px;background:#fff;border:1px solid var(--line)}
 
 /* shelf */
 .prod{border-bottom:1px solid var(--line);padding:4px 0}
@@ -1472,13 +1473,18 @@ var wikiImgCache = {};
 function wikiSummaryImage(t, cb){
   fetch('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(t.replace(/ /g, '_')))
     .then(function(res){ return res.ok ? res.json() : null; })
-    .then(function(j){ cb((j && j.thumbnail && j.thumbnail.source) || null); })
+    .then(function(j){
+      var url = (j && j.thumbnail && j.thumbnail.source) || null;
+      /* Ask for a sharper rendition than the default thumbnail. */
+      if(url) url = url.replace(/\/\d+px-/, '/640px-');
+      cb(url);
+    })
     .catch(function(){ cb(null); });
 }
 function commonsAquariumImage(t, cb){
   fetch('https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*' +
     '&generator=search&gsrsearch=' + encodeURIComponent(t + ' aquarium') +
-    '&gsrnamespace=6&gsrlimit=1&prop=imageinfo&iiprop=url&iiurlwidth=320')
+    '&gsrnamespace=6&gsrlimit=1&prop=imageinfo&iiprop=url&iiurlwidth=640')
     .then(function(res){ return res.ok ? res.json() : null; })
     .then(function(j){
       var pages = j && j.query && j.query.pages, url = null;
@@ -1536,6 +1542,13 @@ function refreshAll(){
    shop's website. */
 var SHOP_PREF = {alk:['rs-b','rs-khp','soda'], ca:['rs-a','cacl-di'], mg:['rs-c','mgcl'], no3:['nano3']};
 var SHOP_LABEL = {alk:'KH', ca:'Ca', mg:'Mg', no3:'NO3', po4:'PO4'};
+/* Official pack shots from the manufacturer's own CDN, where available.
+   Anything without one falls back to the drawn tile. */
+var PRODUCT_IMG = {
+  'rs-a':'https://static.redseafish.com/wp-content/uploads/2023/05/01124750/foundation-250ml-3-in-1-pack-1.png',
+  'rs-b':'https://static.redseafish.com/wp-content/uploads/2023/05/01124750/foundation-250ml-3-in-1-pack-1.png',
+  'rs-c':'https://static.redseafish.com/wp-content/uploads/2023/05/01124750/foundation-250ml-3-in-1-pack-1.png'
+};
 function productSVG(form, label, isRedSea){
   var accent = isRedSea ? '#ec1c24' : '#64707c';
   if(form === 'ml'){
@@ -1570,8 +1583,13 @@ function shoppingCard(items){
     });
     if(sug.key === 'po4') prod = {name:'Phosphate supplement — any reef brand', form:'ml'};
     if(!prod) return;
-    rows += '<div class="shop-row">'+
-      productSVG(prod.form, SHOP_LABEL[sug.key] || '', prod.name.indexOf('Red Sea') === 0)+
+    var photo = prod.id && PRODUCT_IMG[prod.id];
+    var imgHtml = photo
+      ? '<img class="shop-photo" src="'+photo+'" alt="" loading="lazy" '+
+        'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'">'+
+        '<span style="display:none">'+productSVG(prod.form, SHOP_LABEL[sug.key] || '', true)+'</span>'
+      : productSVG(prod.form, SHOP_LABEL[sug.key] || '', prod.name.indexOf('Red Sea') === 0);
+    rows += '<div class="shop-row">'+imgHtml+
       '<div><b>'+esc(prod.name)+'</b>'+
       (alt ? '<div class="hint" style="margin-top:2px">Dry-goods alternative: '+esc(alt.name)+'</div>' : '')+
       '<p class="hint" style="margin-top:4px">'+esc(sug.why)+'</p></div></div>';
