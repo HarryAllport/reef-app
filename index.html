@@ -509,7 +509,8 @@ var DEFAULTS = {
   shelf:[{id:'rs-abcplus'}],
   caps:{alk:0.4, ca:20, mg:50},
   saltMix:{brand:'rs-salt', strengths:{}, elements:{}},
-  reminders:{email:'', wc:7, test:7, dose:'1'}
+  reminders:{email:'', wc:7, test:7, dose:'1'},
+  doser:{alk:'rs-b', ca:'rs-a', mg:'rs-c'}
 };
 
 var KEY = 'reef-tank-data';
@@ -603,6 +604,7 @@ function apply(data){
     if(s.targets){ for(var k in DEFAULT_TARGETS){ if(s.targets[k]) state.settings.targets[k] = s.targets[k]; } }
     if(Array.isArray(s.shelf)) state.settings.shelf = s.shelf;
     if(s.saltMix) state.settings.saltMix = {brand:s.saltMix.brand || 'rs-salt', strengths:s.saltMix.strengths || {}, elements:s.saltMix.elements || {}, mode:s.saltMix.mode === 'fix' ? 'fix' : 'change'};
+    if(s.doser) state.settings.doser = {alk:s.doser.alk || 'rs-b', ca:s.doser.ca || 'rs-a', mg:s.doser.mg || 'rs-c'};
     if(s.reminders) state.settings.reminders = {
       email:s.reminders.email || '',
       wc:num(s.reminders.wc) || 7,
@@ -1037,6 +1039,14 @@ function renderLog(){
       renderLog();
     });
   });
+  $('#trendCard').querySelectorAll('[data-doseprod]').forEach(function(s){
+    s.addEventListener('change', function(){
+      state.settings.doser = state.settings.doser || {};
+      state.settings.doser[s.getAttribute('data-doseprod')] = s.value;
+      save();
+      renderLog();
+    });
+  });
   var html = '';
   state.log.forEach(function(e, i){
     var d = new Date(e.date);
@@ -1127,13 +1137,26 @@ function uptakeStats(key){
   if(used < 1 || totDays < 0.9) return null;
   return {perDay: totDrop/totDays, used:used, skipped:skipped};
 }
-function uptakeDose(key, perDay){
-  var prods = shelfList().filter(function(p){ return p.effects[key]; });
-  if(!prods.length) return null;
-  prods.sort(function(a,b){ return (b.multi?1:0) - (a.multi?1:0); });
-  var p = prods[0];
-  var amount = perDay * state.settings.netLitres / 100 / p.effects[key];
-  return {p:p, amount:amount};
+/* Every product that raises a given element — the full library plus any
+   custom shelf products — with shelf-edited strengths applied. */
+function doserProducts(k){
+  var strengths = {};
+  shelfList().forEach(function(p){ if(p.effects[k]) strengths[p.id] = p.effects[k]; });
+  var list = [];
+  PRODUCTS.forEach(function(p){
+    if(!p.effects[k]) return;
+    list.push({id:p.id, name:p.name, form:p.form, method:p.method,
+      eff:strengths[p.id] || p.effects[k],
+      multi:(p.effects.alk?1:0) + (p.effects.ca?1:0) + (p.effects.mg?1:0) > 1});
+  });
+  (state.settings.shelf || []).forEach(function(e){
+    if(libProduct(e.id)) return;
+    if(e.effects && num(e.effects[k]) > 0){
+      list.push({id:e.id, name:e.name || 'Custom product', form:e.form || 'g',
+        method:e.method || 'dissolve', eff:num(e.effects[k]), multi:false});
+    }
+  });
+  return list;
 }
 function consumptionCard(){
   var NAMES = {alk:'Alkalinity', ca:'Calcium', mg:'Magnesium'};
@@ -1148,35 +1171,42 @@ function consumptionCard(){
   }
   var ORDER3 = ['alk','ca','mg'];
   stats.sort(function(a,b){ return ORDER3.indexOf(a.key) - ORDER3.indexOf(b.key); });
-  var rows = '', doses = '', anyDose = false, noProduct = [], multiNoted = false;
+  var net = state.settings.netLitres;
+  var rows = '', doseFields = '';
+  function fnum(v){ return v >= 100 ? String(Math.round(v)) : v >= 10 ? v.toFixed(0) : v.toFixed(1); }
   stats.forEach(function(x){
     var k = x.key, dp = (k === 'alk') ? 2 : 1, dpw = (k === 'alk') ? 1 : 0;
     rows += '<div class="wc-row"><span>'+NAMES[k]+'</span>'+
       '<span class="mono">'+fmt(x.s.perDay,dp)+' '+UNITS[k]+'/day · <b>'+fmt(x.s.perDay*7,dpw)+' '+UNITS[k]+'/week</b></span></div>';
-    var d = uptakeDose(k, x.s.perDay);
-    if(d){
-      anyDose = true;
-      var a = d.amount < 10 ? d.amount.toFixed(1) : Math.round(d.amount);
-      var multiNote = '';
-      if(d.p.multi && !multiNoted){
-        multiNote = ' — a balanced product, so set the daily dose by alkalinity and watch the others against their targets';
-        multiNoted = true;
-      }
-      doses += '<p><strong>'+NAMES[k]+':</strong> '+a+' '+d.p.form+' of '+esc(d.p.name)+' a day'+multiNote+'.</p>';
-    } else {
-      noProduct.push(NAMES[k].toLowerCase());
+    var opts = doserProducts(k);
+    if(!opts.length) return;
+    var sel = (state.settings.doser || {})[k];
+    if(!opts.some(function(o){ return o.id === sel; })){
+      var def = (DEFAULTS.doser || {})[k];
+      sel = opts.some(function(o){ return o.id === def; }) ? def : opts[0].id;
     }
+    var chosen = opts.filter(function(o){ return o.id === sel; })[0];
+    var weekly = x.s.perDay * 7 * net / 100 / chosen.eff;
+    var daily = weekly / 7;
+    var optHtml = '';
+    opts.forEach(function(o){
+      optHtml += '<option value="'+o.id+'"'+(o.id === sel ? ' selected' : '')+'>'+esc(o.name)+'</option>';
+    });
+    doseFields += '<div class="field" style="margin-top:10px;margin-bottom:0">'+
+      '<label>'+NAMES[k]+' product</label>'+
+      '<select data-doseprod="'+k+'">'+optHtml+'</select>'+
+      '<div class="hint"><b>'+fnum(weekly)+' '+chosen.form+' a week — set a doser to '+fnum(daily)+' '+chosen.form+' a day.</b>'+
+      (chosen.form === 'g' ? ' A dry product: dissolve each day’s dose in RO/DI first, or pick a liquid — they suit dosing pumps better.' : '')+
+      (chosen.multi ? ' Balanced product: set the rate by alkalinity and watch the other two against their targets.' : '')+
+      '</div></div>';
   });
   var skippedTot = stats.reduce(function(n,x){ return n + x.s.skipped; }, 0);
   var html = '<div class="card"><div class="card-title">Weekly uptake &amp; dosing</div>'+
     '<div class="sub">Worked out from your timestamped log — only counting stretches where a level fell between tests, so doses and water changes in between don’t muddy the rate.</div>'+
     '<div class="wc-rows">'+rows+'</div>';
-  if(anyDose){
-    html += '<div class="fix ok" style="margin-top:10px"><div class="step">Daily dose to match uptake</div><h3>Replace what the corals use</h3>'+doses+
-      '<p>Start at these amounts, re-test in a week, and nudge the dose rather than the tank. Stable beats perfect — if uptake and dose match, your tests stop drifting.</p></div>';
-  }
-  if(noProduct.length){
-    html += '<div class="hint" style="margin-top:8px">Nothing on your shelf raises '+noProduct.join(' or ')+' — tick a product in Setup to get a daily dose for it.</div>';
+  if(doseFields){
+    html += '<div style="margin-top:12px"><div class="eyebrow">Dose to match uptake</div>'+doseFields+
+      '<div class="hint" style="margin-top:10px">Start at these rates, re-test in a week, and nudge the dose — not the tank. When dose matches uptake the graph goes flat, which is exactly what corals want.</div></div>';
   }
   if(skippedTot > 0){
     html += '<div class="hint" style="margin-top:6px">'+skippedTot+' interval'+(skippedTot>1?'s':'')+' where the level rose '+(skippedTot>1?'were':'was')+' left out of the average.</div>';
