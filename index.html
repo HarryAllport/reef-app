@@ -562,6 +562,7 @@ var CORALS = [
      butterflyfish famously intolerant of high nitrate, clownfish famously
      forgiving. Alkalinity bands are wide so they never fight the corals. */
   ['butterfly',  'Butterflyfish (Chaetodon spp.)',      'Fish', 7.0,11,   2,20,  0.02,0.25, 0],
+  ['copperband', 'Copperband butterflyfish (Chelmon rostratus)','Fish',7.0,11, 2,15, 0.02,0.20, 0],
   ['anthias',    'Anthias (Pseudanthias spp.)',         'Fish', 7.0,11,   2,25,  0.02,0.30, 0],
   ['tang',       'Tang / surgeonfish (Zebrasoma / Acanthurus spp.)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
   ['clownfish',  'Clownfish (Amphiprion spp.)',         'Fish', 7.0,11,   2,50,  0.02,0.50, 0],
@@ -1142,6 +1143,47 @@ function buildCorrections(){
         ['Work in small steps and re-test — the useful range here is a few hundredths of a ppm, so home-mixed solutions are easy to overshoot. Check nitrate at the same time; the two want to come up together.']);
     } else ok.push('Phosphate ' + fmt(r.po4,3) + ' ppm');
   }
+
+  /* 6b. livestock sensitivity flags: name the animals whose published
+     tolerance the current reading breaches, per the stocking list. */
+  (function(){
+    var cs = S.corals || [];
+    if(!cs.length) return;
+    var seen = {}, byGroup = {};
+    cs.forEach(function(c){
+      var sp = coralById(c.sp);
+      if(seen[sp.id]) return;
+      seen[sp.id] = true;
+      [['alk','alkalinity'],['no3','nitrate'],['po4','phosphate']].forEach(function(p){
+        var v = r[p[0]];
+        if(v === null || v === undefined) return;
+        var lo = sp[p[0]][0], hi = sp[p[0]][1];
+        if(v > hi){
+          (byGroup[p[0]+'|high'] = byGroup[p[0]+'|high'] || {param:p[1], key:p[0], dir:'high', list:[]}).list.push({name:sp.name, limit:hi});
+        } else if(v < lo){
+          (byGroup[p[0]+'|low'] = byGroup[p[0]+'|low'] || {param:p[1], key:p[0], dir:'low', list:[]}).list.push({name:sp.name, limit:lo});
+        }
+      });
+    });
+    for(var gk in byGroup){
+      var g = byGroup[gk], m = meta(g.key);
+      g.list.sort(function(a,b){ return g.dir === 'high' ? a.limit - b.limit : b.limit - a.limit; });
+      var names = g.list.map(function(x){
+        return x.name + ' (published ' + (g.dir === 'high' ? 'ceiling' : 'floor') + ' ' + fmt(x.limit, m.dp) + ' ' + m.unit + ')';
+      }).join('; ');
+      var tgt2 = T(g.key).target;
+      push('Livestock',
+        g.param.charAt(0).toUpperCase() + g.param.slice(1) + ' is ' + (g.dir === 'high' ? 'above' : 'below') + ' what some of your livestock tolerate',
+        'Adjust gradually toward ' + fmt(toDisp(g.key, tgt2), m.dp) + ' ' + m.unit,
+        ['Affected: ' + names + '. You are reading ' + fmt(toDisp(g.key, r[g.key]), m.dp) + ' ' + m.unit + '.',
+         g.key === 'no3' || g.key === 'po4'
+           ? (g.dir === 'high'
+              ? 'Bring it down in steps with the water change planner — 10–20% at a time, days apart. The speed of the drop stresses livestock more than the level itself, so walk it, don’t yank it.'
+              : 'Raise it slowly with small feedings or dosing — sensitive livestock dislike swings in either direction.')
+           : 'Move alkalinity within your daily limit only — the corrections above already pace it safely.'],
+        g.dir === 'high' ? 'crit' : '');
+    }
+  })();
 
   /* 7. advisories */
   if(have('ph')){
