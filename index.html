@@ -667,6 +667,59 @@ var CORAL_SIZES = [
   {id:'large', name:'Large',       f:0.10},
   {id:'xl',    name:'Extra large', f:0.18}
 ];
+/* Published dietary needs worth a reminder — keyed by species id. Shown as a
+   feeding check whenever a water change is planned, for stocked species only. */
+var FEED_NOTES = {
+  moorishidol:'sponge-based foods are part of its natural diet — offer a sponge-containing preparation daily',
+  regalangel:'a shy specialist feeder — sponge and tunicate preparations, fed often',
+  emperor:'large angels eat sponge matter in the wild — use an angel formula containing sponge',
+  frenchangel:'sponge matter belongs in its diet — use an angel formula containing sponge',
+  koran:'sponge matter belongs in its diet — use an angel formula containing sponge',
+  queenangel:'sponge matter belongs in its diet — use an angel formula containing sponge',
+  diamondgoby:'a sand-sifter that starves in clean tanks — target feed sinking meaty foods onto the substrate',
+  watchman:'target feed sinking foods near its burrow',
+  orangespotgoby:'target feed sinking foods near its burrow',
+  yasha:'target feed sinking foods near its burrow',
+  mandarin:'grazes copepods all day — keep the pod population up (or wean onto frozen) and target feed',
+  copperband:'often needs weaning — offer mysis pressed into a clam shell until it feeds confidently',
+  butterfly:'meaty and mysis feeds; watch that it is actually eating',
+  threadfin:'meaty and mysis feeds; watch that it is actually eating',
+  lyretail:'planktivore — several small feeds a day beat one large one',
+  squarespot:'planktivore — several small feeds a day beat one large one',
+  dispar:'planktivore — several small feeds a day beat one large one',
+  bartletts:'planktivore — several small feeds a day beat one large one',
+  evansi:'delicate planktivore — frequent small feeds are essential',
+  anthias:'planktivores — several small feeds a day beat one large one',
+  leopardwrasse:'a delicate feeder — enriched frozen foods several times daily while it settles',
+  suncoral:'non-photosynthetic — target feed each polyp meaty foods a few times a week',
+  goniopora:'benefits from fine particulate and phytoplankton feeds',
+  alveopora:'benefits from fine particulate and phytoplankton feeds',
+  harlequin:'eats only starfish — sustain it with chocolate-chip starfish',
+  bta:'offer a meaty chunk (silverside, prawn) every week or two',
+  carpet:'offer a meaty chunk every week or two',
+  lta:'offer a meaty chunk every week or two',
+  condy:'offer a meaty chunk every week or two',
+  minimaxi:'offer small meaty feeds every week or two',
+  rfa:'offer small meaty feeds every week or two',
+  featherduster:'a filter feeder — phytoplankton or fine particulate feeds keep the crown full',
+  crocea:'smaller clams especially benefit from regular phytoplankton',
+  maxima:'smaller clams especially benefit from regular phytoplankton',
+  derasa:'smaller clams especially benefit from regular phytoplankton',
+  squamosa:'smaller clams especially benefit from regular phytoplankton',
+  sandstar:'needs a mature sand bed to graze — they quietly starve in young tanks',
+  linckia:'grazes rock biofilm — only sustainable in mature tanks with plenty of live rock',
+  cucumber:'grazes sand-bed detritus — needs an established, mature bed'
+};
+function stockedFeedNotes(){
+  var cs = state.settings.corals || [], seen = {}, out = [];
+  cs.forEach(function(c){
+    if(seen[c.sp] || !FEED_NOTES[c.sp]) return;
+    seen[c.sp] = true;
+    var nm = coralById(c.sp).name;
+    out.push('<p><strong>' + esc(nm.replace(/\s*\(.*\)$/, '')) + ':</strong> ' + FEED_NOTES[c.sp] + '.</p>');
+  });
+  return out;
+}
 function coralById(id){ for(var i=0;i<CORALS.length;i++){ if(CORALS[i].id===id) return CORALS[i]; } return CORALS[0]; }
 function coralSizeById(id){ for(var i=0;i<CORAL_SIZES.length;i++){ if(CORAL_SIZES[i].id===id) return CORAL_SIZES[i]; } return CORAL_SIZES[0]; }
 
@@ -902,16 +955,43 @@ function renderRows(){
     updateStrip(p.key);
   });
 }
+/* Stocked species whose published range the reading breaches — checked live
+   as readings are typed, strictest first. */
+function stockBreaches(key, v){
+  if(['alk','no3','po4'].indexOf(key) === -1) return [];
+  var cs = state.settings.corals || [], seen = {}, out = [];
+  cs.forEach(function(c){
+    if(seen[c.sp]) return;
+    seen[c.sp] = true;
+    var sp = coralById(c.sp);
+    if(v > sp[key][1]) out.push({name:sp.name, limit:sp[key][1], dir:'high'});
+    else if(v < sp[key][0]) out.push({name:sp.name, limit:sp[key][0], dir:'low'});
+  });
+  out.sort(function(a,b){ return a.dir === 'high' ? a.limit - b.limit : b.limit - a.limit; });
+  return out;
+}
 function updateStrip(key){
   var p = meta(key), v = state.readings[key];
   var nd = document.getElementById('nd-'+key), vd = document.getElementById('vd-'+key);
   if(!nd) return;
-  if(v === null || v === undefined){ nd.classList.add('hide'); vd.textContent=''; vd.className='verdict'; return; }
+  if(v === null || v === undefined){ nd.classList.add('hide'); vd.textContent=''; vd.className='verdict'; vd.title=''; return; }
   nd.classList.remove('hide');
   nd.style.left = pos(key,v) + '%';
+  var br = stockBreaches(key, v);
+  if(br.length){
+    var first = br[0].name.replace(/\s*\(.*\)$/, '');
+    vd.textContent = '⚠ ' + (br[0].dir === 'high' ? 'High' : 'Low') + ' for ' + first +
+      (br.length > 1 ? ' +' + (br.length - 1) : '') + ' · ' + fmt(toDisp(key,v),p.dp) + ' ' + p.unit;
+    vd.className = 'verdict v-out';
+    vd.title = br.map(function(b){
+      return b.name + ' — published ' + (b.dir === 'high' ? 'ceiling' : 'floor') + ' ' + b.limit + ' ' + p.unit;
+    }).join('; ');
+    return;
+  }
   var t = verdictText(key,v);
   vd.textContent = t[0] + ' · ' + fmt(toDisp(key,v),p.dp) + ' ' + p.unit;
   vd.className = 'verdict ' + t[1];
+  vd.title = '';
 }
 
 /* ---------- dosing maths ---------- */
@@ -1903,6 +1983,12 @@ function calcWC(driver){
     walkNote+
     '<p>New salt water carries no nitrate or phosphate, so those waste products dilute down. The rest are pulled toward the salt’s published levels'+(usesLog ? '. Starting figures marked from your latest log — re-test before dosing if they are old.' : '.')+
     (anyAssumed ? ' Rows marked ≈ assume the tank is sitting at its target — enter or log a reading for the true figure.' : '')+'</p>'+
+    (function(){
+      var feeds = stockedFeedNotes();
+      return feeds.length
+        ? '<div class="step" style="margin-top:12px">Feeding check — while you’re at the tank</div>' + feeds.join('')
+        : '';
+    })()+
     '<div class="btn-row" style="margin-bottom:0">'+
     '<button class="small" id="wcLog">Save to log</button>'+
     '<button class="small primary" id="wcApply">Calculate adjustments</button></div></div>';
