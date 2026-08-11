@@ -1371,7 +1371,7 @@ function renderSaltCalc(){
   fillBrandFields();
   var volSel = $('#wcVol'), kept = volSel.value;
   var volOpts = '<option value="">Choose…</option>';
-  for(var v5 = 5; v5 <= 75; v5 += 5){ volOpts += '<option value="'+v5+'"'+(String(v5)===kept?' selected':'')+'>'+v5+' L</option>'; }
+  for(var v5 = 5; v5 <= 100; v5 += 5){ volOpts += '<option value="'+v5+'"'+(String(v5)===kept?' selected':'')+'>'+v5+' L</option>'; }
   volSel.innerHTML = volOpts;
   $('#wcTgt').value = Number(toDisp('salinity', T('salinity').target).toFixed(3));
   var curR = latestReading('salinity');
