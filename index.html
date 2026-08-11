@@ -320,10 +320,11 @@ nav button.on{color:var(--titrant)}
       <div id="smOut"></div>
 
       <h3 class="salt-sub" style="margin-top:18px">Plan a water change</h3>
-      <div class="sub">Takes today's readings — or your latest logged test — and predicts where each parameter lands after the change, using the salt's published levels. New water is mixed to your target SPG.</div>
-      <div class="grid2" style="margin-top:10px">
-        <div class="field"><label id="wcVolLabel" for="wcVol">Change volume</label><input type="number" id="wcVol" inputmode="decimal" step="1"></div>
+      <div class="sub">Tell it the tank's current SPG and how much RO/DI you have — it tunes the new water's salinity so the tank lands on target, and gives the exact salt weight to make it. Element predictions use the salt's published levels.</div>
+      <div class="grid3" style="margin-top:10px">
+        <div class="field"><label id="wcVolLabel" for="wcVol">RO/DI volume</label><input type="number" id="wcVol" inputmode="decimal" step="1"></div>
         <div class="field"><label for="wcWeight">Salt weight (g)</label><input type="number" id="wcWeight" inputmode="decimal" step="10"></div>
+        <div class="field"><label for="wcCur">Current tank SPG</label><input type="number" id="wcCur" inputmode="decimal" step="0.001"></div>
       </div>
       <div class="hint" style="margin-top:-4px;margin-bottom:10px" id="wcPct"></div>
       <div id="wcOut"></div>
@@ -1382,6 +1383,8 @@ function renderSaltCalc(){
   $('#smTgt').value = Number(toDisp('salinity', T('salinity').target).toFixed(3));
   $('#smHint').textContent = 'For a fresh batch in a mixing container, current SPG stays at 1.000. To raise the tank itself, use the tank’s net volume (' +
     state.settings.netLitres.toFixed(0) + ' L) and today’s reading.';
+  var curR = latestReading('salinity');
+  $('#wcCur').value = Number(toDisp('salinity', curR ? curR.v : T('salinity').target).toFixed(3));
   calcSalt();
   calcWC();
 }
@@ -1454,17 +1457,21 @@ function latestReading(k){
   return null;
 }
 var WC_KEYS = ['salinity','alk','ca','mg','no3','po4'];
-function wcPrediction(f){
+function wcPrediction(f, curSal, mixSal){
   var el = {
     alk: num($('#smElAlk').value) || saltElements(smSettings().brand).alk,
     ca:  num($('#smElCa').value)  || saltElements(smSettings().brand).ca,
     mg:  num($('#smElMg').value)  || saltElements(smSettings().brand).mg
   };
-  /* What the new water brings in: salt at target SPG, published elements,
-     and effectively zero nutrients. */
-  var mix = {salinity:T('salinity').target, alk:el.alk, ca:el.ca, mg:el.mg, no3:0, po4:0};
+  /* What the new water brings in: salt at the tuned mix salinity, published
+     elements, and effectively zero nutrients. */
+  var mix = {salinity:mixSal, alk:el.alk, ca:el.ca, mg:el.mg, no3:0, po4:0};
   var out = [];
   WC_KEYS.forEach(function(k){
+    if(k === 'salinity'){
+      out.push({key:'salinity', now:curSal, src:'today', after:curSal*(1-f) + mixSal*f});
+      return;
+    }
     var c = latestReading(k);
     if(!c) return;
     out.push({key:k, now:c.v, src:c.src, after:c.v*(1-f) + mix[k]*f});
@@ -1476,12 +1483,28 @@ function calcWC(driver){
   var net = state.settings.netLitres;
   var gl = num($('#smStrength').value) || saltById(sm.brand).gl;
   var tgtSal = T('salinity').target;
+  var cur = toInternal('salinity', num($('#wcCur').value));
+  if(cur === null || cur <= 0) cur = tgtSal;
+  /* The new water's salinity is tuned so the tank lands on target after the
+     swap — leaner than target if the tank is running high, richer if low.
+     Guard rails: one change never moves the tank more than about 0.001 SPG,
+     and the mix itself stays inside SPG 1.020–1.030. */
+  function mixFor(f){
+    var ideal = cur + (tgtSal - cur) / f;
+    var lo = Math.max(26.6, cur - 1.33 / f);
+    var hi = Math.min(39.8, cur + 1.33 / f);
+    return Math.min(Math.max(ideal, lo), hi);
+  }
   /* Weight and volume stay in step here too. */
   if(driver === 'weight'){
     var w = num($('#wcWeight').value);
-    if(w && w > 0 && gl && tgtSal > 0){
-      var Lw = w * 35 / (gl * tgtSal);
-      var vIn = state.settings.volUnit === 'gal' ? Lw / 3.78541 : Lw;
+    if(w && w > 0 && gl){
+      var Lg = w * 35 / (gl * tgtSal);
+      for(var it = 0; it < 3; it++){
+        var mg2 = mixFor(Math.min(0.9, Lg / net));
+        if(mg2 > 0) Lg = w * 35 / (gl * mg2);
+      }
+      var vIn = state.settings.volUnit === 'gal' ? Lg / 3.78541 : Lg;
       $('#wcVol').value = Math.round(vIn * 10) / 10;
     }
   }
@@ -1493,10 +1516,12 @@ function calcWC(driver){
   }
   var L = volLitres(volIn);
   var f = Math.min(0.9, L / net);
-  $('#wcPct').textContent = 'That is ' + Math.round(f*100) + '% of your ' + net.toFixed(0) + ' L system, mixed to SPG ' + spg(tgtSal) + '.';
-  var grams = L * gl * tgtSal / 35;
+  var mixSal = mixFor(f);
+  var afterSal = cur + f * (mixSal - cur);
+  $('#wcPct').textContent = 'That is ' + Math.round(f*100) + '% of your ' + net.toFixed(0) + ' L system. Mix the new water to SPG ' + spg(mixSal) + '.';
+  var grams = L * gl * mixSal / 35;
   if(driver !== 'weight') $('#wcWeight').value = Math.round(grams);
-  var preds = wcPrediction(f);
+  var preds = wcPrediction(f, cur, mixSal);
   if(!preds.length){
     out.innerHTML = '<div class="empty" style="padding:14px 8px">Enter today’s readings above (or save a test to the log) first — the prediction needs a starting point.</div>';
     return;
@@ -1508,10 +1533,15 @@ function calcWC(driver){
     rows += '<div class="wc-row"><span>'+P(p.key).name+'</span>'+
       '<span class="mono">'+fmt(toDisp(p.key,p.now),m.dp)+' → <b class="'+vt[1]+'">'+fmt(toDisp(p.key,p.after),m.dp)+'</b>'+(m.unit?' '+m.unit:'')+'</span></div>';
   });
+  var walkNote = '';
+  if(Math.abs(afterSal - tgtSal) > 0.15){
+    walkNote = '<p>Salinity lands at SPG '+spg(afterSal)+' this time — deliberately not all the way to '+spg(tgtSal)+', because one change should not swing the tank more than about 0.001 SPG. Repeat at your next water change and the app keeps walking it in until you hit target.</p>';
+  }
   out.innerHTML = '<div class="fix ok"><div class="step">Water change</div><h3>'+esc(saltById(sm.brand).name)+'</h3>'+
     '<div class="dose">'+amt(grams,'g')+' into '+volIn+volSuffix()+' of RO/DI</div>'+
-    '<p>Mix to SPG '+spg(tgtSal)+', heat, aerate and match the tank’s temperature, then swap it for the same volume of tank water. Predicted readings afterwards:</p>'+
+    '<p>That weight brings the new water to exactly SPG '+spg(mixSal)+(Math.abs(mixSal - tgtSal) > 0.15 ? ' — tuned off-target on purpose, to pull the tank back to '+spg(tgtSal) : '')+'. Mix until fully clear, heat, aerate and match the tank’s temperature, then swap it for the same volume of tank water. Predicted readings afterwards:</p>'+
     '<div class="wc-rows">'+rows+'</div>'+
+    walkNote+
     '<p>New salt water carries no nitrate or phosphate, so those dilute down. The rest are pulled toward the salt’s published levels'+(usesLog ? '. Starting figures marked from your latest log — re-test before dosing if they are old.' : '.')+'</p>'+
     '<div class="btn-row" style="margin-bottom:0"><button class="small" id="wcApply">Load predicted readings into today’s test</button></div></div>';
   $('#wcApply').addEventListener('click', function(){
@@ -1600,6 +1630,7 @@ $('#smStrength').addEventListener('change', function(){
 $('#smWeight').addEventListener('input', function(){ calcSalt('weight'); });
 $('#wcVol').addEventListener('input', function(){ calcWC(); });
 $('#wcWeight').addEventListener('input', function(){ calcWC('weight'); });
+$('#wcCur').addEventListener('input', function(){ calcWC(); });
 
 /* ---------- tank settings cog & reminders ---------- */
 function remSettings(){
