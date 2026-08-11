@@ -155,6 +155,12 @@ button.small{padding:8px 11px;font-size:13px}
 /* the email field earns some room */
 #setEmail{padding:14px 12px;font-size:17px}
 
+/* suggested purchases */
+.shop-row{display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line)}
+.shop-row:last-child{border-bottom:0}
+.shop-row b{font-size:14px}
+.shop-img{width:52px;height:68px;flex:0 0 52px;display:block}
+
 /* shelf */
 .prod{border-bottom:1px solid var(--line);padding:4px 0}
 .prod:last-child{border-bottom:0}
@@ -295,6 +301,15 @@ nav button.on{color:var(--titrant)}
     </div>
     <div class="hint" style="margin-top:-4px" id="estOut"></div>
     <div class="btn-row"><button class="small" id="btnUseEst">Use this estimate</button></div>
+
+    <h3 class="salt-sub" style="margin-top:16px">Running costs</h3>
+    <div class="sub">Optional — add what you pay and the app shows what dosing and each water change cost.</div>
+    <div class="grid3" style="margin-top:8px">
+      <div class="field"><label for="costSaltPrice">Salt bucket (£)</label><input type="number" id="costSaltPrice" step="0.01" inputmode="decimal"></div>
+      <div class="field"><label for="costSaltKg">Bucket size (kg)</label><input type="number" id="costSaltKg" step="0.1" inputmode="decimal"></div>
+      <div class="field"><label for="costRo">RO water (£/L)</label><input type="number" id="costRo" step="0.01" inputmode="decimal"></div>
+    </div>
+    <div id="costProducts"></div>
 
     <h3 class="salt-sub" style="margin-top:16px">Maintenance reminders</h3>
     <div class="field" style="margin-top:8px">
@@ -808,7 +823,8 @@ var DEFAULTS = {
   reminders:{email:'', wc:7, test:7, dose:'1'},
   doser:{alk:'rs-b', ca:'rs-a', mg:'rs-c'},
   estimator:{total:null, rock:null, sand:null},
-  corals:[]
+  corals:[],
+  costs:{saltPrice:null, saltKg:null, roPerL:null, products:{}}
 };
 
 var KEY = 'reef-tank-data';
@@ -905,6 +921,7 @@ function apply(data){
     if(s.doser) state.settings.doser = {alk:s.doser.alk || 'rs-b', ca:s.doser.ca || 'rs-a', mg:s.doser.mg || 'rs-c'};
     if(s.estimator) state.settings.estimator = {total:num(s.estimator.total), rock:num(s.estimator.rock), sand:num(s.estimator.sand)};
     if(Array.isArray(s.corals)) state.settings.corals = s.corals.filter(function(c){ return c && c.sp && c.size; });
+    if(s.costs) state.settings.costs = {saltPrice:num(s.costs.saltPrice), saltKg:num(s.costs.saltKg), roPerL:num(s.costs.roPerL), products:s.costs.products || {}};
     if(s.reminders) state.settings.reminders = {
       email:s.reminders.email || '',
       wc:num(s.reminders.wc) || 7,
@@ -1137,7 +1154,7 @@ function fixSuggestion(k){
 }
 
 function buildCorrections(){
-  var r = state.readings, S = state.settings, L = S.netLitres, out = [], ok = [];
+  var r = state.readings, S = state.settings, L = S.netLitres, out = [], ok = [], shopping = [];
   var used = false;
   PARAMS.forEach(function(p){ if(r[p.key] !== null && r[p.key] !== undefined) used = true; });
   if(!used) return null;
@@ -1216,6 +1233,10 @@ function buildCorrections(){
         ['Go to Setup and tick what you actually have. Without at least one product that raises ' +
          lows.map(function(k){ return k === 'alk' ? 'alkalinity' : k === 'ca' ? 'calcium' : 'magnesium'; }).join(' or ') +
          ', there is no dose to work out.'],'crit');
+      lows.forEach(function(k){
+        var nm2 = k === 'alk' ? 'alkalinity' : k === 'ca' ? 'calcium' : 'magnesium';
+        shopping.push({key:k, why:'Nothing on your shelf raises ' + nm2 + ' — today’s low reading cannot even be corrected until you have a product for it.'});
+      });
     }
 
     plan.doses.forEach(function(d){
@@ -1256,6 +1277,10 @@ function buildCorrections(){
       lines.push('This happens when a balanced product runs out of room: dosing more of it would push another parameter past its ceiling, so the calculator stops there.');
       push('Still short', shortKeys.length > 1 ? 'Two parameters stay low' : 'One parameter stays low',
         'Not everything can be fixed with what you have', lines, 'crit');
+      shortKeys.forEach(function(k){
+        var nm3 = k === 'alk' ? 'alkalinity' : k === 'ca' ? 'calcium' : 'magnesium';
+        shopping.push({key:k, why:'Your balanced product ran out of headroom today and ' + nm3 + ' stayed below target — a single-element supplement closes that gap without pushing anything else.'});
+      });
     }
 
     var untestedKeys = [];
@@ -1281,6 +1306,7 @@ function buildCorrections(){
       push('Then','Nitrate is low', amt(g,'g') + ' of sodium nitrate',
         ['Dissolve in RO/DI and add a quarter of it a day while watching the corals. Zero nitrate is not clean water — it pales tissue, stalls growth and often drags phosphate down with it.',
          'A commercial nitrate supplement at label dose does the same job with less arithmetic.']);
+      if(!onShelf('nano3')) shopping.push({key:'no3', why:'Nitrate reads below target and you have no nitrate supplement — sodium nitrate lets you raise it in small, controlled steps.'});
     } else ok.push('Nitrate ' + fmt(r.no3,1) + ' ppm');
   }
   if(have('po4')){
@@ -1292,6 +1318,7 @@ function buildCorrections(){
     } else if(r.po4 < tp.low){
       push('Then','Phosphate is low','Dose a phosphate supplement to label',
         ['Work in small steps and re-test — the useful range here is a few hundredths of a ppm, so home-mixed solutions are easy to overshoot. Check nitrate at the same time; the two want to come up together.']);
+      shopping.push({key:'po4', why:'Phosphate reads below target — a bottled phosphate supplement dosed to label brings it up in the tiny steps this range needs.'});
     } else ok.push('Phosphate ' + fmt(r.po4,3) + ' ppm');
   }
 
@@ -1398,7 +1425,7 @@ function buildCorrections(){
       ['When alkalinity, calcium and magnesium have all dropped together, a 20% water change resets all three at once and in the right proportions. Then start a daily routine sized to consumption instead of correcting after the fact.']);
   }
 
-  return {actions:out, ok:ok};
+  return {actions:out, ok:ok, shopping:shopping};
 }
 
 function renderResults(quiet){
@@ -1428,6 +1455,7 @@ function renderResults(quiet){
     res.ok.forEach(function(o){ html += '<span class="chip">'+esc(o)+'</span>'; });
     html += '</div></div>';
   }
+  html += shoppingCard(res.shopping || []);
   html += '<div class="btn-row"><button class="primary" id="btnSave">Save to log</button></div>';
   el.innerHTML = html;
   var sv = document.getElementById('btnSave');
@@ -1502,6 +1530,58 @@ function refreshAll(){
   if($('#results').innerHTML) renderResults(true);
 }
 
+/* ---------- suggested purchases ----------
+   Driven by what today's calculation actually needed and could not do with
+   the shelf as it stands. Images are drawn in-app, so nothing depends on a
+   shop's website. */
+var SHOP_PREF = {alk:['rs-b','rs-khp','soda'], ca:['rs-a','cacl-di'], mg:['rs-c','mgcl'], no3:['nano3']};
+var SHOP_LABEL = {alk:'KH', ca:'Ca', mg:'Mg', no3:'NO3', po4:'PO4'};
+function productSVG(form, label, isRedSea){
+  var accent = isRedSea ? '#ec1c24' : '#64707c';
+  if(form === 'ml'){
+    return '<svg class="shop-img" viewBox="0 0 64 84" aria-hidden="true">'+
+      '<rect x="24" y="4" width="16" height="10" rx="2" fill="'+accent+'"/>'+
+      '<rect x="26" y="13" width="12" height="7" fill="#c9ced3"/>'+
+      '<rect x="14" y="20" width="36" height="58" rx="7" fill="'+accent+'"/>'+
+      '<rect x="19" y="34" width="26" height="26" rx="3" fill="#fff"/>'+
+      '<text x="32" y="51" text-anchor="middle" font-size="10" font-family="Montserrat,sans-serif" font-weight="700" fill="#1b2733">'+esc(label)+'</text>'+
+      '</svg>';
+  }
+  return '<svg class="shop-img" viewBox="0 0 64 84" aria-hidden="true">'+
+    '<rect x="8" y="14" width="48" height="11" rx="3" fill="'+accent+'"/>'+
+    '<rect x="12" y="25" width="40" height="53" rx="5" fill="'+accent+'"/>'+
+    '<rect x="17" y="38" width="30" height="28" rx="3" fill="#fff"/>'+
+    '<text x="32" y="56" text-anchor="middle" font-size="10" font-family="Montserrat,sans-serif" font-weight="700" fill="#1b2733">'+esc(label)+'</text>'+
+    '</svg>';
+}
+function shoppingCard(items){
+  if(!items.length) return '';
+  var seen = {}, rows = '';
+  items.forEach(function(sug){
+    if(seen[sug.key]) return;
+    seen[sug.key] = true;
+    var prod = null, alt = null;
+    (SHOP_PREF[sug.key] || []).forEach(function(id){
+      if(onShelf(id)) return;
+      var p = libProduct(id);
+      if(!p) return;
+      if(!prod) prod = p;
+      else if(!alt) alt = p;
+    });
+    if(sug.key === 'po4') prod = {name:'Phosphate supplement — any reef brand', form:'ml'};
+    if(!prod) return;
+    rows += '<div class="shop-row">'+
+      productSVG(prod.form, SHOP_LABEL[sug.key] || '', prod.name.indexOf('Red Sea') === 0)+
+      '<div><b>'+esc(prod.name)+'</b>'+
+      (alt ? '<div class="hint" style="margin-top:2px">Dry-goods alternative: '+esc(alt.name)+'</div>' : '')+
+      '<p class="hint" style="margin-top:4px">'+esc(sug.why)+'</p></div></div>';
+  });
+  if(!rows) return '';
+  return '<div class="card"><div class="card-title">Suggested purchases</div>'+
+    '<div class="sub">Based on what today’s numbers needed and what your shelf could not do. Once bought, tick it in Setup → What’s on your shelf and every dose is worked out for you.</div>'+
+    '<div style="margin-top:6px">'+rows+'</div></div>';
+}
+
 function saveEntry(){
   var vals = {}, any = false;
   PARAMS.forEach(function(p){
@@ -1560,8 +1640,12 @@ function renderLog(){
   list.innerHTML = html;
   list.querySelectorAll('[data-del]').forEach(function(b){
     b.addEventListener('click', function(){
-      state.log.splice(parseInt(b.getAttribute('data-del'),10),1);
-      save(); renderLog();
+      var i = parseInt(b.getAttribute('data-del'), 10);
+      var e = state.log[i];
+      var when = e ? new Date(e.date).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}) : 'this test';
+      if(!confirm('Delete the test from ' + when + '? This cannot be undone.')) return;
+      state.log.splice(i, 1);
+      save(); renderLog(); renderHeader();
     });
   });
 }
@@ -1677,7 +1761,7 @@ function consumptionCard(){
   var ORDER3 = ['alk','ca','mg'];
   stats.sort(function(a,b){ return ORDER3.indexOf(a.key) - ORDER3.indexOf(b.key); });
   var net = state.settings.netLitres;
-  var rows = '', doseFields = '';
+  var rows = '', doseFields = '', costTotal = 0, anyCost = false;
   function fnum(v){ return v >= 100 ? String(Math.round(v)) : v >= 10 ? v.toFixed(0) : v.toFixed(1); }
   var anyEst = stats.some(function(x){ return x.est; });
   stats.forEach(function(x){
@@ -1698,10 +1782,17 @@ function consumptionCard(){
     opts.forEach(function(o){
       optHtml += '<option value="'+o.id+'"'+(o.id === sel ? ' selected' : '')+'>'+esc(o.name)+'</option>';
     });
+    var cp = (costSettings().products || {})[chosen.id];
+    var costTxt = '';
+    if(cp && cp.price > 0 && cp.size > 0){
+      var wkCost = weekly / cp.size * cp.price;
+      costTotal += wkCost; anyCost = true;
+      costTxt = ' ≈ £' + wkCost.toFixed(2) + ' a week.';
+    }
     doseFields += '<div class="field" style="margin-top:10px;margin-bottom:0">'+
       '<label>'+NAMES[k]+' product</label>'+
       '<select data-doseprod="'+k+'">'+optHtml+'</select>'+
-      '<div class="hint"><b>'+fnum(weekly)+' '+chosen.form+' a week — set a doser to '+fnum(daily)+' '+chosen.form+' a day.</b>'+
+      '<div class="hint"><b>'+fnum(weekly)+' '+chosen.form+' a week — set a doser to '+fnum(daily)+' '+chosen.form+' a day.'+costTxt+'</b>'+
       (chosen.form === 'g' ? ' A dry product: dissolve each day’s dose in RO/DI first, or pick a liquid — they suit dosing pumps better.' : '')+
       (chosen.multi ? ' Balanced product: set the rate by alkalinity and watch the other two against their targets.' : '')+
       '</div></div>';
@@ -1712,6 +1803,7 @@ function consumptionCard(){
     '<div class="wc-rows">'+rows+'</div>';
   if(doseFields){
     html += '<div style="margin-top:12px"><div class="eyebrow">Dose to match uptake</div>'+doseFields+
+      (anyCost ? '<div class="hint" style="margin-top:8px"><b>Dosing total ≈ £'+costTotal.toFixed(2)+' a week</b> at these rates and your prices (set in ⚙).</div>' : '')+
       '<div class="hint" style="margin-top:10px">Start at these rates, re-test in a week, and nudge the dose — not the tank. When dose matches uptake the graph goes flat, which is exactly what corals want.</div></div>';
   }
   if(anyEst){
@@ -2115,6 +2207,12 @@ function calcWC(driver){
     '<p>New salt water carries no nitrate or phosphate, so those waste products dilute down. The rest are pulled toward the salt’s published levels'+(usesLog ? '. Starting figures marked from your latest log — re-test before dosing if they are old.' : '.')+
     (anyAssumed ? ' Rows marked ≈ assume the tank is sitting at its target — enter or log a reading for the true figure.' : '')+'</p>'+
     (function(){
+      var co = costSettings(), bits = [], tot = 0;
+      if(co.saltPrice > 0 && co.saltKg > 0){ var sc = grams/1000 * (co.saltPrice/co.saltKg); tot += sc; bits.push('salt £'+sc.toFixed(2)); }
+      if(co.roPerL > 0){ var rc = L * co.roPerL; tot += rc; bits.push('RO £'+rc.toFixed(2)); }
+      return bits.length ? '<p>Cost of this change ≈ <b>£'+tot.toFixed(2)+'</b> ('+bits.join(' + ')+') at the prices in your ⚙ settings.</p>' : '';
+    })()+
+    (function(){
       var feeds = stockedFeedNotes();
       return feeds.length
         ? '<div class="step" style="margin-top:12px">Feeding check — while you’re at the tank</div>' + feeds.join('')
@@ -2349,6 +2447,42 @@ function renderCorals(){
   }
   $('#coralInfo').textContent = info;
 }
+function costSettings(){
+  if(!state.settings.costs) state.settings.costs = clone(DEFAULTS.costs);
+  if(!state.settings.costs.products) state.settings.costs.products = {};
+  return state.settings.costs;
+}
+/* Price rows for whichever products the doser planner currently uses. */
+function renderCostProducts(){
+  var c = costSettings();
+  var ids = [], seen = {};
+  ['alk','ca','mg'].forEach(function(k){
+    var id = (state.settings.doser || {})[k] || (DEFAULTS.doser || {})[k];
+    if(id && !seen[id]){ seen[id] = true; ids.push(id); }
+  });
+  var html = '';
+  ids.forEach(function(id){
+    var p = libProduct(id);
+    if(!p) return;
+    var saved = c.products[id] || {};
+    html += '<div class="grid2" style="margin-top:2px">'+
+      '<div class="field" style="margin-bottom:8px"><label>'+esc(p.name.split(' — ')[0])+' (£)</label>'+
+      '<input type="number" step="0.01" inputmode="decimal" data-costprice="'+id+'" value="'+(saved.price || '')+'"></div>'+
+      '<div class="field" style="margin-bottom:8px"><label>Container size ('+p.form+')</label>'+
+      '<input type="number" step="1" inputmode="decimal" data-costsize="'+id+'" value="'+(saved.size || '')+'"></div></div>';
+  });
+  $('#costProducts').innerHTML = html;
+  $('#costProducts').querySelectorAll('[data-costprice],[data-costsize]').forEach(function(inp){
+    inp.addEventListener('change', function(){
+      var id = inp.getAttribute('data-costprice') || inp.getAttribute('data-costsize');
+      var cc = costSettings();
+      cc.products[id] = cc.products[id] || {};
+      if(inp.hasAttribute('data-costprice')) cc.products[id].price = num(inp.value);
+      else cc.products[id].size = num(inp.value);
+      save(); renderLog();
+    });
+  });
+}
 function populateTank(){
   $('#setTankName').value = state.settings.tankName;
   $('#setTankType').value = state.settings.tankType || 'mixed';
@@ -2392,6 +2526,11 @@ function populateTank(){
   $('#remWC').value = r.wc;
   $('#remTest').value = r.test;
   $('#remDose').value = r.dose;
+  var co = costSettings();
+  $('#costSaltPrice').value = co.saltPrice || '';
+  $('#costSaltKg').value = co.saltKg || '';
+  $('#costRo').value = co.roPerL || '';
+  renderCostProducts();
 }
 $('#btnCog').addEventListener('click', function(){
   populateTank();
@@ -2458,6 +2597,12 @@ $('#btnAddCoral').addEventListener('click', function(){
   var b = applyStocking();
   save(); refreshAll(); renderCorals();
   toast('Targets updated to your stocking' + (b.conflict ? ' — ranges partly conflict, middle ground used' : ''));
+});
+[['costSaltPrice','saltPrice'],['costSaltKg','saltKg'],['costRo','roPerL']].forEach(function(pair){
+  $('#'+pair[0]).addEventListener('change', function(){
+    costSettings()[pair[1]] = num(this.value);
+    save(); calcWC();
+  });
 });
 $('#setEmail').addEventListener('change', function(){
   remSettings().email = this.value.trim(); save();
