@@ -263,7 +263,7 @@ nav button.on{color:var(--titrant)}
       <div class="field" style="margin-bottom:8px"><label for="coralSize">Size</label><select id="coralSize"></select></div>
       <div class="field" style="margin-bottom:8px" id="coralQtyField"><label for="coralQty">Quantity</label><input type="number" id="coralQty" inputmode="numeric" step="1" min="1" value="1"></div>
     </div>
-    <div class="btn-row" style="margin-top:0"><button class="small" id="btnAddCoral">Add coral</button></div>
+    <div class="btn-row" style="margin-top:0"><button class="small" id="btnAddCoral">Add species</button></div>
     <div class="chips" id="coralChips" style="margin-top:2px"></div>
     <div class="hint" id="coralInfo" style="margin-top:8px"></div>
 
@@ -561,16 +561,36 @@ var CORALS = [
   /* Fish: no calcification demand, but published nutrient sensitivities —
      butterflyfish famously intolerant of high nitrate, clownfish famously
      forgiving. Alkalinity bands are wide so they never fight the corals. */
-  ['butterfly',  'Butterflyfish (Chaetodon spp.)',      'Fish', 7.0,11,   2,20,  0.02,0.25, 0],
   ['copperband', 'Copperband butterflyfish (Chelmon rostratus)','Fish',7.0,11, 2,15, 0.02,0.20, 0],
-  ['anthias',    'Anthias (Pseudanthias spp.)',         'Fish', 7.0,11,   2,25,  0.02,0.30, 0],
-  ['tang',       'Tang / surgeonfish (Zebrasoma / Acanthurus spp.)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
-  ['clownfish',  'Clownfish (Amphiprion spp.)',         'Fish', 7.0,11,   2,50,  0.02,0.50, 0],
-  ['wrasse',     'Reef-safe wrasse (Halichoeres / Cirrhilabrus spp.)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
-  ['dwarfangel', 'Dwarf angelfish (Centropyge spp.)',   'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['threadfin',  'Threadfin butterflyfish (Chaetodon auriga)','Fish',7.0,11, 2,20, 0.02,0.25, 0],
+  ['butterfly',  'Butterflyfish — other (Chaetodon spp.)','Fish',7.0,11,  2,20,  0.02,0.25, 0],
+  ['lyretail',   'Lyretail anthias (Pseudanthias squamipinnis)','Fish',7.0,11, 2,25, 0.02,0.30, 0],
+  ['anthias',    'Anthias — other (Pseudanthias spp.)', 'Fish', 7.0,11,   2,25,  0.02,0.30, 0],
+  ['yellowtang', 'Yellow tang (Zebrasoma flavescens)',  'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['purpletang', 'Purple tang (Zebrasoma xanthurum)',   'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['regaltang',  'Regal / blue tang (Paracanthurus hepatus)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
+  ['koletang',   'Kole tang (Ctenochaetus strigosus)',  'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['powderblue', 'Powder blue tang (Acanthurus leucosternon)','Fish',7.0,11, 2,25, 0.02,0.30, 0],
+  ['tang',       'Tang — other (Acanthuridae)',         'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['ocellaris',  'Ocellaris clownfish (Amphiprion ocellaris)','Fish',7.0,11, 2,50, 0.02,0.50, 0],
+  ['percula',    'Percula clownfish (Amphiprion percula)','Fish',7.0,11,   2,50,  0.02,0.50, 0],
+  ['maroon',     'Maroon clownfish (Premnas biaculeatus)','Fish',7.0,11,   2,50,  0.02,0.50, 0],
+  ['clownfish',  'Clownfish — other (Amphiprion spp.)', 'Fish', 7.0,11,   2,50,  0.02,0.50, 0],
+  ['melanurus',  'Melanurus wrasse (Halichoeres melanurus)','Fish',7.0,11, 2,40,  0.02,0.40, 0],
+  ['fairywrasse','Fairy wrasse (Cirrhilabrus spp.)',    'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['wrasse',     'Wrasse — other reef-safe (Labridae)', 'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['coralbeauty','Coral beauty angel (Centropyge bispinosa)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
+  ['flameangel', 'Flame angelfish (Centropyge loricula)','Fish',7.0,11,    2,40,  0.02,0.40, 0],
+  ['dwarfangel', 'Dwarf angel — other (Centropyge spp.)','Fish',7.0,11,    2,40,  0.02,0.40, 0],
   ['mandarin',   'Mandarin dragonet (Synchiropus splendidus)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
-  ['chromis',    'Chromis / damselfish (Chromis / Chrysiptera spp.)','Fish',7.0,11, 2,50, 0.02,0.50, 0],
-  ['goby',       'Goby / blenny (Gobiodon / Ecsenius spp.)','Fish',7.0,11, 2,40,  0.02,0.40, 0],
+  ['bluegreenchromis','Blue-green chromis (Chromis viridis)','Fish',7.0,11, 2,50, 0.02,0.50, 0],
+  ['yellowtaildamsel','Yellowtail damsel (Chrysiptera parasema)','Fish',7.0,11, 2,50, 0.02,0.50, 0],
+  ['chromis',    'Damsel / chromis — other (Pomacentridae)','Fish',7.0,11, 2,50,  0.02,0.50, 0],
+  ['diamondgoby','Diamond watchman goby (Valenciennea puellaris)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
+  ['clowngoby',  'Clown goby (Gobiodon okinawae)',      'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['tailspot',   'Tailspot blenny (Ecsenius stigmatura)','Fish',7.0,11,   2,40,  0.02,0.40, 0],
+  ['midas',      'Midas blenny (Ecsenius midas)',       'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['goby',       'Goby / blenny — other (Gobiidae / Blenniidae)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
   ['watchman',   'Yellow watchman goby (Cryptocentrus cinctus)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
   ['firefish',   'Firefish (Nemateleotris magnifica)',  'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
   ['lawnmower',  'Lawnmower blenny (Salarias fasciatus)','Fish',7.0,11,   2,40,  0.02,0.40, 0],
@@ -594,7 +614,7 @@ var CORALS = [
   ['astrea',     'Astrea snail (Astraea tecta)',        'Inverts',7.0,11,  2,40, 0.02,0.40, 0.02],
   ['bumblebee',  'Bumblebee snail (Engina mendicaria)', 'Inverts',7.0,11,  2,40, 0.02,0.40, 0.01],
   ['conch',      'Fighting conch (Strombus alatus)',    'Inverts',7.0,11,  2,40, 0.02,0.40, 0.03],
-  ['hermit',     'Hermit crabs (Paguroidea)',           'Inverts',7.0,11,  2,50, 0.02,0.50, 0.01],
+  ['hermit',     'Hermit crab — other (Paguroidea)',    'Inverts',7.0,11,  2,50, 0.02,0.50, 0.01],
   ['bluelegged', 'Blue-leg hermit (Clibanarius tricolor)','Inverts',7.0,11, 2,50, 0.02,0.50, 0.01],
   ['scarlethermit','Scarlet reef hermit (Paguristes cadenati)','Inverts',7.0,11, 2,50, 0.02,0.50, 0.01],
   ['emerald',    'Emerald crab (Mithraculus sculptus)', 'Inverts',7.0,11,  2,40, 0.02,0.40, 0.01],
