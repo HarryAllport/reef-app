@@ -1563,12 +1563,21 @@ function calcWC(driver){
     '<div class="wc-rows">'+rows+'</div>'+
     walkNote+
     '<p>New salt water carries no nitrate or phosphate, so those dilute down. The rest are pulled toward the salt’s published levels'+(usesLog ? '. Starting figures marked from your latest log — re-test before dosing if they are old.' : '.')+'</p>'+
-    '<div class="btn-row" style="margin-bottom:0"><button class="small" id="wcApply">Load predicted readings into today’s test</button></div></div>';
-  $('#wcApply').addEventListener('click', function(){
+    '<div class="btn-row" style="margin-bottom:0">'+
+    '<button class="small" id="wcLog">Save to log</button>'+
+    '<button class="small primary" id="wcApply">Calculate adjustments</button></div></div>';
+  function applyPreds(){
     preds.forEach(function(p){ state.readings[p.key] = p.after; });
     renderRows();
+  }
+  $('#wcLog').addEventListener('click', function(){
+    applyPreds();
+    saveEntry();
+  });
+  $('#wcApply').addEventListener('click', function(){
+    applyPreds();
     renderResults();
-    toast('Predictions loaded — corrections now show the post-change top-up');
+    toast('Corrections now show the post-change top-up');
   });
 }
 
