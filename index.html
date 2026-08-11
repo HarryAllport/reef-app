@@ -716,7 +716,28 @@ var FEED_NOTES = {
   squamosa:'smaller clams especially benefit from regular phytoplankton',
   sandstar:'needs a mature sand bed to graze — they quietly starve in young tanks',
   linckia:'grazes rock biofilm — only sustainable in mature tanks with plenty of live rock',
-  cucumber:'grazes sand-bed detritus — needs an established, mature bed'
+  cucumber:'grazes sand-bed detritus — needs an established, mature bed',
+  engineergoby:'sinking meaty foods — make sure some reaches it past faster fish',
+  euphyllia:'benefits from a weekly meaty feed (mysis or chopped shellfish) onto the tentacles',
+  torch:'benefits from a weekly meaty feed onto the tentacles',
+  hammerbr:'benefits from a weekly meaty feed onto the tentacles',
+  hammerwall:'benefits from a weekly meaty feed onto the tentacles',
+  frogspawnbr:'benefits from a weekly meaty feed onto the tentacles',
+  frogspawnwall:'benefits from a weekly meaty feed onto the tentacles',
+  trachy:'target feed meaty pieces once or twice a week after lights out, when feeder tentacles show',
+  scolymia:'target feed meaty pieces weekly after lights out',
+  acan:'a night feeder — target feed meaty foods after lights out',
+  favia:'a night feeder — target feed meaty foods after lights out',
+  duncan:'responds strongly to target feeding meaty foods — feeds grow new heads faster',
+  candycane:'target feed meaty foods to each head weekly',
+  plate:'accepts meaty target feeds placed directly on the disc',
+  heliofungia:'accepts meaty target feeds placed among the tentacles',
+  chalice:'a night feeder — fine meaty or particulate feeds after lights out',
+  blasto:'target feed fine meaty foods after lights out',
+  cynarina:'target feed a meaty chunk weekly — it will balloon to take it',
+  elegance:'benefits from weekly meaty target feeds',
+  bubble:'occasional small meaty feeds when the feeder tentacles are out at dusk',
+  galaxea:'small meaty or particulate feeds in the evening'
 };
 function stockedFeedNotes(){
   var cs = state.settings.corals || [], seen = {}, out = [];
@@ -1310,7 +1331,7 @@ function buildCorrections(){
         var latin = mm[1];
         if(latin.indexOf('/') > -1) return;
         latin = latin.replace(/\s+spp\.?$/, '').trim();
-        if(latin) imgs.push({title:latin, name:x.name});
+        if(latin) imgs.push({title:latin, name:x.name, grp:x.grp});
       });
       /* Published side effects, phrased for the kinds of livestock actually
          affected. */
@@ -1394,7 +1415,7 @@ function renderResults(quiet){
       if(a.imgs && a.imgs.length){
         html += '<div class="lv-imgs">';
         a.imgs.forEach(function(im){
-          html += '<span class="lv-img" data-wiki="'+esc(im.title)+'" title="'+esc(im.name)+'"></span>';
+          html += '<span class="lv-img" data-wiki="'+esc(im.title)+'" data-grp="'+esc(im.grp || '')+'" title="'+esc(im.name)+'"></span>';
         });
         html += '</div>';
       }
@@ -1413,13 +1434,42 @@ function renderResults(quiet){
   hydrateSpeciesImages(el);
   if(quiet !== true) el.scrollIntoView({behavior:'smooth', block:'start'});
 }
-/* Fill .lv-img placeholders with each species' Wikipedia lead photo, looked
-   up by scientific name. Cached per session; silent when offline. */
+/* Fill .lv-img placeholders with a photo of the species. Corals search
+   Wikimedia Commons for an aquarium photograph first (wild reef-scape lead
+   images are unhelpful for identifying what is in a tank); everything else,
+   and any coral without an aquarium shot, uses the Wikipedia lead photo.
+   Cached per session; silent when offline. */
 var wikiImgCache = {};
+function wikiSummaryImage(t, cb){
+  fetch('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(t.replace(/ /g, '_')))
+    .then(function(res){ return res.ok ? res.json() : null; })
+    .then(function(j){ cb((j && j.thumbnail && j.thumbnail.source) || null); })
+    .catch(function(){ cb(null); });
+}
+function commonsAquariumImage(t, cb){
+  fetch('https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*' +
+    '&generator=search&gsrsearch=' + encodeURIComponent(t + ' aquarium') +
+    '&gsrnamespace=6&gsrlimit=1&prop=imageinfo&iiprop=url&iiurlwidth=320')
+    .then(function(res){ return res.ok ? res.json() : null; })
+    .then(function(j){
+      var pages = j && j.query && j.query.pages, url = null;
+      if(pages){
+        for(var k in pages){
+          var ii = pages[k].imageinfo;
+          if(ii && ii[0] && ii[0].thumburl){ url = ii[0].thumburl; break; }
+        }
+      }
+      cb(url);
+    })
+    .catch(function(){ cb(null); });
+}
 function hydrateSpeciesImages(root){
   if(!window.fetch) return;
   root.querySelectorAll('[data-wiki]').forEach(function(spn){
     var t = spn.getAttribute('data-wiki');
+    var grp = spn.getAttribute('data-grp') || '';
+    var coral = grp === 'SPS' || grp === 'LPS' || grp === 'Soft';
+    var ck = t + (coral ? '|aq' : '');
     function place(url){
       if(!url || spn.querySelector('img')) return;
       var img = document.createElement('img');
@@ -1428,15 +1478,16 @@ function hydrateSpeciesImages(root){
       img.loading = 'lazy';
       spn.appendChild(img);
     }
-    if(wikiImgCache[t] !== undefined){ place(wikiImgCache[t]); return; }
-    fetch('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(t.replace(/ /g, '_')))
-      .then(function(res){ return res.ok ? res.json() : null; })
-      .then(function(j){
-        var url = (j && j.thumbnail && j.thumbnail.source) || null;
-        wikiImgCache[t] = url;
-        place(url);
-      })
-      .catch(function(){ wikiImgCache[t] = null; });
+    if(wikiImgCache[ck] !== undefined){ place(wikiImgCache[ck]); return; }
+    function done(url){ wikiImgCache[ck] = url; place(url); }
+    if(coral){
+      commonsAquariumImage(t, function(url){
+        if(url) done(url);
+        else wikiSummaryImage(t, done);
+      });
+    } else {
+      wikiSummaryImage(t, done);
+    }
   });
 }
 /* One settings change re-renders every live view, so whatever is currently
@@ -2250,6 +2301,11 @@ function renderCorals(){
           : '<span class="stock-dash">—</span>')+
         '<button class="stock-rm" data-rmcoral="'+i+'" aria-label="Remove">✕</button></div>';
     });
+  }
+  var feeds = stockedFeedNotes();
+  if(feeds.length){
+    html += '<div style="margin-top:12px"><div class="eyebrow">Feeding needs for this stock</div>'+
+      '<div style="font-size:12px;color:#4a5560;line-height:1.55;margin-top:6px">'+feeds.join('')+'</div></div>';
   }
   $('#coralChips').innerHTML = html;
   function stockChanged(msg){
