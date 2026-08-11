@@ -247,10 +247,10 @@ nav button.on{color:var(--titrant)}
       <div class="hint">Sets the published target bands and daily limits the whole app calculates from — corrections, water change predictions and uptake dosing all follow it.</div>
     </div>
 
-    <h3 class="salt-sub">Corals in the tank</h3>
-    <div class="sub">Add what you actually keep and how big it is. Targets refine to the overlap of the corals' published care ranges, and the app estimates elemental demand until your log can measure the real thing.</div>
+    <h3 class="salt-sub">Livestock in the tank</h3>
+    <div class="sub">Add what you actually keep — corals, clams, fish and inverts — and how big it is. Targets refine to the overlap of their published care ranges (a butterflyfish caps nitrate, a Linckia starfish demands cleaner water still), and calcifiers drive the demand estimate until your log can measure the real thing.</div>
     <div class="grid2" style="margin-top:10px">
-      <div class="field" style="margin-bottom:8px"><label for="coralSp">Coral</label><select id="coralSp"></select></div>
+      <div class="field" style="margin-bottom:8px"><label for="coralSp">Species</label><select id="coralSp"></select></div>
       <div class="field" style="margin-bottom:8px"><label for="coralSize">Size</label><select id="coralSize"></select></div>
     </div>
     <div class="btn-row" style="margin-top:0"><button class="small" id="btnAddCoral">Add coral</button></div>
@@ -529,7 +529,45 @@ var CORALS = [
   ['anthelia',   'Anthelia (waving hand)',  'Soft', 7.5,10,  10,40,  0.05,0.30, 0.02],
   ['clove',      'Clove polyps (Clavularia)','Soft',7.5,10,  10,40,  0.05,0.30, 0.02],
   ['pipeorgan',  'Pipe organ (Tubipora)',   'Soft', 7.5,9.5, 10,40,  0.05,0.30, 0.15],
-  ['gorgonian',  'Gorgonian (photosynthetic)','Soft',7.5,10, 10,40,  0.05,0.30, 0.05]
+  ['gorgonian',  'Gorgonian (photosynthetic)','Soft',7.5,10, 10,40,  0.05,0.30, 0.05],
+  ['cynarina',   'Cynarina (button coral)', 'LPS',  7.5,8.7,  5,30,  0.05,0.25, 0.4],
+  ['foxcoral',   'Nemenzophyllia (fox coral)','LPS',7.5,8.5,  5,30,  0.05,0.25, 0.3],
+  ['heliofungia','Heliofungia (long-tentacle plate)','LPS',7.5,8.7, 5,30, 0.05,0.25, 0.4],
+  ['echinopora', 'Echinopora',              'LPS',  7.5,9.0,  5,30,  0.05,0.25, 0.5],
+  ['psammocora', 'Psammocora',              'SPS',  7.8,9.0,  2,15,  0.03,0.15, 0.7],
+  ['stylocoeniella','Stylocoeniella',       'SPS',  7.5,9.0,  2,20,  0.03,0.20, 0.5],
+  ['lobophytum', 'Devil’s hand (Lobophytum)','Soft',7.5,10,  10,40,  0.05,0.30, 0.05],
+  ['sympodium',  'Sympodium',               'Soft', 7.5,10,  10,40,  0.05,0.30, 0.02],
+  /* Tridacnid clams: serious calcifiers with published preferences for
+     stable, clean-ish water and measurable nitrate. */
+  ['crocea',     'Tridacna crocea clam',    'Clams',7.8,9.0,  2,20,  0.02,0.20, 1.2],
+  ['maxima',     'Tridacna maxima clam',    'Clams',7.8,9.0,  2,20,  0.02,0.20, 1.1],
+  ['derasa',     'Tridacna derasa clam',    'Clams',7.5,9.5,  2,25,  0.02,0.25, 1.0],
+  ['squamosa',   'Tridacna squamosa clam',  'Clams',7.5,9.5,  2,25,  0.02,0.25, 1.0],
+  /* Fish: no calcification demand, but published nutrient sensitivities —
+     butterflyfish famously intolerant of high nitrate, clownfish famously
+     forgiving. Alkalinity bands are wide so they never fight the corals. */
+  ['butterfly',  'Butterflyfish',           'Fish', 7.0,11,   2,20,  0.02,0.25, 0],
+  ['anthias',    'Anthias',                 'Fish', 7.0,11,   2,25,  0.02,0.30, 0],
+  ['tang',       'Tang / surgeonfish',      'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['clownfish',  'Clownfish',               'Fish', 7.0,11,   2,50,  0.02,0.50, 0],
+  ['wrasse',     'Reef-safe wrasse',        'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['dwarfangel', 'Dwarf angelfish',         'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['mandarin',   'Mandarin dragonet',       'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['chromis',    'Chromis / damselfish',    'Fish', 7.0,11,   2,50,  0.02,0.50, 0],
+  ['goby',       'Goby / blenny',           'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['gramma',     'Royal gramma / basslet',  'Fish', 7.0,11,   2,50,  0.02,0.50, 0],
+  /* Inverts: anemones and Linckia stars want mature, clean, stable water;
+     snails and urchins calcify a little as they grow shell and spine. */
+  ['bta',        'Bubble tip anemone',      'Inverts',7.5,9.5, 2,20, 0.03,0.20, 0.02],
+  ['rfa',        'Rock flower anemone',     'Inverts',7.5,9.5, 2,30, 0.03,0.25, 0.02],
+  ['cleanershrimp','Cleaner shrimp',        'Inverts',7.0,11,  2,40, 0.02,0.40, 0.02],
+  ['fireshrimp', 'Fire shrimp',             'Inverts',7.0,11,  2,40, 0.02,0.40, 0.02],
+  ['linckia',    'Linckia starfish',        'Inverts',7.0,11,  2,15, 0.02,0.15, 0],
+  ['brittlestar','Brittle star',            'Inverts',7.0,11,  2,40, 0.02,0.40, 0],
+  ['urchin',     'Tuxedo urchin',           'Inverts',7.0,11,  2,40, 0.02,0.40, 0.05],
+  ['snails',     'Turbo / Trochus snails',  'Inverts',7.0,11,  2,40, 0.02,0.40, 0.03],
+  ['hermit',     'Hermit crabs',            'Inverts',7.0,11,  2,50, 0.02,0.50, 0.01]
 ].map(function(a){
   return {id:a[0], name:a[1], group:a[2], alk:[a[3],a[4]], no3:[a[5],a[6]], po4:[a[7],a[8]], demand:a[9]};
 });
@@ -537,11 +575,11 @@ var CORALS = [
    factor of 1.0. Calcium and magnesium follow the calcification ratio the
    app already uses (20 ppm Ca and ~1.5 ppm Mg per 2.8 dKH). */
 var CORAL_SIZES = [
-  {id:'frag',  name:'Frag',               f:0.008},
-  {id:'small', name:'Small colony',       f:0.02},
-  {id:'med',   name:'Medium colony',      f:0.05},
-  {id:'large', name:'Large colony',       f:0.10},
-  {id:'xl',    name:'Extra-large colony', f:0.18}
+  {id:'frag',  name:'Tiny / frag', f:0.008},
+  {id:'small', name:'Small',       f:0.02},
+  {id:'med',   name:'Medium',      f:0.05},
+  {id:'large', name:'Large',       f:0.10},
+  {id:'xl',    name:'Extra large', f:0.18}
 ];
 function coralById(id){ for(var i=0;i<CORALS.length;i++){ if(CORALS[i].id===id) return CORALS[i]; } return CORALS[0]; }
 function coralSizeById(id){ for(var i=0;i<CORAL_SIZES.length;i++){ if(CORAL_SIZES[i].id===id) return CORAL_SIZES[i]; } return CORAL_SIZES[0]; }
@@ -1932,7 +1970,7 @@ function populateTank(){
   if(!$('#coralSp').options.length){
     var groups = {}, spHtml = '';
     CORALS.forEach(function(c){ (groups[c.group] = groups[c.group] || []).push(c); });
-    ['SPS','LPS','Soft'].forEach(function(g){
+    ['SPS','LPS','Soft','Clams','Fish','Inverts'].forEach(function(g){
       spHtml += '<optgroup label="'+g+'">';
       (groups[g] || []).forEach(function(c){ spHtml += '<option value="'+c.id+'">'+esc(c.name)+'</option>'; });
       spHtml += '</optgroup>';
