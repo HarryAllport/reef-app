@@ -1796,6 +1796,26 @@ function uptakeStats(key){
   if(used < 1 || totDays < 0.9) return null;
   return {perDay: totDrop/totDays, used:used, skipped:skipped};
 }
+/* When no rate can be computed, say why in plain English. */
+function uptakeWhy(key){
+  var n = 0, gaps = 0, rises = 0, prev = null;
+  for(var i = state.log.length - 1; i >= 0; i--){
+    var e = state.log[i];
+    if(e.values[key] === undefined) continue;
+    n++;
+    if(prev){
+      var days = (new Date(e.date).getTime() - prev.t) / 86400000;
+      if(days >= 0.5){
+        gaps++;
+        if(e.values[key] >= prev.v) rises++;
+      }
+    }
+    prev = {t:new Date(e.date).getTime(), v:e.values[key]};
+  }
+  if(n < 2) return 'needs two logged tests a few days apart';
+  if(gaps === 0) return 'tests too close together — leave at least half a day';
+  return 'levels only rose between tests so far — test just before dosing and the rate appears';
+}
 /* Every product that raises a given element — the full library plus any
    custom shelf products — with shelf-edited strengths applied. */
 function doserProducts(k){
@@ -1843,8 +1863,16 @@ function consumptionCard(){
   var rows = '', doseFields = '', costTotal = 0, anyCost = false;
   function fnum(v){ return v >= 100 ? String(Math.round(v)) : v >= 10 ? v.toFixed(0) : v.toFixed(1); }
   var anyEst = stats.some(function(x){ return x.est; });
-  stats.forEach(function(x){
-    var k = x.key, dp = (k === 'alk') ? 2 : 1, dpw = (k === 'alk') ? 1 : 0;
+  /* Every element gets a row, in a fixed order — with the reason spelled out
+     when a rate cannot be computed yet, instead of silently missing. */
+  ORDER3.forEach(function(k){
+    var x = stats.filter(function(s){ return s.key === k; })[0];
+    if(!x){
+      rows += '<div class="wc-row"><span>'+NAMES[k]+'</span>'+
+        '<span class="hint" style="text-align:right;max-width:68%">'+uptakeWhy(k)+'</span></div>';
+      return;
+    }
+    var dp = (k === 'alk') ? 2 : 1, dpw = (k === 'alk') ? 1 : 0;
     rows += '<div class="wc-row"><span>'+NAMES[k]+'</span>'+
       '<span class="mono">'+(x.est ? '≈ ' : '')+fmt(x.s.perDay,dp)+' '+UNITS[k]+'/day · <b>'+fmt(x.s.perDay*7,dpw)+' '+UNITS[k]+'/week</b></span></div>';
     var opts = doserProducts(k);
