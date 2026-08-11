@@ -321,10 +321,11 @@ nav button.on{color:var(--titrant)}
   <section class="view on" id="view-test">
     <div class="card">
       <div class="card-title">Today's readings</div>
-      <div class="sub">Leave anything you haven't tested blank.</div>
+      <div class="sub">Leave anything you haven't tested blank. The flow: <b>enter readings → save to log → calculate</b> to see what's off and how to fix it. Doing a water change today? Plan it below first — it updates the readings for you (re-test and overtype if you prefer) — then calculate for the remaining amendments, listed in the order to do them.</div>
       <div id="rows"></div>
     </div>
     <div class="btn-row">
+      <button class="small" id="btnLogNow" style="flex:0 0 auto">Save to log</button>
       <button class="primary" id="btnCalc">Work out corrections</button>
       <button class="ghost" id="btnClear" style="flex:0 0 auto">Clear</button>
     </div>
@@ -2170,7 +2171,8 @@ document.querySelectorAll('nav button').forEach(function(b){
     if(b.getAttribute('data-view') === 'setup') renderSetup();
   });
 });
-$('#btnCalc').addEventListener('click', renderResults);
+$('#btnCalc').addEventListener('click', function(){ renderResults(); });
+$('#btnLogNow').addEventListener('click', saveEntry);
 $('#btnClear').addEventListener('click', function(){
   state.readings = {};
   renderRows();
