@@ -1853,10 +1853,6 @@ function consumptionCard(){
       if(estU[k] > 0.0005) stats.push({key:k, s:{perDay:estU[k], used:0, skipped:0}, est:true});
     });
   }
-  if(!stats.length){
-    return '<div class="card"><div class="card-title">Weekly uptake</div>'+
-      '<div class="sub">Save at least two tests a few days apart and the app will measure how fast alkalinity, calcium and magnesium are being consumed — the skeletal-formation elements corals draw down. That rate is the basis for daily dosing. (Adding your corals in the ⚙ panel gives a stocking-based estimate in the meantime.)</div></div>';
-  }
   var ORDER3 = ['alk','ca','mg'];
   stats.sort(function(a,b){ return ORDER3.indexOf(a.key) - ORDER3.indexOf(b.key); });
   var net = state.settings.netLitres;
@@ -1865,11 +1861,33 @@ function consumptionCard(){
   var anyEst = stats.some(function(x){ return x.est; });
   /* Every element gets a row, in a fixed order — with the reason spelled out
      when a rate cannot be computed yet, instead of silently missing. */
+  function doserSelect(k){
+    var opts = doserProducts(k);
+    if(!opts.length) return null;
+    var sel = (state.settings.doser || {})[k];
+    if(!opts.some(function(o){ return o.id === sel; })){
+      var def = (DEFAULTS.doser || {})[k];
+      sel = opts.some(function(o){ return o.id === def; }) ? def : opts[0].id;
+    }
+    var optHtml = '';
+    opts.forEach(function(o){
+      optHtml += '<option value="'+o.id+'"'+(o.id === sel ? ' selected' : '')+'>'+esc(o.name)+'</option>';
+    });
+    return {sel:sel, chosen:opts.filter(function(o){ return o.id === sel; })[0], optHtml:optHtml};
+  }
   ORDER3.forEach(function(k){
     var x = stats.filter(function(s){ return s.key === k; })[0];
     if(!x){
       rows += '<div class="wc-row"><span>'+NAMES[k]+'</span>'+
         '<span class="hint" style="text-align:right;max-width:68%">'+uptakeWhy(k)+'</span></div>';
+      /* The product picker still shows, so it can be chosen ahead of the data. */
+      var pending = doserSelect(k);
+      if(pending){
+        doseFields += '<div class="field" style="margin-top:10px;margin-bottom:0">'+
+          '<label>'+NAMES[k]+' product</label>'+
+          '<select data-doseprod="'+k+'">'+pending.optHtml+'</select>'+
+          '<div class="hint">Weekly amount appears here once the log can measure this element’s uptake — '+uptakeWhy(k)+'.</div></div>';
+      }
       return;
     }
     var dp = (k === 'alk') ? 2 : 1, dpw = (k === 'alk') ? 1 : 0;
