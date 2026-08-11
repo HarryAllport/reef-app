@@ -490,6 +490,11 @@ var CORALS = [
   ['pocillopora','Pocillopora',             'SPS',  7.8,9.0,  2,15,  0.03,0.15, 1.1],
   ['stylophora', 'Stylophora',              'SPS',  7.8,9.0,  2,15,  0.03,0.15, 1.1],
   ['seriatopora','Seriatopora (birdsnest)', 'SPS',  7.8,9.0,  2,15,  0.03,0.15, 1.0],
+  ['porites',    'Porites',                 'SPS',  7.8,9.0,  2,15,  0.03,0.15, 1.0],
+  ['pavona',     'Pavona (cactus coral)',   'SPS',  7.8,9.0,  2,15,  0.03,0.15, 0.8],
+  ['hydnophora', 'Hydnophora (horn coral)', 'SPS',  7.8,9.0,  2,15,  0.03,0.15, 0.8],
+  ['cyphastrea', 'Cyphastrea',              'SPS',  7.5,9.0,  2,20,  0.03,0.20, 0.4],
+  ['leptastrea', 'Leptastrea',              'SPS',  7.5,9.0,  2,20,  0.03,0.20, 0.4],
   ['euphyllia',  'Euphyllia (hammer/torch/frogspawn)','LPS', 7.5,8.5, 5,30, 0.05,0.20, 0.7],
   ['trachy',     'Trachyphyllia (open brain)','LPS', 7.5,8.5, 5,30, 0.05,0.25, 0.4],
   ['scolymia',   'Scolymia',                'LPS',  7.5,8.5,  5,30,  0.05,0.25, 0.4],
@@ -501,6 +506,15 @@ var CORALS = [
   ['plate',      'Fungia (plate coral)',    'LPS',  7.5,8.7,  5,30,  0.05,0.20, 0.5],
   ['chalice',    'Chalice (Echinophyllia)', 'LPS',  7.5,8.7,  5,30,  0.05,0.25, 0.4],
   ['blasto',     'Blastomussa',             'LPS',  7.5,8.7,  5,30,  0.05,0.25, 0.3],
+  ['lobo',       'Lobophyllia / Symphyllia','LPS',  7.5,8.7,  5,30,  0.05,0.25, 0.5],
+  ['platygyra',  'Platygyra (maze brain)',  'LPS',  7.5,9.0,  5,30,  0.05,0.25, 0.6],
+  ['galaxea',    'Galaxea',                 'LPS',  7.5,9.0,  5,30,  0.05,0.25, 0.6],
+  ['bubble',     'Plerogyra (bubble coral)','LPS',  7.5,8.7,  5,30,  0.05,0.25, 0.4],
+  ['elegance',   'Catalaphyllia (elegance)','LPS',  7.5,8.5,  5,30,  0.05,0.25, 0.5],
+  ['alveopora',  'Alveopora',               'LPS',  7.5,8.5, 10,40,  0.07,0.30, 0.5],
+  ['pectinia',   'Pectinia',                'LPS',  7.5,8.7,  5,30,  0.05,0.25, 0.4],
+  ['turbinaria', 'Turbinaria (scroll/pagoda)','LPS',7.5,9.0,  5,30,  0.05,0.25, 0.6],
+  ['suncoral',   'Tubastraea (sun coral)',  'LPS',  7.5,9.0,  5,50,  0.05,0.50, 0.3],
   ['leather',    'Leather (Sarcophyton)',   'Soft', 7.5,10,  10,40,  0.05,0.30, 0.05],
   ['sinularia',  'Sinularia',               'Soft', 7.5,10,  10,40,  0.05,0.30, 0.05],
   ['xenia',      'Xenia',                   'Soft', 7.5,10,  10,40,  0.05,0.30, 0.02],
@@ -508,7 +522,14 @@ var CORALS = [
   ['palythoa',   'Palythoa',                'Soft', 7.5,10,  10,40,  0.05,0.30, 0.02],
   ['gsp',        'Green star polyps',       'Soft', 7.5,10,  10,40,  0.05,0.30, 0.02],
   ['mushroom',   'Mushrooms (Discosoma/Rhodactis)','Soft', 7.5,10, 10,40, 0.05,0.30, 0.01],
-  ['ricordea',   'Ricordea',                'Soft', 7.5,10,  10,40,  0.05,0.30, 0.01]
+  ['ricordea',   'Ricordea',                'Soft', 7.5,10,  10,40,  0.05,0.30, 0.01],
+  ['kenyatree',  'Kenya tree (Capnella)',   'Soft', 7.5,10,  10,40,  0.05,0.30, 0.03],
+  ['colt',       'Colt coral (Klyxum)',     'Soft', 7.5,10,  10,40,  0.05,0.30, 0.03],
+  ['nephthea',   'Nephthea',                'Soft', 7.5,10,  10,40,  0.05,0.30, 0.03],
+  ['anthelia',   'Anthelia (waving hand)',  'Soft', 7.5,10,  10,40,  0.05,0.30, 0.02],
+  ['clove',      'Clove polyps (Clavularia)','Soft',7.5,10,  10,40,  0.05,0.30, 0.02],
+  ['pipeorgan',  'Pipe organ (Tubipora)',   'Soft', 7.5,9.5, 10,40,  0.05,0.30, 0.15],
+  ['gorgonian',  'Gorgonian (photosynthetic)','Soft',7.5,10, 10,40,  0.05,0.30, 0.05]
 ].map(function(a){
   return {id:a[0], name:a[1], group:a[2], alk:[a[3],a[4]], no3:[a[5],a[6]], po4:[a[7],a[8]], demand:a[9]};
 });
