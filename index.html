@@ -256,7 +256,6 @@ nav button.on{color:var(--titrant)}
     <div class="btn-row" style="margin-top:0"><button class="small" id="btnAddCoral">Add coral</button></div>
     <div class="chips" id="coralChips" style="margin-top:2px"></div>
     <div class="hint" id="coralInfo" style="margin-top:8px"></div>
-    <div class="btn-row"><button class="small" id="btnApplyCorals">Apply refined targets</button></div>
 
     <div class="field">
       <label for="setVolume">Net water volume</label>
@@ -485,89 +484,95 @@ var DEFAULT_TARGETS = TANK_TYPES.mixed.targets;
    targets to the overlap of their ranges, and drive a stocking-based demand
    estimate until the log can measure real uptake. */
 var CORALS = [
-  ['acropora',   'Acropora',                'SPS',  7.8,8.5,  2,10,  0.03,0.10, 1.6],
-  ['montipora',  'Montipora',               'SPS',  7.8,9.0,  2,15,  0.03,0.15, 1.2],
-  ['pocillopora','Pocillopora',             'SPS',  7.8,9.0,  2,15,  0.03,0.15, 1.1],
-  ['stylophora', 'Stylophora',              'SPS',  7.8,9.0,  2,15,  0.03,0.15, 1.1],
-  ['seriatopora','Seriatopora (birdsnest)', 'SPS',  7.8,9.0,  2,15,  0.03,0.15, 1.0],
-  ['porites',    'Porites',                 'SPS',  7.8,9.0,  2,15,  0.03,0.15, 1.0],
-  ['pavona',     'Pavona (cactus coral)',   'SPS',  7.8,9.0,  2,15,  0.03,0.15, 0.8],
-  ['hydnophora', 'Hydnophora (horn coral)', 'SPS',  7.8,9.0,  2,15,  0.03,0.15, 0.8],
-  ['cyphastrea', 'Cyphastrea',              'SPS',  7.5,9.0,  2,20,  0.03,0.20, 0.4],
-  ['leptastrea', 'Leptastrea',              'SPS',  7.5,9.0,  2,20,  0.03,0.20, 0.4],
-  ['euphyllia',  'Euphyllia (hammer/torch/frogspawn)','LPS', 7.5,8.5, 5,30, 0.05,0.20, 0.7],
-  ['trachy',     'Trachyphyllia (open brain)','LPS', 7.5,8.5, 5,30, 0.05,0.25, 0.4],
-  ['scolymia',   'Scolymia',                'LPS',  7.5,8.5,  5,30,  0.05,0.25, 0.4],
-  ['acan',       'Micromussa / Acan',       'LPS',  8.0,9.0,  5,30,  0.05,0.25, 0.5],
-  ['favia',      'Favia / Favites',         'LPS',  8.0,9.0,  5,30,  0.05,0.20, 0.5],
-  ['goniopora',  'Goniopora',               'LPS',  7.5,8.5, 10,40,  0.07,0.30, 0.5],
-  ['duncan',     'Duncan',                  'LPS',  7.5,8.7,  5,30,  0.05,0.20, 0.5],
-  ['candycane',  'Caulastrea (candy cane)', 'LPS',  7.5,9.0,  5,30,  0.05,0.20, 0.5],
-  ['plate',      'Fungia (plate coral)',    'LPS',  7.5,8.7,  5,30,  0.05,0.20, 0.5],
-  ['chalice',    'Chalice (Echinophyllia)', 'LPS',  7.5,8.7,  5,30,  0.05,0.25, 0.4],
-  ['blasto',     'Blastomussa',             'LPS',  7.5,8.7,  5,30,  0.05,0.25, 0.3],
-  ['lobo',       'Lobophyllia / Symphyllia','LPS',  7.5,8.7,  5,30,  0.05,0.25, 0.5],
-  ['platygyra',  'Platygyra (maze brain)',  'LPS',  7.5,9.0,  5,30,  0.05,0.25, 0.6],
-  ['galaxea',    'Galaxea',                 'LPS',  7.5,9.0,  5,30,  0.05,0.25, 0.6],
-  ['bubble',     'Plerogyra (bubble coral)','LPS',  7.5,8.7,  5,30,  0.05,0.25, 0.4],
-  ['elegance',   'Catalaphyllia (elegance)','LPS',  7.5,8.5,  5,30,  0.05,0.25, 0.5],
-  ['alveopora',  'Alveopora',               'LPS',  7.5,8.5, 10,40,  0.07,0.30, 0.5],
-  ['pectinia',   'Pectinia',                'LPS',  7.5,8.7,  5,30,  0.05,0.25, 0.4],
-  ['turbinaria', 'Turbinaria (scroll/pagoda)','LPS',7.5,9.0,  5,30,  0.05,0.25, 0.6],
-  ['suncoral',   'Tubastraea (sun coral)',  'LPS',  7.5,9.0,  5,50,  0.05,0.50, 0.3],
-  ['leather',    'Leather (Sarcophyton)',   'Soft', 7.5,10,  10,40,  0.05,0.30, 0.05],
-  ['sinularia',  'Sinularia',               'Soft', 7.5,10,  10,40,  0.05,0.30, 0.05],
-  ['xenia',      'Xenia',                   'Soft', 7.5,10,  10,40,  0.05,0.30, 0.02],
-  ['zoas',       'Zoanthids',               'Soft', 7.5,10,  10,40,  0.05,0.30, 0.02],
-  ['palythoa',   'Palythoa',                'Soft', 7.5,10,  10,40,  0.05,0.30, 0.02],
-  ['gsp',        'Green star polyps',       'Soft', 7.5,10,  10,40,  0.05,0.30, 0.02],
-  ['mushroom',   'Mushrooms (Discosoma/Rhodactis)','Soft', 7.5,10, 10,40, 0.05,0.30, 0.01],
-  ['ricordea',   'Ricordea',                'Soft', 7.5,10,  10,40,  0.05,0.30, 0.01],
-  ['kenyatree',  'Kenya tree (Capnella)',   'Soft', 7.5,10,  10,40,  0.05,0.30, 0.03],
-  ['colt',       'Colt coral (Klyxum)',     'Soft', 7.5,10,  10,40,  0.05,0.30, 0.03],
-  ['nephthea',   'Nephthea',                'Soft', 7.5,10,  10,40,  0.05,0.30, 0.03],
-  ['anthelia',   'Anthelia (waving hand)',  'Soft', 7.5,10,  10,40,  0.05,0.30, 0.02],
-  ['clove',      'Clove polyps (Clavularia)','Soft',7.5,10,  10,40,  0.05,0.30, 0.02],
-  ['pipeorgan',  'Pipe organ (Tubipora)',   'Soft', 7.5,9.5, 10,40,  0.05,0.30, 0.15],
-  ['gorgonian',  'Gorgonian (photosynthetic)','Soft',7.5,10, 10,40,  0.05,0.30, 0.05],
-  ['cynarina',   'Cynarina (button coral)', 'LPS',  7.5,8.7,  5,30,  0.05,0.25, 0.4],
-  ['foxcoral',   'Nemenzophyllia (fox coral)','LPS',7.5,8.5,  5,30,  0.05,0.25, 0.3],
-  ['heliofungia','Heliofungia (long-tentacle plate)','LPS',7.5,8.7, 5,30, 0.05,0.25, 0.4],
-  ['echinopora', 'Echinopora',              'LPS',  7.5,9.0,  5,30,  0.05,0.25, 0.5],
-  ['psammocora', 'Psammocora',              'SPS',  7.8,9.0,  2,15,  0.03,0.15, 0.7],
-  ['stylocoeniella','Stylocoeniella',       'SPS',  7.5,9.0,  2,20,  0.03,0.20, 0.5],
-  ['lobophytum', 'Devil’s hand (Lobophytum)','Soft',7.5,10,  10,40,  0.05,0.30, 0.05],
-  ['sympodium',  'Sympodium',               'Soft', 7.5,10,  10,40,  0.05,0.30, 0.02],
+  ['acropora',   'Acropora (Acropora spp.)',            'SPS',  7.8,8.5,  2,10,  0.03,0.10, 1.6],
+  ['montipora',  'Montipora (Montipora spp.)',          'SPS',  7.8,9.0,  2,15,  0.03,0.15, 1.2],
+  ['pocillopora','Pocillopora (Pocillopora damicornis)','SPS',  7.8,9.0,  2,15,  0.03,0.15, 1.1],
+  ['stylophora', 'Stylophora (Stylophora pistillata)',  'SPS',  7.8,9.0,  2,15,  0.03,0.15, 1.1],
+  ['seriatopora','Birdsnest (Seriatopora hystrix)',     'SPS',  7.8,9.0,  2,15,  0.03,0.15, 1.0],
+  ['porites',    'Porites (Porites spp.)',              'SPS',  7.8,9.0,  2,15,  0.03,0.15, 1.0],
+  ['pavona',     'Cactus coral (Pavona spp.)',          'SPS',  7.8,9.0,  2,15,  0.03,0.15, 0.8],
+  ['hydnophora', 'Horn coral (Hydnophora spp.)',        'SPS',  7.8,9.0,  2,15,  0.03,0.15, 0.8],
+  ['cyphastrea', 'Cyphastrea (Cyphastrea spp.)',        'SPS',  7.5,9.0,  2,20,  0.03,0.20, 0.4],
+  ['leptastrea', 'Leptastrea (Leptastrea spp.)',        'SPS',  7.5,9.0,  2,20,  0.03,0.20, 0.4],
+  ['psammocora', 'Psammocora (Psammocora spp.)',        'SPS',  7.8,9.0,  2,15,  0.03,0.15, 0.7],
+  ['stylocoeniella','Stylocoeniella (Stylocoeniella spp.)','SPS',7.5,9.0, 2,20,  0.03,0.20, 0.5],
+  ['euphyllia',  'Euphyllia — general (Euphyllia / Fimbriaphyllia spp.)','LPS', 7.5,8.5, 5,30, 0.05,0.20, 0.7],
+  ['torch',      'Torch coral (Euphyllia glabrescens)', 'LPS',  7.5,8.5,  5,30,  0.05,0.20, 0.7],
+  ['hammerbr',   'Hammer, branching (Fimbriaphyllia ancora)','LPS',7.5,8.5, 5,30, 0.05,0.20, 0.7],
+  ['hammerwall', 'Hammer, wall (Fimbriaphyllia ancora)','LPS',  7.5,8.5,  5,30,  0.05,0.20, 0.6],
+  ['frogspawnbr','Frogspawn, branching (Fimbriaphyllia divisa)','LPS',7.5,8.5, 5,30, 0.05,0.20, 0.7],
+  ['frogspawnwall','Frogspawn, wall (Fimbriaphyllia divisa)','LPS',7.5,8.5, 5,30, 0.05,0.20, 0.6],
+  ['trachy',     'Open brain (Trachyphyllia geoffroyi)','LPS',  7.5,8.5,  5,30,  0.05,0.25, 0.4],
+  ['scolymia',   'Scolymia (Homophyllia australis)',    'LPS',  7.5,8.5,  5,30,  0.05,0.25, 0.4],
+  ['acan',       'Acan lord (Micromussa lordhowensis)', 'LPS',  8.0,9.0,  5,30,  0.05,0.25, 0.5],
+  ['favia',      'Moon brain (Favia / Favites spp.)',   'LPS',  8.0,9.0,  5,30,  0.05,0.20, 0.5],
+  ['goniopora',  'Flowerpot (Goniopora spp.)',          'LPS',  7.5,8.5, 10,40,  0.07,0.30, 0.5],
+  ['duncan',     'Duncan (Duncanopsammia axifuga)',     'LPS',  7.5,8.7,  5,30,  0.05,0.20, 0.5],
+  ['candycane',  'Candy cane (Caulastrea furcata)',     'LPS',  7.5,9.0,  5,30,  0.05,0.20, 0.5],
+  ['plate',      'Plate coral (Fungia / Cycloseris spp.)','LPS',7.5,8.7,  5,30,  0.05,0.20, 0.5],
+  ['chalice',    'Chalice (Echinophyllia spp.)',        'LPS',  7.5,8.7,  5,30,  0.05,0.25, 0.4],
+  ['blasto',     'Blastomussa (Blastomussa wellsi / merleti)','LPS',7.5,8.7, 5,30, 0.05,0.25, 0.3],
+  ['lobo',       'Lobo brain (Lobophyllia / Symphyllia spp.)','LPS',7.5,8.7, 5,30, 0.05,0.25, 0.5],
+  ['platygyra',  'Maze brain (Platygyra spp.)',         'LPS',  7.5,9.0,  5,30,  0.05,0.25, 0.6],
+  ['galaxea',    'Galaxy coral (Galaxea fascicularis)', 'LPS',  7.5,9.0,  5,30,  0.05,0.25, 0.6],
+  ['bubble',     'Bubble coral (Plerogyra sinuosa)',    'LPS',  7.5,8.7,  5,30,  0.05,0.25, 0.4],
+  ['elegance',   'Elegance (Catalaphyllia jardinei)',   'LPS',  7.5,8.5,  5,30,  0.05,0.25, 0.5],
+  ['alveopora',  'Alveopora (Alveopora spp.)',          'LPS',  7.5,8.5, 10,40,  0.07,0.30, 0.5],
+  ['pectinia',   'Pectinia (Pectinia spp.)',            'LPS',  7.5,8.7,  5,30,  0.05,0.25, 0.4],
+  ['turbinaria', 'Scroll / pagoda (Turbinaria spp.)',   'LPS',  7.5,9.0,  5,30,  0.05,0.25, 0.6],
+  ['suncoral',   'Sun coral (Tubastraea spp.)',         'LPS',  7.5,9.0,  5,50,  0.05,0.50, 0.3],
+  ['cynarina',   'Button coral (Cynarina lacrymalis)',  'LPS',  7.5,8.7,  5,30,  0.05,0.25, 0.4],
+  ['foxcoral',   'Fox coral (Nemenzophyllia turbida)',  'LPS',  7.5,8.5,  5,30,  0.05,0.25, 0.3],
+  ['heliofungia','Long-tentacle plate (Heliofungia actiniformis)','LPS',7.5,8.7, 5,30, 0.05,0.25, 0.4],
+  ['echinopora', 'Echinopora (Echinopora spp.)',        'LPS',  7.5,9.0,  5,30,  0.05,0.25, 0.5],
+  ['leather',    'Toadstool leather (Sarcophyton spp.)','Soft', 7.5,10,  10,40,  0.05,0.30, 0.05],
+  ['sinularia',  'Finger leather (Sinularia spp.)',     'Soft', 7.5,10,  10,40,  0.05,0.30, 0.05],
+  ['xenia',      'Pulsing xenia (Xenia / Heteroxenia spp.)','Soft',7.5,10,10,40, 0.05,0.30, 0.02],
+  ['zoas',       'Zoanthids (Zoanthus spp.)',           'Soft', 7.5,10,  10,40,  0.05,0.30, 0.02],
+  ['palythoa',   'Palythoa (Palythoa spp.)',            'Soft', 7.5,10,  10,40,  0.05,0.30, 0.02],
+  ['gsp',        'Green star polyps (Briareum / Pachyclavularia)','Soft',7.5,10, 10,40, 0.05,0.30, 0.02],
+  ['mushroom',   'Mushrooms (Discosoma / Rhodactis spp.)','Soft',7.5,10, 10,40,  0.05,0.30, 0.01],
+  ['ricordea',   'Ricordea (Ricordea florida / yuma)',  'Soft', 7.5,10,  10,40,  0.05,0.30, 0.01],
+  ['kenyatree',  'Kenya tree (Capnella spp.)',          'Soft', 7.5,10,  10,40,  0.05,0.30, 0.03],
+  ['colt',       'Colt coral (Klyxum spp.)',            'Soft', 7.5,10,  10,40,  0.05,0.30, 0.03],
+  ['nephthea',   'Nephthea (Nephthea / Litophyton spp.)','Soft',7.5,10,  10,40,  0.05,0.30, 0.03],
+  ['anthelia',   'Waving hand (Anthelia spp.)',         'Soft', 7.5,10,  10,40,  0.05,0.30, 0.02],
+  ['clove',      'Clove polyps (Clavularia spp.)',      'Soft', 7.5,10,  10,40,  0.05,0.30, 0.02],
+  ['pipeorgan',  'Pipe organ (Tubipora musica)',        'Soft', 7.5,9.5, 10,40,  0.05,0.30, 0.15],
+  ['gorgonian',  'Gorgonian, photosynthetic (Pinnigorgia / Gorgonia spp.)','Soft',7.5,10, 10,40, 0.05,0.30, 0.05],
+  ['lobophytum', 'Devil’s hand (Lobophytum spp.)',      'Soft', 7.5,10,  10,40,  0.05,0.30, 0.05],
+  ['sympodium',  'Sympodium (Sympodium coeruleum)',     'Soft', 7.5,10,  10,40,  0.05,0.30, 0.02],
   /* Tridacnid clams: serious calcifiers with published preferences for
      stable, clean-ish water and measurable nitrate. */
-  ['crocea',     'Tridacna crocea clam',    'Clams',7.8,9.0,  2,20,  0.02,0.20, 1.2],
-  ['maxima',     'Tridacna maxima clam',    'Clams',7.8,9.0,  2,20,  0.02,0.20, 1.1],
-  ['derasa',     'Tridacna derasa clam',    'Clams',7.5,9.5,  2,25,  0.02,0.25, 1.0],
-  ['squamosa',   'Tridacna squamosa clam',  'Clams',7.5,9.5,  2,25,  0.02,0.25, 1.0],
+  ['crocea',     'Crocea clam (Tridacna crocea)',       'Clams',7.8,9.0,  2,20,  0.02,0.20, 1.2],
+  ['maxima',     'Maxima clam (Tridacna maxima)',       'Clams',7.8,9.0,  2,20,  0.02,0.20, 1.1],
+  ['derasa',     'Derasa clam (Tridacna derasa)',       'Clams',7.5,9.5,  2,25,  0.02,0.25, 1.0],
+  ['squamosa',   'Squamosa clam (Tridacna squamosa)',   'Clams',7.5,9.5,  2,25,  0.02,0.25, 1.0],
   /* Fish: no calcification demand, but published nutrient sensitivities —
      butterflyfish famously intolerant of high nitrate, clownfish famously
      forgiving. Alkalinity bands are wide so they never fight the corals. */
-  ['butterfly',  'Butterflyfish',           'Fish', 7.0,11,   2,20,  0.02,0.25, 0],
-  ['anthias',    'Anthias',                 'Fish', 7.0,11,   2,25,  0.02,0.30, 0],
-  ['tang',       'Tang / surgeonfish',      'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
-  ['clownfish',  'Clownfish',               'Fish', 7.0,11,   2,50,  0.02,0.50, 0],
-  ['wrasse',     'Reef-safe wrasse',        'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
-  ['dwarfangel', 'Dwarf angelfish',         'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
-  ['mandarin',   'Mandarin dragonet',       'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
-  ['chromis',    'Chromis / damselfish',    'Fish', 7.0,11,   2,50,  0.02,0.50, 0],
-  ['goby',       'Goby / blenny',           'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
-  ['gramma',     'Royal gramma / basslet',  'Fish', 7.0,11,   2,50,  0.02,0.50, 0],
+  ['butterfly',  'Butterflyfish (Chaetodon spp.)',      'Fish', 7.0,11,   2,20,  0.02,0.25, 0],
+  ['anthias',    'Anthias (Pseudanthias spp.)',         'Fish', 7.0,11,   2,25,  0.02,0.30, 0],
+  ['tang',       'Tang / surgeonfish (Zebrasoma / Acanthurus spp.)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
+  ['clownfish',  'Clownfish (Amphiprion spp.)',         'Fish', 7.0,11,   2,50,  0.02,0.50, 0],
+  ['wrasse',     'Reef-safe wrasse (Halichoeres / Cirrhilabrus spp.)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
+  ['dwarfangel', 'Dwarf angelfish (Centropyge spp.)',   'Fish', 7.0,11,   2,40,  0.02,0.40, 0],
+  ['mandarin',   'Mandarin dragonet (Synchiropus splendidus)','Fish',7.0,11, 2,40, 0.02,0.40, 0],
+  ['chromis',    'Chromis / damselfish (Chromis / Chrysiptera spp.)','Fish',7.0,11, 2,50, 0.02,0.50, 0],
+  ['goby',       'Goby / blenny (Gobiodon / Ecsenius spp.)','Fish',7.0,11, 2,40,  0.02,0.40, 0],
+  ['gramma',     'Royal gramma (Gramma loreto)',        'Fish', 7.0,11,   2,50,  0.02,0.50, 0],
   /* Inverts: anemones and Linckia stars want mature, clean, stable water;
      snails and urchins calcify a little as they grow shell and spine. */
-  ['bta',        'Bubble tip anemone',      'Inverts',7.5,9.5, 2,20, 0.03,0.20, 0.02],
-  ['rfa',        'Rock flower anemone',     'Inverts',7.5,9.5, 2,30, 0.03,0.25, 0.02],
-  ['cleanershrimp','Cleaner shrimp',        'Inverts',7.0,11,  2,40, 0.02,0.40, 0.02],
-  ['fireshrimp', 'Fire shrimp',             'Inverts',7.0,11,  2,40, 0.02,0.40, 0.02],
-  ['linckia',    'Linckia starfish',        'Inverts',7.0,11,  2,15, 0.02,0.15, 0],
-  ['brittlestar','Brittle star',            'Inverts',7.0,11,  2,40, 0.02,0.40, 0],
-  ['urchin',     'Tuxedo urchin',           'Inverts',7.0,11,  2,40, 0.02,0.40, 0.05],
-  ['snails',     'Turbo / Trochus snails',  'Inverts',7.0,11,  2,40, 0.02,0.40, 0.03],
-  ['hermit',     'Hermit crabs',            'Inverts',7.0,11,  2,50, 0.02,0.50, 0.01]
+  ['bta',        'Bubble tip anemone (Entacmaea quadricolor)','Inverts',7.5,9.5, 2,20, 0.03,0.20, 0.02],
+  ['rfa',        'Rock flower anemone (Phymanthus crucifer)','Inverts',7.5,9.5, 2,30, 0.03,0.25, 0.02],
+  ['cleanershrimp','Cleaner shrimp (Lysmata amboinensis)','Inverts',7.0,11,  2,40, 0.02,0.40, 0.02],
+  ['fireshrimp', 'Fire shrimp (Lysmata debelius)',      'Inverts',7.0,11,  2,40, 0.02,0.40, 0.02],
+  ['peppermint', 'Peppermint shrimp (Lysmata wurdemanni)','Inverts',7.0,11, 2,40, 0.02,0.40, 0.02],
+  ['linckia',    'Linckia starfish (Linckia laevigata)','Inverts',7.0,11,  2,15, 0.02,0.15, 0],
+  ['brittlestar','Brittle star (Ophiuroidea)',          'Inverts',7.0,11,  2,40, 0.02,0.40, 0],
+  ['urchin',     'Tuxedo urchin (Mespilia globulus)',   'Inverts',7.0,11,  2,40, 0.02,0.40, 0.05],
+  ['snails',     'Turbo / Trochus snails (Turbo / Trochus spp.)','Inverts',7.0,11, 2,40, 0.02,0.40, 0.03],
+  ['hermit',     'Hermit crabs (Paguroidea)',           'Inverts',7.0,11,  2,50, 0.02,0.50, 0.01]
 ].map(function(a){
   return {id:a[0], name:a[1], group:a[2], alk:[a[3],a[4]], no3:[a[5],a[6]], po4:[a[7],a[8]], demand:a[9]};
 });
@@ -1920,7 +1925,9 @@ function refinedBands(){
       var mid = (lo + hi) / 2, half = p === 'alk' ? 0.3 : p === 'no3' ? 2 : 0.02;
       lo = mid - half; hi = mid + half;
     }
-    res[p] = {low:lo, high:hi, target:(lo + hi) / 2};
+    /* Keep the profile's published target wherever it still fits the
+       refined band; clamp it in only when the band excludes it. */
+    res[p] = {low:lo, high:hi, target:Math.min(Math.max(prof[p].target, lo), hi)};
   });
   return res;
 }
@@ -1946,7 +1953,9 @@ function renderCorals(){
   $('#coralChips').querySelectorAll('[data-rmcoral]').forEach(function(b){
     b.addEventListener('click', function(){
       cs.splice(parseInt(b.getAttribute('data-rmcoral'), 10), 1);
-      save(); renderCorals();
+      applyStocking();
+      save(); refreshAll(); renderCorals();
+      toast('Targets updated to your stocking');
     });
   });
   var info;
@@ -2011,9 +2020,10 @@ $('#setTankType').addEventListener('change', function(){
   state.settings.tankType = this.value;
   state.settings.targets = clone(prof.targets);
   state.settings.caps = clone(prof.caps);
+  applyStocking();
   save();
-  refreshAll();
-  toast(prof.name + ' targets applied');
+  refreshAll(); renderCorals();
+  toast(prof.name + ' targets applied' + ((state.settings.corals || []).length ? ', refined to your stocking' : ''));
 });
 ['estTotal','estRock','estSand'].forEach(function(id){
   $('#'+id).addEventListener('input', function(){
@@ -2036,22 +2046,24 @@ $('#btnUseEst').addEventListener('click', function(){
     ? +(netL / 3.78541).toFixed(1) : Math.round(netL);
   toast('Net volume set to ' + Math.round(netL) + ' L — every dose now uses it');
 });
-$('#btnAddCoral').addEventListener('click', function(){
-  state.settings.corals = state.settings.corals || [];
-  state.settings.corals.push({sp:$('#coralSp').value, size:$('#coralSize').value});
-  save(); renderCorals();
-});
-$('#btnApplyCorals').addEventListener('click', function(){
-  if(!(state.settings.corals || []).length){ toast('Add some corals first'); return; }
+/* Stocking shapes the targets automatically: every add or remove re-derives
+   the alk / nitrate / phosphate bands from the tank type plus the published
+   ranges of everything kept. An empty list means the profile alone. */
+function applyStocking(){
   var b = refinedBands();
   ['alk','no3','po4'].forEach(function(k){
     state.settings.targets[k] = {
       low:+b[k].low.toFixed(2), target:+b[k].target.toFixed(2), high:+b[k].high.toFixed(2)
     };
   });
-  save();
-  refreshAll();
-  toast('Targets refined to your corals' + (b.conflict ? ' — ranges partly conflicted, middle ground used' : ''));
+  return b;
+}
+$('#btnAddCoral').addEventListener('click', function(){
+  state.settings.corals = state.settings.corals || [];
+  state.settings.corals.push({sp:$('#coralSp').value, size:$('#coralSize').value});
+  var b = applyStocking();
+  save(); refreshAll(); renderCorals();
+  toast('Targets updated to your stocking' + (b.conflict ? ' — ranges partly conflict, middle ground used' : ''));
 });
 $('#setEmail').addEventListener('change', function(){
   remSettings().email = this.value.trim(); save();
@@ -2136,7 +2148,8 @@ $('#btnResetTargets').addEventListener('click', function(){
   var prof = TANK_TYPES[state.settings.tankType || 'mixed'];
   state.settings.targets = clone(prof.targets);
   state.settings.caps = clone(prof.caps);
-  save(); refreshAll(); toast(prof.name + ' targets restored');
+  applyStocking();
+  save(); refreshAll(); toast(prof.name + ' targets restored' + ((state.settings.corals || []).length ? ', refined to your stocking' : ''));
 });
 $('#btnExport').addEventListener('click', function(){
   if(!state.log.length){ toast('Log is empty'); return; }
