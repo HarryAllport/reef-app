@@ -257,6 +257,15 @@ nav button.on{color:var(--titrant)}
       <div class="hint" id="volHint">Display plus sump, minus rock and sand. Most systems come out around 85% of the total. Every dose in the app is worked out from this number, so it's worth getting close.</div>
     </div>
 
+    <h3 class="salt-sub" style="margin-top:14px">Not sure? Estimate it</h3>
+    <div class="grid3" style="margin-top:8px">
+      <div class="field"><label for="estTotal" id="estTotalLabel">Total volume (L)</label><input type="number" id="estTotal" inputmode="decimal" step="1"></div>
+      <div class="field"><label for="estRock">Rock (kg)</label><input type="number" id="estRock" inputmode="decimal" step="1"></div>
+      <div class="field"><label for="estSand">Sand (kg)</label><input type="number" id="estSand" inputmode="decimal" step="1"></div>
+    </div>
+    <div class="hint" style="margin-top:-4px" id="estOut"></div>
+    <div class="btn-row"><button class="small" id="btnUseEst">Use this estimate</button></div>
+
     <h3 class="salt-sub" style="margin-top:16px">Maintenance reminders</h3>
     <div class="field" style="margin-top:8px">
       <label for="setEmail">Your email</label>
@@ -510,7 +519,8 @@ var DEFAULTS = {
   caps:{alk:0.4, ca:20, mg:50},
   saltMix:{brand:'rs-salt', strengths:{}, elements:{}},
   reminders:{email:'', wc:7, test:7, dose:'1'},
-  doser:{alk:'rs-b', ca:'rs-a', mg:'rs-c'}
+  doser:{alk:'rs-b', ca:'rs-a', mg:'rs-c'},
+  estimator:{total:null, rock:null, sand:null}
 };
 
 var KEY = 'reef-tank-data';
@@ -605,6 +615,7 @@ function apply(data){
     if(Array.isArray(s.shelf)) state.settings.shelf = s.shelf;
     if(s.saltMix) state.settings.saltMix = {brand:s.saltMix.brand || 'rs-salt', strengths:s.saltMix.strengths || {}, elements:s.saltMix.elements || {}, mode:s.saltMix.mode === 'fix' ? 'fix' : 'change'};
     if(s.doser) state.settings.doser = {alk:s.doser.alk || 'rs-b', ca:s.doser.ca || 'rs-a', mg:s.doser.mg || 'rs-c'};
+    if(s.estimator) state.settings.estimator = {total:num(s.estimator.total), rock:num(s.estimator.rock), sand:num(s.estimator.sand)};
     if(s.reminders) state.settings.reminders = {
       email:s.reminders.email || '',
       wc:num(s.reminders.wc) || 7,
@@ -1707,6 +1718,29 @@ function remSettings(){
   if(!state.settings.reminders) state.settings.reminders = clone(DEFAULTS.reminders);
   return state.settings.reminders;
 }
+function estSettings(){
+  if(!state.settings.estimator) state.settings.estimator = clone(DEFAULTS.estimator);
+  return state.settings.estimator;
+}
+/* Rock and sand are mostly aragonite (~2.7 kg/L solid), and their pores hold
+   water — so each kilo only displaces about 0.4 L. */
+function calcEstimate(){
+  var gal = state.settings.volUnit === 'gal';
+  var tIn = num($('#estTotal').value);
+  var rock = num($('#estRock').value) || 0;
+  var sand = num($('#estSand').value) || 0;
+  var out = $('#estOut');
+  if(!tIn || tIn <= 0){
+    out.textContent = 'Enter the total system volume as filled (display plus sump), with rough rock and sand weights — each kilo displaces about 0.4 L.';
+    return null;
+  }
+  var totalL = gal ? tIn * 3.78541 : tIn;
+  var netL = Math.max(0, totalL - 0.4 * rock - 0.4 * sand);
+  var show = gal ? (netL / 3.78541).toFixed(1) + ' US gal' : netL.toFixed(0) + ' L';
+  out.innerHTML = 'Estimated net water: <b>' + show + '</b>' +
+    (rock || sand ? ' — rock displaces about ' + (0.4 * rock).toFixed(0) + ' L, sand about ' + (0.4 * sand).toFixed(0) + ' L.' : '.');
+  return netL;
+}
 function populateTank(){
   $('#setTankName').value = state.settings.tankName;
   $('#setTankType').value = state.settings.tankType || 'mixed';
@@ -1714,6 +1748,12 @@ function populateTank(){
   $('#setVolume').value = state.settings.volUnit === 'gal'
     ? +(state.settings.netLitres / 3.78541).toFixed(1)
     : +state.settings.netLitres.toFixed(0);
+  var est = estSettings(), gal = state.settings.volUnit === 'gal';
+  $('#estTotalLabel').textContent = 'Total volume (' + (gal ? 'US gal' : 'L') + ')';
+  $('#estTotal').value = est.total ? (gal ? +(est.total / 3.78541).toFixed(1) : +est.total.toFixed(0)) : '';
+  $('#estRock').value = est.rock || '';
+  $('#estSand').value = est.sand || '';
+  calcEstimate();
   var r = remSettings();
   $('#setEmail').value = r.email;
   $('#remWC').value = r.wc;
@@ -1738,6 +1778,27 @@ $('#setTankType').addEventListener('change', function(){
   renderHeader(); renderRows(); renderSetup(); renderSaltCalc();
   if($('#view-log').classList.contains('on')) renderLog();
   toast(prof.name + ' targets applied');
+});
+['estTotal','estRock','estSand'].forEach(function(id){
+  $('#'+id).addEventListener('input', function(){
+    var est = estSettings(), gal = state.settings.volUnit === 'gal';
+    var t = num($('#estTotal').value);
+    est.total = t ? (gal ? t * 3.78541 : t) : null;
+    est.rock = num($('#estRock').value);
+    est.sand = num($('#estSand').value);
+    save();
+    calcEstimate();
+  });
+});
+$('#btnUseEst').addEventListener('click', function(){
+  var netL = calcEstimate();
+  if(!netL){ toast('Enter the total volume first'); return; }
+  state.settings.netLitres = Math.round(netL);
+  save();
+  $('#setVolume').value = state.settings.volUnit === 'gal'
+    ? +(netL / 3.78541).toFixed(1) : Math.round(netL);
+  renderHeader(); renderSaltCalc();
+  toast('Net volume set to ' + Math.round(netL) + ' L — every dose now uses it');
 });
 $('#setEmail').addEventListener('change', function(){
   remSettings().email = this.value.trim(); save();
