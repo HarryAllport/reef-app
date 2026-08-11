@@ -1352,6 +1352,15 @@ function saltElements(id){
     mg:  num(ov.mg)  || base.mg
   };
 }
+/* The selected brand's published element levels, with any on-screen edits. */
+function currentSaltElements(){
+  var b = smSettings().brand;
+  return {
+    alk: num($('#smElAlk').value) || saltElements(b).alk,
+    ca:  num($('#smElCa').value)  || saltElements(b).ca,
+    mg:  num($('#smElMg').value)  || saltElements(b).mg
+  };
+}
 function volLitres(v){ return state.settings.volUnit === 'gal' ? v * 3.78541 : v; }
 function volSuffix(){ return state.settings.volUnit === 'gal' ? ' US gal' : ' L'; }
 function spg(ppt){ return (1 + ppt/1327).toFixed(3); }
@@ -1394,6 +1403,19 @@ function setMode(m){
     : 'The new water’s salinity is tuned so the tank lands on target — enter your RO/DI volume for the exact salt weight, plus the knock-on effect on the major elements.';
   calcWC();
 }
+/* Rows for a plain-RO dilution: every element falls by the same factor as
+   the salt. Shows now → after when a reading exists, else the percentage. */
+function dilutionRows(factor){
+  var rows = '';
+  [['alk','Alkalinity'],['ca','Calcium'],['mg','Magnesium'],['no3','Nitrate'],['po4','Phosphate']].forEach(function(p){
+    var c = latestReading(p[0]);
+    var m = meta(p[0]);
+    var txt = '−' + Math.round((1 - factor) * 100) + '%';
+    if(c) txt = fmt(c.v, m.dp) + ' → ' + fmt(c.v * factor, m.dp) + ' ' + m.unit;
+    rows += '<div class="wc-row"><span>'+p[1]+'</span><span class="mono">'+txt+'</span></div>';
+  });
+  return rows;
+}
 /* Stand-alone salinity correction: no water change, sized to the tank's
    net volume. High → staged RO/DI dilution. Low → staged dissolved salt,
    with the knock-on lift to the major elements from the salt's published
@@ -1423,16 +1445,14 @@ function calcFix(){
       (stages > 1
         ? '<p>Split it into '+stages+' stages of about '+(swapIn/stages).toFixed(1)+volSuffix()+' each, a day or two apart — no more than about 0.001 SPG per step with livestock.</p>'
         : '<p>Small enough to do in one go.</p>')+
-      '<p>Plain RO carries nothing, so alkalinity, calcium and magnesium dip slightly too — re-test them after the final stage.</p></div>';
+      '<p>Plain RO carries nothing, so it thins everything equally — the major elements drop by about '+Math.round((1 - tgt/cur)*100)+'% along with the salt:</p>'+
+      '<div class="wc-rows">'+dilutionRows(tgt/cur)+'</div>'+
+      '<p>Re-test them after the final stage, before any supplement dosing.</p></div>';
     return;
   }
   var grams = net * (tgt - cur) * gl / 35;
   stages = Math.max(1, Math.ceil((tgt - cur) / 1.33));
-  var el = {
-    alk: num($('#smElAlk').value) || saltElements(sm.brand).alk,
-    ca:  num($('#smElCa').value)  || saltElements(sm.brand).ca,
-    mg:  num($('#smElMg').value)  || saltElements(sm.brand).mg
-  };
+  var el = currentSaltElements();
   /* The dissolved salt is, in effect, this many litres of full-strength new
      water spread across the tank — the elements rise by that share. */
   var eqL = grams / gl;
@@ -1463,11 +1483,7 @@ function latestReading(k){
 }
 var WC_KEYS = ['salinity','alk','ca','mg','no3','po4'];
 function wcPrediction(f, curSal, mixSal){
-  var el = {
-    alk: num($('#smElAlk').value) || saltElements(smSettings().brand).alk,
-    ca:  num($('#smElCa').value)  || saltElements(smSettings().brand).ca,
-    mg:  num($('#smElMg').value)  || saltElements(smSettings().brand).mg
-  };
+  var el = currentSaltElements();
   /* What the new water brings in: salt at the tuned mix salinity, published
      elements, and effectively zero nutrients. */
   var mix = {salinity:mixSal, alk:el.alk, ca:el.ca, mg:el.mg, no3:0, po4:0};
@@ -1524,6 +1540,18 @@ function calcWC(driver){
     var m = meta(p.key), vt = verdictText(p.key, p.after);
     rows += '<div class="wc-row"><span>'+P(p.key).name+'</span>'+
       '<span class="mono">'+fmt(toDisp(p.key,p.now),m.dp)+' → <b class="'+vt[1]+'">'+fmt(toDisp(p.key,p.after),m.dp)+'</b>'+(m.unit?' '+m.unit:'')+'</span></div>';
+  });
+  /* Parameters with no reading yet still get their effect denoted, from the
+     salt's published contents and the change fraction alone. */
+  var known = preds.map(function(p){ return p.key; });
+  var elPub = currentSaltElements();
+  [['alk','Alkalinity'],['ca','Calcium'],['mg','Magnesium']].forEach(function(p){
+    if(known.indexOf(p[0]) > -1) return;
+    rows += '<div class="wc-row"><span>'+p[1]+'</span><span class="mono">drawn '+Math.round(f*100)+'% toward '+elPub[p[0]]+' '+UNITS[p[0]]+' (published)</span></div>';
+  });
+  [['no3','Nitrate'],['po4','Phosphate']].forEach(function(p){
+    if(known.indexOf(p[0]) > -1) return;
+    rows += '<div class="wc-row"><span>'+p[1]+'</span><span class="mono">−'+Math.round(f*100)+'% (diluted out)</span></div>';
   });
   var walkNote = '';
   if(Math.abs(afterSal - tgtSal) > 0.15){
