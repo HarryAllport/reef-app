@@ -2431,17 +2431,14 @@ function renderTankPicker(){
 /* Lite keeps every Pro control in the page but switched off, so a tank set up
    in Pro is never damaged by opening it here. */
 function applyTier(){
+  if(TIER === 'pro') return;          /* nothing is ever gated in the paid build */
   document.querySelectorAll('[data-pro]').forEach(function(el){
     var name = el.getAttribute('data-pro');
-    var open = {'More than one tank':FEATURES.multiTank,
-                'Livestock-refined targets':FEATURES.livestock,
-                'Running costs':FEATURES.costs};
-    if(open[name]) return;
     var card = document.createElement('div');
     card.className = 'locked';
     card.innerHTML = '<div class="locked-t">' + esc(name) + '</div>' +
                      '<div class="locked-b">' + esc(el.getAttribute('data-why') || '') + '</div>' +
-                     '<div class="locked-n">In Reef Parameters Pro</div>';
+                     '<div class="locked-n">In Reef Key Pro</div>';
     el.parentNode.insertBefore(card, el);
     el.style.display = 'none';
   });
@@ -2449,7 +2446,7 @@ function applyTier(){
 function upsell(title, why){
   return '<div class="locked"><div class="locked-t">' + esc(title) + '</div>' +
          '<div class="locked-b">' + esc(why) + '</div>' +
-         '<div class="locked-n">In Reef Parameters Pro</div></div>';
+         '<div class="locked-n">In Reef Key Pro</div></div>';
 }
 
 /* ---------- salt mix & water change calculator ---------- */
