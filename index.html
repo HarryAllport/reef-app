@@ -136,6 +136,7 @@ button.small{padding:8px 11px;font-size:13px}
 .step{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:2px}
 .chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
 .chip{font-family:"IBM Plex Mono",monospace;font-size:11px;padding:5px 9px;border-radius:20px;border:1px solid var(--line);color:var(--good)}
+.coral-chip{font-family:"IBM Plex Mono",monospace;font-size:11px;padding:5px 10px;border-radius:20px;border:1px solid var(--line);background:var(--panel);color:var(--foam);cursor:pointer}
 
 /* shelf */
 .prod{border-bottom:1px solid var(--line);padding:4px 0}
@@ -245,6 +246,18 @@ nav button.on{color:var(--titrant)}
       </select>
       <div class="hint">Sets the published target bands and daily limits the whole app calculates from — corrections, water change predictions and uptake dosing all follow it.</div>
     </div>
+
+    <h3 class="salt-sub">Corals in the tank</h3>
+    <div class="sub">Add what you actually keep and how big it is. Targets refine to the overlap of the corals' published care ranges, and the app estimates elemental demand until your log can measure the real thing.</div>
+    <div class="grid2" style="margin-top:10px">
+      <div class="field" style="margin-bottom:8px"><label for="coralSp">Coral</label><select id="coralSp"></select></div>
+      <div class="field" style="margin-bottom:8px"><label for="coralSize">Size</label><select id="coralSize"></select></div>
+    </div>
+    <div class="btn-row" style="margin-top:0"><button class="small" id="btnAddCoral">Add coral</button></div>
+    <div class="chips" id="coralChips" style="margin-top:2px"></div>
+    <div class="hint" id="coralInfo" style="margin-top:8px"></div>
+    <div class="btn-row"><button class="small" id="btnApplyCorals">Apply refined targets</button></div>
+
     <div class="field">
       <label for="setVolume">Net water volume</label>
       <div class="grid2">
@@ -466,6 +479,52 @@ var TANK_TYPES = {
 };
 var DEFAULT_TARGETS = TANK_TYPES.mixed.targets;
 
+/* Common hobby corals with published care ranges: preferred alkalinity,
+   nitrate and phosphate bands, plus a relative calcification demand factor
+   (SPS highest, softies close to nil). Selected corals narrow the tank-type
+   targets to the overlap of their ranges, and drive a stocking-based demand
+   estimate until the log can measure real uptake. */
+var CORALS = [
+  ['acropora',   'Acropora',                'SPS',  7.8,8.5,  2,10,  0.03,0.10, 1.6],
+  ['montipora',  'Montipora',               'SPS',  7.8,9.0,  2,15,  0.03,0.15, 1.2],
+  ['pocillopora','Pocillopora',             'SPS',  7.8,9.0,  2,15,  0.03,0.15, 1.1],
+  ['stylophora', 'Stylophora',              'SPS',  7.8,9.0,  2,15,  0.03,0.15, 1.1],
+  ['seriatopora','Seriatopora (birdsnest)', 'SPS',  7.8,9.0,  2,15,  0.03,0.15, 1.0],
+  ['euphyllia',  'Euphyllia (hammer/torch/frogspawn)','LPS', 7.5,8.5, 5,30, 0.05,0.20, 0.7],
+  ['trachy',     'Trachyphyllia (open brain)','LPS', 7.5,8.5, 5,30, 0.05,0.25, 0.4],
+  ['scolymia',   'Scolymia',                'LPS',  7.5,8.5,  5,30,  0.05,0.25, 0.4],
+  ['acan',       'Micromussa / Acan',       'LPS',  8.0,9.0,  5,30,  0.05,0.25, 0.5],
+  ['favia',      'Favia / Favites',         'LPS',  8.0,9.0,  5,30,  0.05,0.20, 0.5],
+  ['goniopora',  'Goniopora',               'LPS',  7.5,8.5, 10,40,  0.07,0.30, 0.5],
+  ['duncan',     'Duncan',                  'LPS',  7.5,8.7,  5,30,  0.05,0.20, 0.5],
+  ['candycane',  'Caulastrea (candy cane)', 'LPS',  7.5,9.0,  5,30,  0.05,0.20, 0.5],
+  ['plate',      'Fungia (plate coral)',    'LPS',  7.5,8.7,  5,30,  0.05,0.20, 0.5],
+  ['chalice',    'Chalice (Echinophyllia)', 'LPS',  7.5,8.7,  5,30,  0.05,0.25, 0.4],
+  ['blasto',     'Blastomussa',             'LPS',  7.5,8.7,  5,30,  0.05,0.25, 0.3],
+  ['leather',    'Leather (Sarcophyton)',   'Soft', 7.5,10,  10,40,  0.05,0.30, 0.05],
+  ['sinularia',  'Sinularia',               'Soft', 7.5,10,  10,40,  0.05,0.30, 0.05],
+  ['xenia',      'Xenia',                   'Soft', 7.5,10,  10,40,  0.05,0.30, 0.02],
+  ['zoas',       'Zoanthids',               'Soft', 7.5,10,  10,40,  0.05,0.30, 0.02],
+  ['palythoa',   'Palythoa',                'Soft', 7.5,10,  10,40,  0.05,0.30, 0.02],
+  ['gsp',        'Green star polyps',       'Soft', 7.5,10,  10,40,  0.05,0.30, 0.02],
+  ['mushroom',   'Mushrooms (Discosoma/Rhodactis)','Soft', 7.5,10, 10,40, 0.05,0.30, 0.01],
+  ['ricordea',   'Ricordea',                'Soft', 7.5,10,  10,40,  0.05,0.30, 0.01]
+].map(function(a){
+  return {id:a[0], name:a[1], group:a[2], alk:[a[3],a[4]], no3:[a[5],a[6]], po4:[a[7],a[8]], demand:a[9]};
+});
+/* Size classes: base alkalinity demand in dKH/day per 100 L for a demand
+   factor of 1.0. Calcium and magnesium follow the calcification ratio the
+   app already uses (20 ppm Ca and ~1.5 ppm Mg per 2.8 dKH). */
+var CORAL_SIZES = [
+  {id:'frag',  name:'Frag',               f:0.008},
+  {id:'small', name:'Small colony',       f:0.02},
+  {id:'med',   name:'Medium colony',      f:0.05},
+  {id:'large', name:'Large colony',       f:0.10},
+  {id:'xl',    name:'Extra-large colony', f:0.18}
+];
+function coralById(id){ for(var i=0;i<CORALS.length;i++){ if(CORALS[i].id===id) return CORALS[i]; } return CORALS[0]; }
+function coralSizeById(id){ for(var i=0;i<CORAL_SIZES.length;i++){ if(CORAL_SIZES[i].id===id) return CORAL_SIZES[i]; } return CORAL_SIZES[0]; }
+
 /* Product library. `effects` is the change one unit (g or ml) makes in 100 litres:
    alk in dKH, ca / mg / no3 in ppm. Every figure is editable in Setup, because
    labels vary between batches and brands.
@@ -520,7 +579,8 @@ var DEFAULTS = {
   saltMix:{brand:'rs-salt', strengths:{}, elements:{}},
   reminders:{email:'', wc:7, test:7, dose:'1'},
   doser:{alk:'rs-b', ca:'rs-a', mg:'rs-c'},
-  estimator:{total:null, rock:null, sand:null}
+  estimator:{total:null, rock:null, sand:null},
+  corals:[]
 };
 
 var KEY = 'reef-tank-data';
@@ -616,6 +676,7 @@ function apply(data){
     if(s.saltMix) state.settings.saltMix = {brand:s.saltMix.brand || 'rs-salt', strengths:s.saltMix.strengths || {}, elements:s.saltMix.elements || {}, mode:s.saltMix.mode === 'fix' ? 'fix' : 'change'};
     if(s.doser) state.settings.doser = {alk:s.doser.alk || 'rs-b', ca:s.doser.ca || 'rs-a', mg:s.doser.mg || 'rs-c'};
     if(s.estimator) state.settings.estimator = {total:num(s.estimator.total), rock:num(s.estimator.rock), sand:num(s.estimator.sand)};
+    if(Array.isArray(s.corals)) state.settings.corals = s.corals.filter(function(c){ return c && c.sp && c.size; });
     if(s.reminders) state.settings.reminders = {
       email:s.reminders.email || '',
       wc:num(s.reminders.wc) || 7,
@@ -1007,7 +1068,7 @@ function buildCorrections(){
   return {actions:out, ok:ok};
 }
 
-function renderResults(){
+function renderResults(quiet){
   var res = buildCorrections();
   var el = $('#results');
   if(!res){ el.innerHTML = '<div class="empty"><strong>Nothing to work from yet</strong>Enter at least one reading above.</div>'; return; }
@@ -1031,7 +1092,17 @@ function renderResults(){
   el.innerHTML = html;
   var sv = document.getElementById('btnSave');
   if(sv) sv.addEventListener('click', saveEntry);
-  el.scrollIntoView({behavior:'smooth', block:'start'});
+  if(quiet !== true) el.scrollIntoView({behavior:'smooth', block:'start'});
+}
+/* One settings change re-renders every live view, so whatever is currently
+   on screen — tiles, corrections, salt card, log, uptake — follows it. */
+function refreshAll(){
+  renderHeader();
+  renderRows();
+  renderSetup();
+  renderSaltCalc();
+  renderLog();
+  if($('#results').innerHTML) renderResults(true);
 }
 
 function saveEntry(){
@@ -1050,26 +1121,31 @@ function saveEntry(){
 /* ---------- log ---------- */
 function renderLog(){
   var list = $('#logList');
+  function bindTrendCard(){
+    $('#trendCard').querySelectorAll('[data-chart]').forEach(function(b){
+      b.addEventListener('click', function(){
+        chartKey = b.getAttribute('data-chart');
+        renderLog();
+      });
+    });
+    $('#trendCard').querySelectorAll('[data-doseprod]').forEach(function(s){
+      s.addEventListener('change', function(){
+        state.settings.doser = state.settings.doser || {};
+        state.settings.doser[s.getAttribute('data-doseprod')] = s.value;
+        save();
+        renderLog();
+      });
+    });
+  }
   if(!state.log.length){
-    $('#trendCard').innerHTML = '';
+    /* No tests yet — but the stocking-based uptake estimate still renders. */
+    $('#trendCard').innerHTML = consumptionCard();
     list.innerHTML = '<div class="empty"><strong>No tests logged yet</strong>Save a set of readings and they will build up here, with a graph of every parameter you log.</div>';
+    bindTrendCard();
     return;
   }
   $('#trendCard').innerHTML = chartCard() + consumptionCard();
-  $('#trendCard').querySelectorAll('[data-chart]').forEach(function(b){
-    b.addEventListener('click', function(){
-      chartKey = b.getAttribute('data-chart');
-      renderLog();
-    });
-  });
-  $('#trendCard').querySelectorAll('[data-doseprod]').forEach(function(s){
-    s.addEventListener('change', function(){
-      state.settings.doser = state.settings.doser || {};
-      state.settings.doser[s.getAttribute('data-doseprod')] = s.value;
-      save();
-      renderLog();
-    });
-  });
+  bindTrendCard();
   var html = '';
   state.log.forEach(function(e, i){
     var d = new Date(e.date);
@@ -1188,19 +1264,29 @@ function consumptionCard(){
     var s = uptakeStats(k);
     if(s) stats.push({key:k, s:s});
   });
+  /* No measurement yet for an element? Fall back to the stocking estimate
+     from the corals set in the ⚙ panel, marked ≈ until the log takes over. */
+  var estU = stockingUptake();
+  if(estU){
+    ['alk','ca','mg'].forEach(function(k){
+      if(stats.some(function(x){ return x.key === k; })) return;
+      if(estU[k] > 0.0005) stats.push({key:k, s:{perDay:estU[k], used:0, skipped:0}, est:true});
+    });
+  }
   if(!stats.length){
     return '<div class="card"><div class="card-title">Weekly uptake</div>'+
-      '<div class="sub">Save at least two tests a few days apart and the app will measure how fast alkalinity, calcium and magnesium are being consumed — the skeletal-formation elements corals draw down. That rate is the basis for daily dosing.</div></div>';
+      '<div class="sub">Save at least two tests a few days apart and the app will measure how fast alkalinity, calcium and magnesium are being consumed — the skeletal-formation elements corals draw down. That rate is the basis for daily dosing. (Adding your corals in the ⚙ panel gives a stocking-based estimate in the meantime.)</div></div>';
   }
   var ORDER3 = ['alk','ca','mg'];
   stats.sort(function(a,b){ return ORDER3.indexOf(a.key) - ORDER3.indexOf(b.key); });
   var net = state.settings.netLitres;
   var rows = '', doseFields = '';
   function fnum(v){ return v >= 100 ? String(Math.round(v)) : v >= 10 ? v.toFixed(0) : v.toFixed(1); }
+  var anyEst = stats.some(function(x){ return x.est; });
   stats.forEach(function(x){
     var k = x.key, dp = (k === 'alk') ? 2 : 1, dpw = (k === 'alk') ? 1 : 0;
     rows += '<div class="wc-row"><span>'+NAMES[k]+'</span>'+
-      '<span class="mono">'+fmt(x.s.perDay,dp)+' '+UNITS[k]+'/day · <b>'+fmt(x.s.perDay*7,dpw)+' '+UNITS[k]+'/week</b></span></div>';
+      '<span class="mono">'+(x.est ? '≈ ' : '')+fmt(x.s.perDay,dp)+' '+UNITS[k]+'/day · <b>'+fmt(x.s.perDay*7,dpw)+' '+UNITS[k]+'/week</b></span></div>';
     var opts = doserProducts(k);
     if(!opts.length) return;
     var sel = (state.settings.doser || {})[k];
@@ -1230,6 +1316,9 @@ function consumptionCard(){
   if(doseFields){
     html += '<div style="margin-top:12px"><div class="eyebrow">Dose to match uptake</div>'+doseFields+
       '<div class="hint" style="margin-top:10px">Start at these rates, re-test in a week, and nudge the dose — not the tank. When dose matches uptake the graph goes flat, which is exactly what corals want.</div></div>';
+  }
+  if(anyEst){
+    html += '<div class="hint" style="margin-top:8px">≈ figures are estimated from the corals in your ⚙ settings — measured uptake from your log replaces them automatically as tests build up.</div>';
   }
   if(skippedTot > 0){
     html += '<div class="hint" style="margin-top:6px">'+skippedTot+' interval'+(skippedTot>1?'s':'')+' where the level rose '+(skippedTot>1?'were':'was')+' left out of the average.</div>';
@@ -1282,7 +1371,8 @@ function renderShelf(){
       } else {
         list.push({id:id}); state.settings.shelf = list;
       }
-      save(); renderShelf();
+      save(); renderShelf(); renderLog();
+      if($('#results').innerHTML) renderResults(true);
     });
   });
   $('#shelfFields').querySelectorAll('[data-eff]').forEach(function(inp){
@@ -1292,7 +1382,8 @@ function renderShelf(){
       if(!entry || v === null || v <= 0) return;
       entry.effects = entry.effects || {};
       entry.effects[bits[1]] = v;
-      save();
+      save(); renderLog();
+      if($('#results').innerHTML) renderResults(true);
     });
   });
   $('#shelfFields').querySelectorAll('[data-remove]').forEach(function(b){
@@ -1377,7 +1468,7 @@ function renderSetup(){
       var parts = inp.getAttribute('data-tgt').split('|'), v = num(inp.value);
       if(v === null) return;
       state.settings.targets[parts[0]][parts[1]] = toInternal(parts[0], v);
-      save(); renderRows(); renderHeader();
+      save(); refreshAll();
     });
   });
 }
@@ -1594,17 +1685,26 @@ function calcWC(driver){
     rows += '<div class="wc-row"><span>'+P(p.key).name+'</span>'+
       '<span class="mono">'+fmt(toDisp(p.key,p.now),m.dp)+' → <b class="'+vt[1]+'">'+fmt(toDisp(p.key,p.after),m.dp)+'</b>'+(m.unit?' '+m.unit:'')+'</span></div>';
   });
-  /* Parameters with no reading yet still get their effect denoted, from the
-     salt's published contents and the change fraction alone. */
+  /* Parameters with no reading still get an estimated resulting level: assume
+     the tank sits at its target, blend with the new water, and mark it ≈. */
   var known = preds.map(function(p){ return p.key; });
   var elPub = currentSaltElements();
+  var anyAssumed = false;
   [['alk','Alkalinity'],['ca','Calcium'],['mg','Magnesium']].forEach(function(p){
     if(known.indexOf(p[0]) > -1) return;
-    rows += '<div class="wc-row"><span>'+p[1]+'</span><span class="mono">drawn '+Math.round(f*100)+'% toward '+elPub[p[0]]+' '+UNITS[p[0]]+' (published)</span></div>';
+    anyAssumed = true;
+    var m2 = meta(p[0]);
+    var estAfter = T(p[0]).target * (1 - f) + elPub[p[0]] * f;
+    rows += '<div class="wc-row"><span>'+p[1]+'</span><span class="mono">≈ '+fmt(estAfter, m2.dp)+' '+m2.unit+
+      ' · drawn '+Math.round(f*100)+'% toward '+elPub[p[0]]+' (published)</span></div>';
   });
   [['no3','Nitrate'],['po4','Phosphate']].forEach(function(p){
     if(known.indexOf(p[0]) > -1) return;
-    rows += '<div class="wc-row"><span>'+p[1]+'</span><span class="mono">−'+Math.round(f*100)+'% (diluted out)</span></div>';
+    anyAssumed = true;
+    var m3 = meta(p[0]);
+    var estAfter2 = T(p[0]).target * (1 - f);
+    rows += '<div class="wc-row"><span>'+p[1]+' (waste)</span><span class="mono">≈ '+fmt(estAfter2, m3.dp)+' '+m3.unit+
+      ' · −'+Math.round(f*100)+'% diluted out</span></div>';
   });
   var walkNote = '';
   if(Math.abs(afterSal - tgtSal) > 0.15){
@@ -1615,7 +1715,8 @@ function calcWC(driver){
     '<p>That weight brings the new water to exactly SPG '+spg(mixSal)+(Math.abs(mixSal - tgtSal) > 0.15 ? ' — tuned off-target on purpose, to pull the tank back to '+spg(tgtSal) : '')+'. Mix until fully clear, heat, aerate and match the tank’s temperature, then swap it for the same volume of tank water. Predicted readings afterwards:</p>'+
     '<div class="wc-rows">'+rows+'</div>'+
     walkNote+
-    '<p>New salt water carries no nitrate or phosphate, so those dilute down. The rest are pulled toward the salt’s published levels'+(usesLog ? '. Starting figures marked from your latest log — re-test before dosing if they are old.' : '.')+'</p>'+
+    '<p>New salt water carries no nitrate or phosphate, so those waste products dilute down. The rest are pulled toward the salt’s published levels'+(usesLog ? '. Starting figures marked from your latest log — re-test before dosing if they are old.' : '.')+
+    (anyAssumed ? ' Rows marked ≈ assume the tank is sitting at its target — enter or log a reading for the true figure.' : '')+'</p>'+
     '<div class="btn-row" style="margin-bottom:0">'+
     '<button class="small" id="wcLog">Save to log</button>'+
     '<button class="small primary" id="wcApply">Calculate adjustments</button></div></div>';
@@ -1680,10 +1781,10 @@ $('#setVolume').addEventListener('change', function(){
   var v = num(this.value);
   if(!v || v <= 0) return;
   state.settings.netLitres = state.settings.volUnit === 'gal' ? v * 3.78541 : v;
-  save(); renderHeader(); renderSaltCalc();
+  save(); refreshAll();
 });
 $('#setVolUnit').addEventListener('change', function(){
-  state.settings.volUnit = this.value; save(); renderSetup(); renderHeader(); renderSaltCalc();
+  state.settings.volUnit = this.value; save(); refreshAll(); populateTank();
 });
 $('#smBrand').addEventListener('change', function(){
   var sm = smSettings();
@@ -1741,9 +1842,86 @@ function calcEstimate(){
     (rock || sand ? ' — rock displaces about ' + (0.4 * rock).toFixed(0) + ' L, sand about ' + (0.4 * sand).toFixed(0) + ' L.' : '.');
   return netL;
 }
+/* Narrow the tank-type bands to the overlap of the selected corals'
+   published preferred ranges. If the ranges genuinely conflict, settle on
+   the middle ground and say so. */
+function refinedBands(){
+  var prof = TANK_TYPES[state.settings.tankType || 'mixed'].targets;
+  var cs = state.settings.corals || [];
+  var res = {conflict:false};
+  ['alk','no3','po4'].forEach(function(p){
+    var lo = prof[p].low, hi = prof[p].high;
+    cs.forEach(function(c){
+      var sp = coralById(c.sp);
+      lo = Math.max(lo, sp[p][0]);
+      hi = Math.min(hi, sp[p][1]);
+    });
+    if(lo >= hi){
+      res.conflict = true;
+      var mid = (lo + hi) / 2, half = p === 'alk' ? 0.3 : p === 'no3' ? 2 : 0.02;
+      lo = mid - half; hi = mid + half;
+    }
+    res[p] = {low:lo, high:hi, target:(lo + hi) / 2};
+  });
+  return res;
+}
+/* Stocking-based demand estimate: alkalinity per day from coral sizes and
+   demand factors, calcium and magnesium via the calcification ratio. */
+function stockingUptake(){
+  var cs = state.settings.corals || [];
+  if(!cs.length) return null;
+  var alk100 = 0;
+  cs.forEach(function(c){ alk100 += coralSizeById(c.size).f * coralById(c.sp).demand; });
+  if(alk100 <= 0) return null;
+  var alkDay = alk100 * 100 / state.settings.netLitres;
+  return {alk:alkDay, ca:alkDay * 7.14, mg:alkDay * 0.71};
+}
+function renderCorals(){
+  var cs = state.settings.corals || [];
+  var chips = '';
+  cs.forEach(function(c, i){
+    chips += '<button class="coral-chip" data-rmcoral="'+i+'" title="Tap to remove">'+
+      esc(coralById(c.sp).name)+' · '+coralSizeById(c.size).name+' ✕</button>';
+  });
+  $('#coralChips').innerHTML = chips;
+  $('#coralChips').querySelectorAll('[data-rmcoral]').forEach(function(b){
+    b.addEventListener('click', function(){
+      cs.splice(parseInt(b.getAttribute('data-rmcoral'), 10), 1);
+      save(); renderCorals();
+    });
+  });
+  var info;
+  if(cs.length){
+    var b = refinedBands();
+    info = 'Refined from published care ranges: alkalinity '+b.alk.low.toFixed(1)+'–'+b.alk.high.toFixed(1)+
+      ' dKH (target '+b.alk.target.toFixed(1)+'), nitrate '+Math.round(b.no3.low)+'–'+Math.round(b.no3.high)+
+      ' ppm, phosphate '+b.po4.low.toFixed(2)+'–'+b.po4.high.toFixed(2)+' ppm.'+
+      (b.conflict ? ' Your corals’ preferred ranges do not fully overlap — this is the best middle ground.' : '');
+    var est = stockingUptake();
+    if(est) info += ' Estimated demand from this stocking: about '+est.alk.toFixed(2)+' dKH a day ('+
+      (est.alk*7).toFixed(1)+' a week), with calcium and magnesium in ratio.';
+  } else {
+    info = 'Nothing added yet — targets follow the tank type alone.';
+  }
+  $('#coralInfo').textContent = info;
+}
 function populateTank(){
   $('#setTankName').value = state.settings.tankName;
   $('#setTankType').value = state.settings.tankType || 'mixed';
+  if(!$('#coralSp').options.length){
+    var groups = {}, spHtml = '';
+    CORALS.forEach(function(c){ (groups[c.group] = groups[c.group] || []).push(c); });
+    ['SPS','LPS','Soft'].forEach(function(g){
+      spHtml += '<optgroup label="'+g+'">';
+      (groups[g] || []).forEach(function(c){ spHtml += '<option value="'+c.id+'">'+esc(c.name)+'</option>'; });
+      spHtml += '</optgroup>';
+    });
+    $('#coralSp').innerHTML = spHtml;
+    var szHtml = '';
+    CORAL_SIZES.forEach(function(s){ szHtml += '<option value="'+s.id+'">'+s.name+'</option>'; });
+    $('#coralSize').innerHTML = szHtml;
+  }
+  renderCorals();
   $('#setVolUnit').value = state.settings.volUnit;
   $('#setVolume').value = state.settings.volUnit === 'gal'
     ? +(state.settings.netLitres / 3.78541).toFixed(1)
@@ -1775,8 +1953,7 @@ $('#setTankType').addEventListener('change', function(){
   state.settings.targets = clone(prof.targets);
   state.settings.caps = clone(prof.caps);
   save();
-  renderHeader(); renderRows(); renderSetup(); renderSaltCalc();
-  if($('#view-log').classList.contains('on')) renderLog();
+  refreshAll();
   toast(prof.name + ' targets applied');
 });
 ['estTotal','estRock','estSand'].forEach(function(id){
@@ -1795,10 +1972,27 @@ $('#btnUseEst').addEventListener('click', function(){
   if(!netL){ toast('Enter the total volume first'); return; }
   state.settings.netLitres = Math.round(netL);
   save();
+  refreshAll();
   $('#setVolume').value = state.settings.volUnit === 'gal'
     ? +(netL / 3.78541).toFixed(1) : Math.round(netL);
-  renderHeader(); renderSaltCalc();
   toast('Net volume set to ' + Math.round(netL) + ' L — every dose now uses it');
+});
+$('#btnAddCoral').addEventListener('click', function(){
+  state.settings.corals = state.settings.corals || [];
+  state.settings.corals.push({sp:$('#coralSp').value, size:$('#coralSize').value});
+  save(); renderCorals();
+});
+$('#btnApplyCorals').addEventListener('click', function(){
+  if(!(state.settings.corals || []).length){ toast('Add some corals first'); return; }
+  var b = refinedBands();
+  ['alk','no3','po4'].forEach(function(k){
+    state.settings.targets[k] = {
+      low:+b[k].low.toFixed(2), target:+b[k].target.toFixed(2), high:+b[k].high.toFixed(2)
+    };
+  });
+  save();
+  refreshAll();
+  toast('Targets refined to your corals' + (b.conflict ? ' — ranges partly conflicted, middle ground used' : ''));
 });
 $('#setEmail').addEventListener('change', function(){
   remSettings().email = this.value.trim(); save();
@@ -1870,7 +2064,7 @@ $('#btnIcs').addEventListener('click', function(){
 ['capAlk','capCa','capMg'].forEach(function(id){
   $('#'+id).addEventListener('change', function(){
     var k = id.replace('cap','').toLowerCase(), v = num(this.value);
-    if(v && v > 0){ state.settings.caps[k] = v; save(); }
+    if(v && v > 0){ state.settings.caps[k] = v; save(); if($('#results').innerHTML) renderResults(true); }
   });
 });
 $('#btnAddProduct').addEventListener('click', function(){
@@ -1883,7 +2077,7 @@ $('#btnResetTargets').addEventListener('click', function(){
   var prof = TANK_TYPES[state.settings.tankType || 'mixed'];
   state.settings.targets = clone(prof.targets);
   state.settings.caps = clone(prof.caps);
-  save(); renderSetup(); renderRows(); renderSaltCalc(); toast(prof.name + ' targets restored');
+  save(); refreshAll(); toast(prof.name + ' targets restored');
 });
 $('#btnExport').addEventListener('click', function(){
   if(!state.log.length){ toast('Log is empty'); return; }
