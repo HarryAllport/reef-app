@@ -152,6 +152,9 @@ button.small{padding:8px 11px;font-size:13px}
 .lv-img:empty{display:none}
 .lv-img img{height:74px;width:100px;object-fit:cover;border-radius:8px;border:1px solid var(--line);display:block}
 
+/* the email field earns some room */
+#setEmail{padding:14px 12px;font-size:17px}
+
 /* shelf */
 .prod{border-bottom:1px solid var(--line);padding:4px 0}
 .prod:last-child{border-bottom:0}
@@ -1285,9 +1288,9 @@ function buildCorrections(){
         if(v === null || v === undefined) return;
         var lo = sp[p[0]][0], hi = sp[p[0]][1];
         if(v > hi){
-          (byGroup[p[0]+'|high'] = byGroup[p[0]+'|high'] || {param:p[1], key:p[0], dir:'high', list:[]}).list.push({name:sp.name, limit:hi});
+          (byGroup[p[0]+'|high'] = byGroup[p[0]+'|high'] || {param:p[1], key:p[0], dir:'high', list:[]}).list.push({name:sp.name, limit:hi, grp:sp.group});
         } else if(v < lo){
-          (byGroup[p[0]+'|low'] = byGroup[p[0]+'|low'] || {param:p[1], key:p[0], dir:'low', list:[]}).list.push({name:sp.name, limit:lo});
+          (byGroup[p[0]+'|low'] = byGroup[p[0]+'|low'] || {param:p[1], key:p[0], dir:'low', list:[]}).list.push({name:sp.name, limit:lo, grp:sp.group});
         }
       });
     });
@@ -1309,10 +1312,36 @@ function buildCorrections(){
         latin = latin.replace(/\s+spp\.?$/, '').trim();
         if(latin) imgs.push({title:latin, name:x.name});
       });
+      /* Published side effects, phrased for the kinds of livestock actually
+         affected. */
+      var gp = {};
+      g.list.forEach(function(x){ gp[x.grp] = true; });
+      var isFish = gp.Fish, isCoral = gp.SPS || gp.LPS || gp.Soft || gp.Clams, isInv = gp.Inverts;
+      var fx = [];
+      if(g.key === 'no3'){
+        if(g.dir === 'high'){
+          if(isFish) fx.push('in fish: chronic stress, a weakened immune system and — in tangs and angels especially — head and lateral line erosion');
+          if(isCoral) fx.push('in corals and clams: browning as zooxanthellae overgrow, dulled colour and slowed growth');
+          if(isInv) fx.push('in inverts: anemones shrink, wander or bleach, and sensitive stars and shrimp decline');
+        } else {
+          fx.push('pale, starved tissue and stalled growth in photosynthetic livestock');
+        }
+      } else if(g.key === 'po4'){
+        if(g.dir === 'high'){
+          if(isCoral) fx.push('in corals: calcification is chemically inhibited so skeletal growth slows, while nuisance algae gain ground');
+          if(isFish || isInv) fx.push('for fish and inverts the harm is mostly indirect — algae blooms and degrading water quality');
+        } else {
+          fx.push('corals pale and starve — phosphate is a nutrient, not just a pollutant');
+        }
+      } else if(g.key === 'alk'){
+        if(g.dir === 'high') fx.push('burnt tips and receding tissue at the growth edges, hardest on SPS');
+        else fx.push('slowed calcification and weaker skeletal growth');
+      }
       push('Livestock',
         g.param.charAt(0).toUpperCase() + g.param.slice(1) + ' is ' + (g.dir === 'high' ? 'above' : 'below') + ' what some of your livestock tolerate',
         'Adjust gradually toward ' + fmt(toDisp(g.key, tgt2), m.dp) + ' ' + m.unit,
         ['Affected: ' + names + '. You are reading ' + fmt(toDisp(g.key, r[g.key]), m.dp) + ' ' + m.unit + '.',
+         fx.length ? 'Published side effects — ' + fx.join('; ') + '.' : '',
          g.key === 'no3' || g.key === 'po4'
            ? (g.dir === 'high'
               ? 'Bring it down in steps with the water change planner — 10–20% at a time, days apart. The speed of the drop stresses livestock more than the level itself, so walk it, don’t yank it.'
@@ -1367,7 +1396,7 @@ function renderResults(quiet){
         a.imgs.forEach(function(im){
           html += '<span class="lv-img" data-wiki="'+esc(im.title)+'" title="'+esc(im.name)+'"></span>';
         });
-        html += '<span class="hint" style="align-self:flex-end">Photos: Wikipedia</span></div>';
+        html += '</div>';
       }
       html += '</div>';
     });
