@@ -171,6 +171,9 @@ button.small{padding:8px 11px;font-size:13px}
 
 /* salt & water change card */
 .salt-sub{font-size:13px;margin:14px 0 2px}
+.mode-tabs{display:flex;gap:8px;margin:16px 0 8px}
+.mode-tab{flex:1;font-family:"Montserrat",sans-serif;font-weight:700;font-size:12px;letter-spacing:0.04em;text-transform:uppercase;padding:10px 8px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--muted)}
+.mode-tab.on{background:var(--titrant);border-color:var(--titrant);color:#fff}
 .wc-rows{margin:10px 0 2px}
 .wc-row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
 .wc-row:last-child{border-bottom:0}
@@ -306,25 +309,15 @@ nav button.on{color:var(--titrant)}
       </div>
       <div class="hint" style="margin-top:-6px;margin-bottom:14px">The brand's published levels for freshly mixed water at SPG 1.026. Edit them if your own test of new salt water disagrees — remembered per brand.</div>
 
-      <h3 class="salt-sub">Mix fresh salt water</h3>
-      <div class="sub">Volume and salt weight stay in step — change either and the other follows.</div>
-      <div class="grid2" style="margin-top:10px">
-        <div class="field"><label id="smVolLabel" for="smVol">Water volume</label><input type="number" id="smVol" inputmode="decimal" step="1"></div>
-        <div class="field"><label for="smWeight">Salt weight (g)</label><input type="number" id="smWeight" inputmode="decimal" step="10"></div>
+      <div class="mode-tabs">
+        <button class="mode-tab" data-mode="change">Water change</button>
+        <button class="mode-tab" data-mode="fix">Salinity fix only</button>
       </div>
-      <div class="grid2">
-        <div class="field"><label for="smCur">Current SPG</label><input type="number" id="smCur" inputmode="decimal" step="0.001"></div>
-        <div class="field"><label for="smTgt">Target SPG</label><input type="number" id="smTgt" inputmode="decimal" step="0.001"></div>
-      </div>
-      <div class="hint" style="margin-top:-4px;margin-bottom:10px" id="smHint"></div>
-      <div id="smOut"></div>
-
-      <h3 class="salt-sub" style="margin-top:18px">Plan a water change</h3>
-      <div class="sub">Tell it the tank's current SPG and how much RO/DI you have — it tunes the new water's salinity so the tank lands on target, and gives the exact salt weight to make it. Element predictions use the salt's published levels.</div>
+      <div class="sub" id="modeSub"></div>
       <div class="grid3" style="margin-top:10px">
-        <div class="field"><label id="wcVolLabel" for="wcVol">RO/DI volume</label><input type="number" id="wcVol" inputmode="decimal" step="1"></div>
-        <div class="field"><label for="wcWeight">Salt weight (g)</label><input type="number" id="wcWeight" inputmode="decimal" step="10"></div>
         <div class="field"><label for="wcCur">Current tank SPG</label><input type="number" id="wcCur" inputmode="decimal" step="0.001"></div>
+        <div class="field" id="wcVolField"><label id="wcVolLabel" for="wcVol">RO/DI volume</label><input type="number" id="wcVol" inputmode="decimal" step="1"></div>
+        <div class="field" id="wcWeightField"><label for="wcWeight">Salt weight (g)</label><input type="number" id="wcWeight" inputmode="decimal" step="10"></div>
       </div>
       <div class="hint" style="margin-top:-4px;margin-bottom:10px" id="wcPct"></div>
       <div id="wcOut"></div>
@@ -609,7 +602,7 @@ function apply(data){
     if(s.caps) state.settings.caps = {alk:num(s.caps.alk)||0.4, ca:num(s.caps.ca)||20, mg:num(s.caps.mg)||50};
     if(s.targets){ for(var k in DEFAULT_TARGETS){ if(s.targets[k]) state.settings.targets[k] = s.targets[k]; } }
     if(Array.isArray(s.shelf)) state.settings.shelf = s.shelf;
-    if(s.saltMix) state.settings.saltMix = {brand:s.saltMix.brand || 'rs-salt', strengths:s.saltMix.strengths || {}, elements:s.saltMix.elements || {}};
+    if(s.saltMix) state.settings.saltMix = {brand:s.saltMix.brand || 'rs-salt', strengths:s.saltMix.strengths || {}, elements:s.saltMix.elements || {}, mode:s.saltMix.mode === 'fix' ? 'fix' : 'change'};
     if(s.reminders) state.settings.reminders = {
       email:s.reminders.email || '',
       wc:num(s.reminders.wc) || 7,
@@ -1376,77 +1369,85 @@ function renderSaltCalc(){
   SALTS.forEach(function(s){ opts += '<option value="'+s.id+'"'+(s.id===sm.brand?' selected':'')+'>'+esc(s.name)+'</option>'; });
   $('#smBrand').innerHTML = opts;
   fillBrandFields();
-  var vu = state.settings.volUnit==='gal' ? 'US gal' : 'litres';
-  $('#smVolLabel').textContent = 'Water volume (' + vu + ')';
-  $('#wcVolLabel').textContent = 'Change volume (' + vu + ')';
-  $('#smCur').value = '1.000';
-  $('#smTgt').value = Number(toDisp('salinity', T('salinity').target).toFixed(3));
-  $('#smHint').textContent = 'For a fresh batch in a mixing container, current SPG stays at 1.000. To raise the tank itself, use the tank’s net volume (' +
-    state.settings.netLitres.toFixed(0) + ' L) and today’s reading.';
+  $('#wcVolLabel').textContent = 'RO/DI volume (' + (state.settings.volUnit==='gal' ? 'US gal' : 'litres') + ')';
   var curR = latestReading('salinity');
   $('#wcCur').value = Number(toDisp('salinity', curR ? curR.v : T('salinity').target).toFixed(3));
-  calcSalt();
+  setMode(sm.mode || 'change');
+}
+/* One card, one decision: a water change (salinity correction folded into the
+   new water) or a stand-alone salinity fix with no water change. */
+function setMode(m){
+  var sm = smSettings();
+  sm.mode = (m === 'fix') ? 'fix' : 'change';
+  save();
+  document.querySelectorAll('.mode-tab').forEach(function(b){
+    b.classList.toggle('on', b.getAttribute('data-mode') === sm.mode);
+  });
+  var isFix = sm.mode === 'fix';
+  $('#wcVolField').style.display = isFix ? 'none' : '';
+  $('#wcWeightField').style.display = isFix ? 'none' : '';
+  $('#modeSub').textContent = isFix
+    ? 'Corrects the tank’s salinity on its own — no water change. Doses are sized to your net volume of ' + state.settings.netLitres.toFixed(0) + ' L.'
+    : 'The new water’s salinity is tuned so the tank lands on target — enter your RO/DI volume for the exact salt weight, plus the knock-on effect on the major elements.';
   calcWC();
 }
-function calcSalt(driver){
-  var sm = smSettings(), out = $('#smOut');
+/* Stand-alone salinity correction: no water change, sized to the tank's
+   net volume. High → staged RO/DI dilution. Low → staged dissolved salt,
+   with the knock-on lift to the major elements from the salt's published
+   contents. */
+function calcFix(){
+  var sm = smSettings(), out = $('#wcOut');
+  $('#wcPct').textContent = '';
+  var net = state.settings.netLitres;
   var gl = num($('#smStrength').value) || saltById(sm.brand).gl;
-  var cur = toInternal('salinity', num($('#smCur').value));
-  if(cur === null || cur < 0) cur = 0;
-  var tgt = toInternal('salinity', num($('#smTgt').value));
-  if(tgt === null){ out.innerHTML = ''; return; }
-  /* Weight and volume stay in step: whichever was edited drives the other. */
-  if(driver === 'weight'){
-    var w = num($('#smWeight').value);
-    if(w && w > 0 && tgt > cur && gl){
-      var Lw = w * 35 / (gl * (tgt - cur));
-      var vIn = state.settings.volUnit === 'gal' ? Lw / 3.78541 : Lw;
-      $('#smVol').value = Math.round(vIn * 10) / 10;
-    }
-  }
-  var volIn = num($('#smVol').value);
-  if(!volIn || volIn <= 0){
-    out.innerHTML = '<div class="empty" style="padding:14px 8px">Enter a water volume or salt weight above and the other half appears here.</div>';
+  var tgt = T('salinity').target;
+  var cur = toInternal('salinity', num($('#wcCur').value));
+  if(cur === null || cur <= 0) cur = tgt;
+  if(Math.abs(cur - tgt) <= 0.4){
+    out.innerHTML = '<div class="fix ok"><div class="step">Salinity</div><h3>On target</h3>'+
+      '<p>The tank is already at SPG '+spg(tgt)+' — nothing to correct. Re-test once temperature settles if the sample was warm.</p></div>';
     return;
   }
-  var L = volLitres(volIn);
-  if(tgt <= cur + 0.01){
-    if(driver !== 'weight') $('#smWeight').value = 0;
-    if(cur - tgt <= 0.4){
-      /* Within about 0.0003 SPG — level, nothing to correct. */
-      out.innerHTML = '<div class="fix ok"><div class="step">Salinity</div><h3>On target</h3>'+
-        '<p>This water is already at SPG '+spg(tgt)+' — nothing to correct. Re-check after temperature settles, since refractometer readings drift warm.</p></div>';
-      return;
-    }
-    /* Too salty: work out the exact dilution instead of just saying so. */
-    var swap = L * (cur - tgt) / cur;
+  var stages;
+  if(cur > tgt){
+    var swap = net * (cur - tgt) / cur;
     var swapIn = state.settings.volUnit === 'gal' ? swap / 3.78541 : swap;
-    var add = L * (cur - tgt) / tgt;
-    var addIn = state.settings.volUnit === 'gal' ? add / 3.78541 : add;
-    var steps = Math.max(1, Math.ceil((cur - tgt) / 1.33));
+    stages = Math.max(1, Math.ceil((cur - tgt) / 1.33));
     out.innerHTML = '<div class="fix"><div class="step">Salinity is high</div><h3>Dilute with RO/DI</h3>'+
       '<div class="dose">Replace '+swapIn.toFixed(1)+volSuffix()+' with plain RO/DI</div>'+
-      '<p>Remove that much water and top back up with RO/DI to bring SPG '+spg(cur)+' down to '+spg(tgt)+'.</p>'+
-      (steps > 1
-        ? '<p>If this is the tank, do it in about '+steps+' stages of roughly '+(swapIn/steps).toFixed(1)+volSuffix()+' each, a day or two apart — no more than about 0.001 SPG per step with livestock.</p>'
+      '<p>Remove tank water and top back up with plain RO/DI — no salt — to bring SPG '+spg(cur)+' down to '+spg(tgt)+'.</p>'+
+      (stages > 1
+        ? '<p>Split it into '+stages+' stages of about '+(swapIn/stages).toFixed(1)+volSuffix()+' each, a day or two apart — no more than about 0.001 SPG per step with livestock.</p>'
         : '<p>Small enough to do in one go.</p>')+
-      '<p>If this is a fresh mix in a container, simpler still: just add '+addIn.toFixed(1)+volSuffix()+' of RO/DI to it.</p></div>';
+      '<p>Plain RO carries nothing, so alkalinity, calcium and magnesium dip slightly too — re-test them after the final stage.</p></div>';
     return;
   }
-  var grams = L * (tgt - cur) * gl / 35;
-  if(driver !== 'weight') $('#smWeight').value = Math.round(grams);
-  var raisingTank = cur > 0.5;
-  var days = Math.ceil((tgt - cur) / 0.5 - 0.0001);
-  var body = '';
-  if(raisingTank){
-    body += '<p>Because this is raising a stocked tank, never add dry salt straight in. Dissolve it fully in a jug of RO/DI first and pour into high flow'+
-      (days > 1 ? ', split over '+days+' days — no more than about 0.001 SPG every couple of days, roughly '+amt(grams/days,'g')+' a day.' : '.')+'</p>';
-  } else {
-    body += '<p>Add the salt to the water, not the water to the salt. Mix with a small pump until fully clear, then heat and aerate — match the tank’s temperature before use, and confirm with your refractometer, since batches vary.</p>';
-  }
-  body += '<p>Worked out at '+gl+' g per litre for SPG 1.026, scaled to the '+((tgt-cur)/1327).toFixed(3)+' SPG rise this water needs.</p>';
-  out.innerHTML = '<div class="fix ok"><div class="step">Salt mix</div><h3>'+esc(saltById(sm.brand).name)+'</h3>'+
-    '<div class="dose">'+amt(grams,'g')+' into '+volIn+volSuffix()+'</div>'+body+'</div>';
+  var grams = net * (tgt - cur) * gl / 35;
+  stages = Math.max(1, Math.ceil((tgt - cur) / 1.33));
+  var el = {
+    alk: num($('#smElAlk').value) || saltElements(sm.brand).alk,
+    ca:  num($('#smElCa').value)  || saltElements(sm.brand).ca,
+    mg:  num($('#smElMg').value)  || saltElements(sm.brand).mg
+  };
+  /* The dissolved salt is, in effect, this many litres of full-strength new
+     water spread across the tank — the elements rise by that share. */
+  var eqL = grams / gl;
+  var rows = '';
+  [['alk','Alkalinity'],['ca','Calcium'],['mg','Magnesium']].forEach(function(p){
+    var d = el[p[0]] * eqL / net;
+    var c = latestReading(p[0]);
+    var dp = p[0] === 'alk' ? 2 : 0;
+    var txt = '+' + fmt(d, p[0] === 'alk' ? 2 : 1) + ' ' + UNITS[p[0]];
+    if(c) txt = fmt(c.v, dp) + ' → ' + fmt(c.v + d, dp) + ' ' + UNITS[p[0]];
+    rows += '<div class="wc-row"><span>'+p[1]+'</span><span class="mono">'+txt+'</span></div>';
+  });
+  out.innerHTML = '<div class="fix"><div class="step">Salinity is low</div><h3>'+esc(saltById(sm.brand).name)+'</h3>'+
+    '<div class="dose">'+amt(grams,'g')+' dissolved, over '+stages+' stage'+(stages > 1 ? 's' : '')+'</div>'+
+    '<p>Never add dry salt to a stocked tank. Dissolve each stage fully in a jug of RO/DI and pour slowly into high flow'+
+    (stages > 1 ? ' — about '+amt(grams/stages,'g')+' per stage, a day or two apart, no more than about 0.001 SPG per step.' : '.')+'</p>'+
+    '<p>Because reef salt is not just sodium chloride, it also lifts the major elements by roughly its published amounts:</p>'+
+    '<div class="wc-rows">'+rows+'</div>'+
+    '<p>Re-test alkalinity, calcium and magnesium once salinity settles, before any supplement dosing.</p></div>';
 }
 /* Latest known value for a parameter: today's entry first, then the log. */
 function latestReading(k){
@@ -1480,6 +1481,7 @@ function wcPrediction(f, curSal, mixSal){
 }
 function calcWC(driver){
   var sm = smSettings(), out = $('#wcOut');
+  if(sm.mode === 'fix'){ calcFix(); return; }
   var net = state.settings.netLitres;
   var gl = num($('#smStrength').value) || saltById(sm.brand).gl;
   var tgtSal = T('salinity').target;
@@ -1606,12 +1608,12 @@ $('#setVolUnit').addEventListener('change', function(){
 $('#smBrand').addEventListener('change', function(){
   var sm = smSettings();
   sm.brand = this.value;
-  save(); fillBrandFields(); calcSalt(); calcWC();
+  save(); fillBrandFields(); calcWC();
 });
 $('#smStrength').addEventListener('change', function(){
   var v = num(this.value), sm = smSettings();
   if(v && v > 0){ sm.strengths[sm.brand] = v; save(); }
-  calcSalt(); calcWC();
+  calcWC();
 });
 [['smElAlk','alk'],['smElCa','ca'],['smElMg','mg']].forEach(function(pair){
   $('#'+pair[0]).addEventListener('change', function(){
@@ -1624,10 +1626,9 @@ $('#smStrength').addEventListener('change', function(){
     calcWC();
   });
 });
-['smVol','smCur','smTgt'].forEach(function(id){
-  $('#'+id).addEventListener('input', function(){ calcSalt(); });
+document.querySelectorAll('.mode-tab').forEach(function(b){
+  b.addEventListener('click', function(){ setMode(b.getAttribute('data-mode')); });
 });
-$('#smWeight').addEventListener('input', function(){ calcSalt('weight'); });
 $('#wcVol').addEventListener('input', function(){ calcWC(); });
 $('#wcWeight').addEventListener('input', function(){ calcWC('weight'); });
 $('#wcCur').addEventListener('input', function(){ calcWC(); });
