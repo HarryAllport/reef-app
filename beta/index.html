@@ -157,7 +157,7 @@ input::placeholder{color:#5d7482}
 button{font-family:var(--f-body);font-size:15px;cursor:pointer;border-radius:10px;border:1px solid var(--line);
   background:var(--panel);color:var(--foam);padding:12px 14px;font-weight:500}
 button.primary{background:var(--fill);color:#ffffff;border-color:var(--fill);font-weight:600}
-button.ghost{background:transparent;color:var(--muted)}
+button.ghost{background:transparent;color:var(--foam);border-color:var(--line);opacity:.85}
 button.small{padding:8px 11px;font-size:13px}
 .btn-row{display:flex;gap:10px;margin:14px 0 6px}
 .btn-row button{flex:1}
@@ -263,7 +263,7 @@ nav button{flex:1;background:none;border:0;color:var(--muted);font-size:12px;fon
   letter-spacing:0.08em;text-transform:uppercase;padding:8px 0;border-radius:0}
 nav button.on{color:var(--titrant)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(94px + env(safe-area-inset-bottom));
-  background:var(--foam);border:1px solid var(--foam);color:#ffffff;padding:10px 16px;border-radius:22px;
+  background:var(--foam);border:1px solid var(--foam);color:var(--ink);padding:10px 16px;border-radius:22px;
   font-size:13px;z-index:40;opacity:0;pointer-events:none;transition:opacity .2s}
 .toast.on{opacity:1}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -1824,13 +1824,20 @@ function icpSetpoint(rep, e){
 }
 /* Deviation band. Trace elements swing widely between reports, so the tolerance
    is proportional rather than absolute; contaminants get no tolerance at all. */
+/* Tolerance has to differ by group. Trace elements swing widely between
+   reports and a 10% move means little; the major ions are held within a few
+   per cent in a healthy tank, so calcium 50 ppm down is a real finding even
+   though it is only 11% off. A flat band flatters the major ions and cries
+   wolf on the traces. */
+var ICP_TOL = {major:0.06, trace:0.25};
 function icpVerdict(e, v, sp){
   if(sp === null || sp === undefined) return 'unset';
   if(e.kind === 'toxic') return v > sp ? 'metal' : 'ok';
   if(sp === 0) return v > 0 ? 'high' : 'ok';
+  var tol = ICP_TOL[e.grp] || 0.25;
   var d = (v - sp) / sp;
-  if(d < -0.30) return 'low';
-  if(d >  0.30) return 'high';
+  if(d < -tol) return 'low';
+  if(d >  tol) return 'high';
   return 'ok';
 }
 function assessIcp(rep){
@@ -1855,7 +1862,13 @@ function assessIcp(rep){
       } else {
         var pct = Math.round(f * 100), litres = Math.round(f * L);
         if(pct > 40){
-          body = 'At ' + fmt(v, v < 10 ? 2 : 0) + ' ' + e.u + ' against ' + sp + '. Reaching the setpoint in one go would mean replacing ' + pct + '% of the tank — too much at once. Run 20% changes weekly and re-test after three.';
+          if(e.kind === 'toxic'){
+            /* Diluting this far would take months of water changes, by which
+               time whatever is leaching it has topped it back up. */
+            body = 'At ' + fmt(v, v < 10 ? 2 : 0) + ' ' + e.u + ' against ' + sp + '. Water changes alone will not clear this — it would take about ' + pct + '% of the volume, and a weekly 20% change would need roughly ' + Math.ceil(Math.log(sp / v) / Math.log(0.8)) + ' weeks. Find and remove the source first, then run a metal-binding resin or fresh carbon alongside your normal changes.';
+          } else {
+            body = 'At ' + fmt(v, v < 10 ? 2 : 0) + ' ' + e.u + ' against ' + sp + '. Reaching the setpoint in one go would mean replacing ' + pct + '% of the tank — too much at once. Run 20% changes weekly and re-test after three.';
+          }
         } else {
           body = 'At ' + fmt(v, v < 10 ? 2 : 0) + ' ' + e.u + ' against ' + sp + '. A ' + pct + '% water change — about ' + litres + ' litres of your ' + Math.round(L) + ' — brings it to the setpoint.';
         }
