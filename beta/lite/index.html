@@ -583,16 +583,6 @@ nav button.on{color:var(--titrant)}
 
   <section class="view" id="view-setup">
     <div class="card">
-      <div class="card-title">What's on your shelf</div>
-      <div class="sub">Tick everything you have to hand. Corrections are worked out from these and nothing else. The strength figures come from the labels — change any that your bottle disagrees with.</div>
-      <div id="shelfFields" style="margin-top:10px"></div>
-      <div class="btn-row" style="margin-bottom:0">
-        <button class="small" id="btnAddProduct">Add a product that isn't listed</button>
-      </div>
-      <div id="customForm" style="display:none;margin-top:14px"></div>
-    </div>
-
-    <div class="card">
       <div class="card-title">Targets</div>
       <div class="sub" id="tgtSub">Low and high set the green band on each strip; target is what corrections aim for.</div>
       <div style="margin-top:12px">
@@ -602,23 +592,6 @@ nav button.on{color:var(--titrant)}
       <button class="small ghost" id="btnResetTargets" style="margin-top:12px">Restore recommended targets</button>
       <div class="hint">Resets the targets and daily limits to the published values for your tank type, set in the ⚙ panel top right. Use this after an update to pick up any revised figures.</div>
     </div>
-
-    <div class="card">
-      <div class="card-title">Daily limits</div>
-      <div class="sub">Corrections larger than these get split across several days.</div>
-      <div class="grid3" style="margin-top:12px">
-        <div class="field"><label>Alkalinity (dKH)</label><input type="number" id="capAlk" step="0.1" inputmode="decimal"></div>
-        <div class="field"><label>Calcium (ppm)</label><input type="number" id="capCa" step="5" inputmode="decimal"></div>
-        <div class="field"><label>Magnesium (ppm)</label><input type="number" id="capMg" step="10" inputmode="decimal"></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Where these targets come from</div>
-      <div class="sub" id="provSub"></div>
-      <div id="provBody" style="margin-top:12px;font-size:13px;color:#8fa6b3;line-height:1.6"></div>
-    </div>
-
     <div class="card">
       <div class="card-title">Data</div>
       <div class="sub" id="storageNote">Your settings and test log are stored by this browser on this machine.</div>
@@ -998,7 +971,12 @@ function renderFeeding(){
       '<div class="btn-row" style="margin-top:0"><button class="primary" id="btnFeedSetup">Add your livestock</button></div>';
     var b = document.getElementById('btnFeedSetup');
     if(b) b.addEventListener('click', function(){
-      goToView('setup');
+      /* The stocking list is a paid feature, so say so here rather than
+         dropping a free user onto a settings screen to find that out. */
+      if(!FEATURES.livestock){
+        el.innerHTML = upsell('Your tank\'s feeding guide', 'Available in Reef Key Pro.');
+        return;
+      }
       $('#btnCog').click();
       setTimeout(function(){
         var sp = document.getElementById('coralSp');
@@ -1074,114 +1052,7 @@ function coralSizeById(id){ for(var i=0;i<CORAL_SIZES.length;i++){ if(CORAL_SIZE
    `kind:'reduce'` marks a product that lowers a parameter by feeding bacteria
    rather than raising one by chemistry — there is no ppm-per-ml for those, so
    they carry a dose schedule instead of an effects table. */
-var PRODUCTS = [
-  {id:'rs-abcplus', brand:'Red Sea', src:'mixed', name:'Foundation ABC+', form:'g', method:'sump',
-   effects:{ca:1.5, alk:0.21, mg:0.15}, maxSingle:60, scoops:[20,2],
-   note:'The calcium figure is Red Sea\'s. The alkalinity and magnesium ones are not published, and are derived here from the calcification ratio of 20 ppm calcium to 2.8 dKH. Add the powder straight to the sump rather than dissolving it, never more than 60 g at once, with 10 minutes between scoops, and use the single-element supplements for one-off corrections.'},
-  {id:'rs-a', src:'check',   brand:'Red Sea', name:'Foundation A — Calcium+ liquid',    form:'ml', method:'direct', effects:{ca:2}},
-  {id:'rs-b', src:'check',   brand:'Red Sea', name:'Foundation B — KH/Alkalinity liquid', form:'ml', method:'direct', effects:{alk:0.1}},
-  {id:'rs-c', src:'check',   brand:'Red Sea', name:'Foundation C — Magnesium liquid',   form:'ml', method:'direct', effects:{mg:1}},
-  {id:'rs-khp', src:'check', brand:'Red Sea', name:'KH/Alkalinity powder',              form:'g',  method:'dissolve', effects:{alk:0.33}},
-  {id:'rs-nopox', src:'schedule', brand:'Red Sea', name:'NO3:PO4-X', form:'ml', method:'sump', kind:'reduce',
-   effects:{}, targets:['no3','po4'], dose:{start:1, typical:2, max:3, per:100},
-   note:'A carbon source, not a chemical remover: it feeds the bacteria that consume nitrate and phosphate, which a skimmer then exports. There is no ppm-per-ml figure for it — how far and how fast it works depends on the bacterial population, so Red Sea have you dose daily, test weekly and adjust. Start at half the recommended dose, never skip days and never make up a missed one, and make sure the skimmer is running well before you begin.'},
-  {id:'soda', src:'calc',   brand:'Raw salts and DIY', name:'Soda ash (sodium carbonate)',               form:'g',  method:'dissolve', effects:{alk:0.53}},
-  {id:'bicarb', src:'calc', brand:'Raw salts and DIY', name:'Bicarbonate of soda',                       form:'g',  method:'dissolve', effects:{alk:0.33}},
-  {id:'cacl-di', src:'calc',brand:'Raw salts and DIY', name:'Calcium chloride dihydrate',                form:'g',  method:'dissolve', effects:{ca:2.73}},
-  {id:'cacl-an', src:'calc',brand:'Raw salts and DIY', name:'Calcium chloride, anhydrous',               form:'g',  method:'dissolve', effects:{ca:3.61}},
-  {id:'mg-blend', src:'calc',brand:'Raw salts and DIY', name:'Magnesium blend, 5:1 chloride to sulphate',form:'g',  method:'dissolve', effects:{mg:1.16}},
-  {id:'mgcl', src:'calc',   brand:'Raw salts and DIY', name:'Magnesium chloride hexahydrate',            form:'g',  method:'dissolve', effects:{mg:1.2}},
-  {id:'epsom', src:'calc',  brand:'Raw salts and DIY', name:'Epsom salt (magnesium sulphate)',           form:'g',  method:'dissolve', effects:{mg:0.99}},
-  {id:'kh2po4', src:'calc', brand:'Raw salts and DIY', name:'Monopotassium phosphate (KH2PO4)', form:'g', method:'dissolve',
-   effects:{po4:6.98},
-   note:'Follows from the formula weight. It is very strong for the range you are working in — a tenth of a gram in 100 litres moves phosphate by about 0.007 ppm, so make up a dilute stock solution rather than weighing tiny amounts each time.'},
-  {id:'k2hpo4', src:'calc', brand:'Raw salts and DIY', name:'Dipotassium phosphate (K2HPO4)', form:'g', method:'dissolve',
-   effects:{po4:5.45},
-   note:'Follows from the formula weight. Same caution as the monopotassium form: make up a stock solution, and re-test before adding more.'},
-  {id:'bw-neophos', src:'blank', brand:'Brightwell', name:'NeoPhos liquid phosphate', form:'ml', method:'direct', effects:{po4:null}},
-  {id:'af-phos', src:'blank', brand:'Aquaforest', name:'Phosphorus', form:'ml', method:'direct', effects:{po4:null}},
-  {id:'gen-po4', src:'blank', brand:'Other or unbranded', name:'Phosphate supplement — other brand', form:'ml', method:'direct', effects:{po4:null}},
-  {id:'gen-no3', src:'blank', brand:'Other or unbranded', name:'Nitrate supplement — other brand', form:'ml', method:'direct', effects:{no3:null}},
-  {id:'nano3', src:'calc',  brand:'Raw salts and DIY', name:'Sodium nitrate',                            form:'g',  method:'dissolve', effects:{no3:7.3}},
-  {id:'sc-radv', src:'label', brand:'Seachem', name:'Reef Advantage Calcium', form:'g', method:'dissolve', effects:{ca:3.6},
-   note:'Seachem publish 5 g per 150 L raising calcium by about 12 ppm, which is where the 3.6 comes from. Dissolve in at least 250 ml of fresh water first, keep it at least 30 minutes away from any carbonate supplement, and do not exceed 10 g per 150 L in a day.'},
-  {id:'nyos-camg', src:'mixed', brand:'NYOS', name:'ION-B CA/MG+ (made-up solution)', form:'ml', method:'direct', effects:{ca:0.72, mg:null},
-   note:'NYOS publish 1000 ml of made-up CA/MG+ solution containing about 72,000 mg of calcium, which is the 0.72 here — it assumes you mixed the powder exactly as instructed (the 1,122 g unit into 2.4 L of RO to make 3,000 ml). They do not publish the magnesium content, so that box is yours to fill from testing. Their guideline dose is 5-10 ml a day per 100 L.'},
-  {id:'nyos-alk',  src:'blank', brand:'NYOS', name:'ION-B ALK/PH+ (made-up solution)', form:'ml', method:'direct', effects:{alk:null}},
-
-  {id:'ati-ess1',  src:'blank', brand:'ATI', name:'Essentials Pro 1 — alkalinity', form:'ml', method:'direct', effects:{alk:null}},
-  {id:'ati-ess2',  src:'blank', brand:'ATI', name:'Essentials Pro 2 — calcium',    form:'ml', method:'direct', effects:{ca:null}},
-  {id:'ati-mg',    src:'blank', brand:'ATI', name:'Magnesium',                      form:'ml', method:'direct', effects:{mg:null}},
-
-  {id:'mr-alk',    src:'blank', brand:'Modern Reef', name:'Alkalinity', form:'ml', method:'direct', effects:{alk:null},
-   note:'Modern Reef do not print concentrations on the bottle, which is a known frustration among their users. The figure has to come from your own before-and-after test: note the reading, dose a measured amount, wait for it to mix and read again.'},
-  {id:'mr-ca',     src:'blank', brand:'Modern Reef', name:'Calcium',    form:'ml', method:'direct', effects:{ca:null}},
-  {id:'mr-mg',     src:'blank', brand:'Modern Reef', name:'Magnesium',  form:'ml', method:'direct', effects:{mg:null}},
-
-  {id:'kz-a',      src:'blank', brand:'Korallen-Zucht', name:'Balling A — calcium',    form:'g', method:'dissolve', effects:{ca:null}},
-  {id:'kz-b',      src:'blank', brand:'Korallen-Zucht', name:'Balling B — alkalinity', form:'g', method:'dissolve', effects:{alk:null}},
-  {id:'kz-c',      src:'blank', brand:'Korallen-Zucht', name:'Balling C — trace salt', form:'g', method:'dissolve', effects:{mg:null}},
-
-  {id:'kalk',   src:'calc',  brand:'Raw salts and DIY', name:'Kalkwasser (calcium hydroxide)', form:'g', method:'dissolve',
-   effects:{ca:5.41, alk:0.76},
-   note:'Follows from the formula weight, but it is not dosed like the other powders: it must go in as saturated limewater, added slowly to high flow, and it raises pH sharply. Never add the dry powder to the tank, and never dose it faster than the pH will tolerate.'},
-
-  {id:'bw-alk83',  src:'label', brand:'Brightwell', name:'Alkalin8.3 liquid', form:'ml', method:'direct', effects:{alk:0.117},
-   note:'Brightwell publish 1 ml raising one US gallon by 3.1 dKH, which is the 0.117 here.'},
-  {id:'bw-alk83p', src:'label', brand:'Brightwell', name:'Alkalin8.3-P powder', form:'g', method:'dissolve', effects:{alk:0.43},
-   note:'Taken from Brightwell\'s own formula — gallons multiplied by the dKH rise multiplied by 0.089 gives the grams. Their label separately quotes 12 dKH per gram per gallon, which works out slightly higher at 0.45; the figure here follows the formula. Check yours if precision matters.'},
-  {id:'bw-calcion', src:'blank', brand:'Brightwell', name:'CalciON liquid calcium',  form:'ml', method:'direct', effects:{ca:null}},
-  {id:'bw-magnesion',src:'blank',brand:'Brightwell', name:'MagnesION liquid magnesium', form:'ml', method:'direct', effects:{mg:null}},
-  {id:'bw-codea',  src:'blank', brand:'Brightwell', name:'Reef Code A — calcium part',    form:'ml', method:'direct', effects:{ca:null}},
-  {id:'bw-codeb',  src:'blank', brand:'Brightwell', name:'Reef Code B — alkalinity part', form:'ml', method:'direct', effects:{alk:null}},
-
-  {id:'rz-ca',   src:'blank', brand:'Reef Zlements', name:'Calcium',    form:'ml', method:'direct', effects:{ca:null}},
-  {id:'rz-alk',  src:'blank', brand:'Reef Zlements', name:'Alkalinity', form:'ml', method:'direct', effects:{alk:null}},
-  {id:'rz-mg',   src:'label', brand:'Reef Zlements', name:'Magnesium',  form:'ml', method:'direct', effects:{mg:1},
-   note:'Reef Zlements publish 10 ml raising 100 L by 10 mg/l of magnesium, which is the 1.0 here.'},
-  {id:'rz-zc1',  src:'blank', brand:'Reef Zlements', name:'Z-Complete Part 1', form:'ml', method:'direct', effects:{alk:null}},
-  {id:'rz-zc2',  src:'blank', brand:'Reef Zlements', name:'Z-Complete Part 2 (Universal)', form:'ml', method:'direct', effects:{ca:null}},
-
-  {id:'tm-afr',  src:'blank', brand:'Tropic Marin', name:'All-For-Reef liquid',   form:'ml', method:'direct', effects:{ca:null, alk:null}},
-  {id:'tm-afrp', src:'blank', brand:'Tropic Marin', name:'All-For-Reef powder',   form:'g',  method:'dissolve', effects:{ca:null, alk:null}},
-  {id:'tm-biocal',src:'blank',brand:'Tropic Marin', name:'Bio-Calcium powder',    form:'g',  method:'dissolve', effects:{ca:null, alk:null}},
-  {id:'tm-biomag',src:'blank',brand:'Tropic Marin', name:'Bio-Magnesium powder',  form:'g',  method:'dissolve', effects:{mg:null}},
-  {id:'tm-aelem',src:'blank', brand:'Tropic Marin', name:'A- Elements',           form:'ml', method:'direct', effects:{alk:null}},
-  {id:'tm-kelem',src:'blank', brand:'Tropic Marin', name:'K+ Elements',           form:'ml', method:'direct', effects:{ca:null}},
-  {id:'tm-balla',src:'blank', brand:'Tropic Marin', name:'Original Balling Part A — calcium',    form:'g', method:'dissolve', effects:{ca:null}},
-  {id:'tm-ballb',src:'blank', brand:'Tropic Marin', name:'Original Balling Part B — alkalinity', form:'g', method:'dissolve', effects:{alk:null}},
-  {id:'tm-ballc',src:'blank', brand:'Tropic Marin', name:'Original Balling Part C — sea salt',   form:'g', method:'dissolve', effects:{mg:null}},
-
-  {id:'af-c1',   src:'blank', brand:'Aquaforest', name:'Component 1+ — calcium',    form:'ml', method:'direct', effects:{ca:null}},
-  {id:'af-c2',   src:'blank', brand:'Aquaforest', name:'Component 2+ — alkalinity', form:'ml', method:'direct', effects:{alk:null}},
-  {id:'af-c3',   src:'blank', brand:'Aquaforest', name:'Component 3+ — magnesium',  form:'ml', method:'direct', effects:{mg:null}},
-  {id:'af-khb',  src:'blank', brand:'Aquaforest', name:'KH Buffer powder',          form:'g',  method:'dissolve', effects:{alk:null}},
-  {id:'af-camg', src:'blank', brand:'Aquaforest', name:'Calcium / Magnesium powder',form:'g',  method:'dissolve', effects:{ca:null, mg:null}},
-
-  {id:'esv-1',   src:'blank', brand:'ESV', name:'B-Ionic Part 1 — calcium',    form:'ml', method:'direct', effects:{ca:null}},
-  {id:'esv-2',   src:'blank', brand:'ESV', name:'B-Ionic Part 2 — alkalinity', form:'ml', method:'direct', effects:{alk:null}},
-  {id:'esv-mg',  src:'blank', brand:'ESV', name:'B-Ionic Magnesium',           form:'ml', method:'direct', effects:{mg:null}},
-
-  {id:'sc-carb', src:'blank', brand:'Seachem', name:'Reef Carbonate',           form:'ml', method:'direct', effects:{alk:null}},
-  {id:'sc-build',src:'blank', brand:'Seachem', name:'Reef Builder powder',      form:'g',  method:'dissolve', effects:{alk:null}},
-  {id:'sc-radm', src:'blank', brand:'Seachem', name:'Reef Advantage Magnesium', form:'g',  method:'dissolve', effects:{mg:null}},
-  {id:'sc-fus1', src:'blank', brand:'Seachem', name:'Reef Fusion 1 — calcium',  form:'ml', method:'direct', effects:{ca:null}},
-  {id:'sc-fus2', src:'blank', brand:'Seachem', name:'Reef Fusion 2 — alkalinity',form:'ml',method:'direct', effects:{alk:null}},
-
-  {id:'fm-b1',   src:'blank', brand:'Fauna Marin', name:'Balling Salt Part 1 — calcium',    form:'g', method:'dissolve', effects:{ca:null}},
-  {id:'fm-b2',   src:'blank', brand:'Fauna Marin', name:'Balling Salt Part 2 — alkalinity', form:'g', method:'dissolve', effects:{alk:null}},
-  {id:'fm-b3',   src:'blank', brand:'Fauna Marin', name:'Balling Salt Part 3 — trace salt', form:'g', method:'dissolve', effects:{mg:null}},
-
-  {id:'tlf-ca',  src:'blank', brand:'Two Little Fishies', name:'C-Balance A',  form:'ml', method:'direct', effects:{ca:null}},
-  {id:'tlf-alk', src:'blank', brand:'Two Little Fishies', name:'C-Balance B',  form:'ml', method:'direct', effects:{alk:null}},
-
-  {id:'kent-buf',src:'blank', brand:'Kent Marine', name:'Superbuffer-dKH', form:'g',  method:'dissolve', effects:{alk:null}},
-  {id:'kent-ca', src:'blank', brand:'Kent Marine', name:'Turbo-Calcium',   form:'g',  method:'dissolve', effects:{ca:null}},
-
-  {id:'gen-alk', src:'typical', brand:'Other or unbranded', name:'Alkalinity liquid — other brand',           form:'ml', method:'direct', effects:{alk:0.1}},
-  {id:'gen-ca', src:'typical', brand:'Other or unbranded', name:'Calcium liquid — other brand',              form:'ml', method:'direct', effects:{ca:0.5}},
-  {id:'gen-mg', src:'typical', brand:'Other or unbranded', name:'Magnesium liquid — other brand',            form:'ml', method:'direct', effects:{mg:1}}
-];
+var PRODUCTS = [];
 /* ---------- ICP elements ----------
    Setpoints are Triton's own published reference values for natural sea water,
    filled in only where they are sourced. Everything else is left blank on
@@ -1571,27 +1442,13 @@ function updateStrip(key){
 
 /* ---------- dosing maths ---------- */
 function libProduct(id){
-  for(var i=0;i<PRODUCTS.length;i++){ if(PRODUCTS[i].id === id) return PRODUCTS[i]; }
+  /* Removed from the free build. */
   return null;
 }
 /* The shelf: what the user actually has, with any edited strengths applied. */
 function shelfList(){
-  var out = [];
-  (state.settings.shelf || []).forEach(function(entry){
-    var base = libProduct(entry.id) || {id:entry.id, name:entry.name || 'Custom product',
-      form:entry.form || 'g', method:entry.method || 'dissolve', effects:{}};
-    var eff = {};
-    ['alk','ca','mg','no3','po4'].forEach(function(k){
-      var v = (entry.effects && entry.effects[k] !== undefined && entry.effects[k] !== '')
-        ? num(entry.effects[k]) : base.effects[k];
-      if(v && v > 0) eff[k] = v;
-    });
-    out.push({id:base.id, name:entry.name || base.name, form:entry.form || base.form,
-      method:entry.method || base.method, effects:eff, maxSingle:base.maxSingle,
-      scoops:base.scoops, note:base.note,
-      multi:(eff.alk?1:0) + (eff.ca?1:0) + (eff.mg?1:0) > 1});
-  });
-  return out;
+  /* Removed from the free build. */
+  return [];
 }
 function onShelf(id){
   return (state.settings.shelf || []).some(function(e){ return e.id === id; });
@@ -1658,15 +1515,8 @@ function d0(n){ return n; }
    nothing for this" and "you own the right thing but I cannot use it", and
    those need very different advice. */
 function unfilledFor(k){
-  var out = [];
-  (state.settings.shelf || []).forEach(function(entry){
-    var base = libProduct(entry.id);
-    if(!base || !base.effects || !(k in base.effects)) return;
-    var own = entry.effects && entry.effects[k];
-    var v = (own !== undefined && own !== '') ? num(own) : base.effects[k];
-    if(!(v > 0)) out.push(base);
-  });
-  return out;
+  /* Removed from the free build. */
+  return [];
 }
 function paramName(k){ return k === 'alk' ? 'alkalinity' : k === 'ca' ? 'calcium' : 'magnesium'; }
 /* What to reach for, named from the shelf where possible rather than from a
@@ -2146,170 +1996,12 @@ var SRC_INFO = {
            why:'A placeholder for an unnamed brand. Read the strength off your own bottle and enter it, or the doses will be guesswork.'}
 };
 function renderShelf(){
-  var items = PRODUCTS.slice();
-  (state.settings.shelf || []).forEach(function(e){
-    if(!libProduct(e.id)) items.push({id:e.id, name:e.name, form:e.form, method:e.method, effects:e.effects || {}, custom:true});
-  });
-  var html = '', lastBrand = null;
-  items.sort(function(a, b){
-    var ba = a.brand || 'Your own products', bb = b.brand || 'Your own products';
-    if(ba !== bb) return BRAND_ORDER.indexOf(ba) - BRAND_ORDER.indexOf(bb);
-    return 0;
-  });
-  items.forEach(function(prod){
-    var brand = prod.brand || 'Your own products';
-    if(brand !== lastBrand){ html += '<div class="shelf-brand">' + esc(brand) + '</div>'; lastBrand = brand; }
-    var on = onShelf(prod.id), entry = shelfEntry(prod.id) || {};
-    html += '<div class="prod'+(on ? ' on' : '')+'">'+
-      '<button class="prod-toggle" data-toggle="'+prod.id+'" aria-pressed="'+on+'">'+
-        '<span class="tick">'+(on ? '✓' : '+')+'</span><span>'+esc(prod.name)+'</span></button>';
-    if(on){
-      var base = libProduct(prod.id) || prod, form = entry.form || base.form;
-      /* A library product's figures come off the manufacturer's label, so they
-         are shown rather than typed — a stray keystroke in one of these boxes
-         would quietly wrong every dose the app works out afterwards. They can
-         still be overridden deliberately, because labels get reformulated and
-         some keepers titrate their own. Products the user added themselves
-         have no label to defend, so those stay editable. */
-      var info = SRC_INFO[base.src] || null;
-      var fromLabel = !prod.custom && !!info;
-      var edit = !fromLabel || !info.fixed || entry.override === true;
-      if(base.kind === 'reduce'){
-        var d = base.dose, L = state.settings.netLitres || 0;
-        html += '<div class="prod-dose">For your ' + Math.round(L) + ' L: start at <b>' +
-                fmt(d.start * L / d.per, 1) + ' ml a day</b>, typical <b>' + fmt(d.typical * L / d.per, 1) +
-                ' ml</b>, ceiling <b>' + fmt(d.max * L / d.per, 1) + ' ml</b>. Test weekly and move in small steps.</div>';
-        if(base.note) html += '<p class="prod-note">' + esc(base.note) + '</p>';
-        html += '</div>';
-        return;
-      }
-      html += '<div class="prod-eff">';
-      ['alk','ca','mg','no3','po4'].forEach(function(k){
-        var b = base.effects[k];
-        if(b === undefined) return;
-        var own = entry.effects && entry.effects[k] !== undefined;
-        var v = own ? entry.effects[k] : b;
-        if(v === null) v = '';
-        html += '<label>'+(k === 'alk' ? 'dKH' : UNITS[k])+' / '+form+' / 100 L';
-        if(edit){
-          html += '<input type="number" step="0.01" inputmode="decimal" data-eff="'+prod.id+'|'+k+'" value="'+v+'">';
-        } else {
-          html += '<span class="fixed'+(own ? ' own' : '')+'">'+v+'</span>';
-        }
-        html += '</label>';
-      });
-      html += '</div>';
-      if(info && base.kind !== 'reduce'){
-        var overridden = !!(entry.effects && Object.keys(entry.effects).length);
-        html += '<div class="prod-src">';
-        if(overridden){
-          html += '<span><b>Your own figures.</b> ' + esc(info.label) + ': ' +
-                  ['alk','ca','mg'].filter(function(k){ return base.effects[k] !== undefined; })
-                    .map(function(k){ return base.effects[k] + ' ' + (k === 'alk' ? 'dKH' : UNITS[k]); }).join(', ') +
-                  '</span><button class="ghost" data-relock="'+prod.id+'">Put the original back</button>';
-        } else if(edit){
-          html += '<span><b>' + esc(info.label) + '.</b> ' + esc(info.why) + '</span>';
-        } else {
-          html += '<span><b>' + esc(info.label) + '.</b> ' + esc(info.why) + '</span>' +
-                  '<button class="ghost" data-unlock="'+prod.id+'">Use my own</button>';
-        }
-        html += '</div>';
-      }
-      if(base.note) html += '<p class="prod-note">'+esc(base.note)+'</p>';
-      if(prod.custom) html += '<div style="margin:0 0 12px 26px"><button class="small ghost" data-remove="'+prod.id+'">Remove this product</button></div>';
-    }
-    html += '</div>';
-  });
-  $('#shelfFields').innerHTML = html;
-
-  $('#shelfFields').querySelectorAll('[data-toggle]').forEach(function(b){
-    b.addEventListener('click', function(){
-      var id = b.getAttribute('data-toggle');
-      var list = state.settings.shelf || [];
-      if(onShelf(id)){
-        state.settings.shelf = list.filter(function(e){ return e.id !== id; });
-      } else {
-        list.push({id:id}); state.settings.shelf = list;
-      }
-      save(); renderShelf(); renderLog();
-      if($('#results').innerHTML) renderResults(true);
-    });
-  });
-  $('#shelfFields').querySelectorAll('[data-unlock]').forEach(function(b){
-    b.addEventListener('click', function(){
-      var entry = shelfEntry(b.getAttribute('data-unlock'));
-      if(!entry) return;
-      entry.override = true;
-      save(); renderShelf();
-    });
-  });
-  $('#shelfFields').querySelectorAll('[data-relock]').forEach(function(b){
-    b.addEventListener('click', function(){
-      var entry = shelfEntry(b.getAttribute('data-relock'));
-      if(!entry) return;
-      delete entry.override;
-      delete entry.effects;
-      save(); renderShelf(); renderLog();
-      if($('#results').innerHTML) renderResults(true);
-      toast('Original figures restored');
-    });
-  });
-  $('#shelfFields').querySelectorAll('[data-eff]').forEach(function(inp){
-    inp.addEventListener('change', function(){
-      var bits = inp.getAttribute('data-eff').split('|'), v = num(inp.value);
-      var entry = shelfEntry(bits[0]);
-      if(!entry || v === null || v <= 0) return;
-      entry.effects = entry.effects || {};
-      entry.effects[bits[1]] = v;
-      save(); renderLog();
-      if($('#results').innerHTML) renderResults(true);
-    });
-  });
-  $('#shelfFields').querySelectorAll('[data-remove]').forEach(function(b){
-    b.addEventListener('click', function(){
-      var id = b.getAttribute('data-remove');
-      state.settings.shelf = (state.settings.shelf || []).filter(function(e){ return e.id !== id; });
-      save(); renderShelf();
-    });
-  });
+  /* Removed from the free build. */
+  var el = $('#shelfFields'); if(el) el.innerHTML = '';
 }
 function renderCustomForm(){
-  $('#customForm').innerHTML =
-    '<div class="field"><label for="cpName">Product name</label><input type="text" id="cpName" placeholder="e.g. Tropic Marin All-For-Reef"></div>'+
-    '<div class="grid2">'+
-      '<div class="field"><label for="cpForm">Measured in</label><select id="cpForm"><option value="ml">millilitres</option><option value="g">grams</option></select></div>'+
-      '<div class="field"><label for="cpMethod">How it goes in</label><select id="cpMethod">'+
-        '<option value="direct">Dose it straight in</option>'+
-        '<option value="dissolve">Dissolve in RO/DI first</option>'+
-        '<option value="sump">Dry, into the sump</option></select></div>'+
-    '</div>'+
-    '<div class="sub" style="margin-bottom:8px">What one unit does in 100 litres, from the label. Leave a box empty if it does not affect that parameter.</div>'+
-    '<div class="grid3">'+
-      '<div class="field"><label>dKH</label><input type="number" step="0.01" inputmode="decimal" id="cpAlk"></div>'+
-      '<div class="field"><label>ppm Ca</label><input type="number" step="0.01" inputmode="decimal" id="cpCa"></div>'+
-      '<div class="field"><label>ppm Mg</label><input type="number" step="0.01" inputmode="decimal" id="cpMg"></div>'+
-    '</div>'+
-    '<div class="btn-row" style="margin-bottom:0"><button class="primary small" id="cpSave">Add to shelf</button>'+
-    '<button class="small ghost" id="cpCancel">Cancel</button></div>';
-
-  $('#cpSave').addEventListener('click', function(){
-    var name = ($('#cpName').value || '').trim();
-    if(!name){ toast('Give it a name first'); return; }
-    var eff = {};
-    [['alk','#cpAlk'],['ca','#cpCa'],['mg','#cpMg']].forEach(function(pair){
-      var v = num($(pair[1]).value);
-      if(v && v > 0) eff[pair[0]] = v;
-    });
-    if(!Object.keys(eff).length){ toast('Add at least one strength figure'); return; }
-    state.settings.shelf = state.settings.shelf || [];
-    state.settings.shelf.push({id:'custom-' + Date.now(), name:name,
-      form:$('#cpForm').value, method:$('#cpMethod').value, effects:eff});
-    save();
-    $('#customForm').style.display = 'none';
-    renderShelf();
-    toast('Added to your shelf');
-  });
-  $('#cpCancel').addEventListener('click', function(){ $('#customForm').style.display = 'none'; });
+  /* Removed from the free build. */
+  var el = $('#customForm'); if(el) el.innerHTML = '';
 }
 
 function renderSetup(){
@@ -2318,14 +2010,17 @@ function renderSetup(){
   $('#setVolume').value = state.settings.volUnit === 'gal'
     ? +(state.settings.netLitres / 3.78541).toFixed(1)
     : +state.settings.netLitres.toFixed(0);
-  $('#capAlk').value = state.settings.caps.alk;
-  $('#capCa').value = state.settings.caps.ca;
-  $('#capMg').value = state.settings.caps.mg;
+  /* These live on cards the free build does not ship. */
+  if($('#capAlk')){
+    $('#capAlk').value = state.settings.caps.alk;
+    $('#capCa').value = state.settings.caps.ca;
+    $('#capMg').value = state.settings.caps.mg;
+  }
 
   var prof = TANK_TYPES[state.settings.tankType || 'mixed'];
   $('#tgtSub').textContent = 'Active profile: ' + prof.name + '. Low and high set the green band on each strip; target is what corrections aim for.';
-  $('#provSub').textContent = 'Published values for your tank type: ' + prof.name + '.';
-  $('#provBody').innerHTML = prof.blurb;
+  if($('#provSub')) $('#provSub').textContent = 'Published values for your tank type: ' + prof.name + '.';
+  if($('#provBody')) $('#provBody').innerHTML = prof.blurb;
 
   renderShelf();
 
@@ -2572,12 +2267,8 @@ function calcFix(){
 }
 /* A nutrient reducer sitting on the shelf that targets this parameter. */
 function reducerOnShelf(key){
-  var found = null;
-  shelfList().forEach(function(p){
-    var base = libProduct(p.id) || p;
-    if(base.kind === 'reduce' && base.targets && base.targets.indexOf(key) !== -1 && !found) found = base;
-  });
-  return found;
+  /* Removed from the free build. */
+  return null;
 }
 /* Latest known value for a parameter: today's entry first, then the log. */
 function latestReading(k){
@@ -2924,34 +2615,8 @@ function costSettings(){
 }
 /* Price rows for whichever products the doser planner currently uses. */
 function renderCostProducts(){
-  var c = costSettings();
-  var ids = [], seen = {};
-  ['alk','ca','mg'].forEach(function(k){
-    var id = (state.settings.doser || {})[k] || (DEFAULTS.doser || {})[k];
-    if(id && !seen[id]){ seen[id] = true; ids.push(id); }
-  });
-  var html = '';
-  ids.forEach(function(id){
-    var p = libProduct(id);
-    if(!p) return;
-    var saved = c.products[id] || {};
-    html += '<div class="grid2" style="margin-top:2px">'+
-      '<div class="field" style="margin-bottom:8px"><label>'+esc(p.name.split(' — ')[0])+' (£)</label>'+
-      '<input type="number" step="0.01" inputmode="decimal" data-costprice="'+id+'" value="'+(saved.price || '')+'"></div>'+
-      '<div class="field" style="margin-bottom:8px"><label>Container size ('+p.form+')</label>'+
-      '<input type="number" step="1" inputmode="decimal" data-costsize="'+id+'" value="'+(saved.size || '')+'"></div></div>';
-  });
-  $('#costProducts').innerHTML = html;
-  $('#costProducts').querySelectorAll('[data-costprice],[data-costsize]').forEach(function(inp){
-    inp.addEventListener('change', function(){
-      var id = inp.getAttribute('data-costprice') || inp.getAttribute('data-costsize');
-      var cc = costSettings();
-      cc.products[id] = cc.products[id] || {};
-      if(inp.hasAttribute('data-costprice')) cc.products[id].price = num(inp.value);
-      else cc.products[id].size = num(inp.value);
-      save(); renderLog();
-    });
-  });
+  /* Removed from the free build. */
+  var el = $('#costProducts'); if(el) el.innerHTML = '';
 }
 function populateTank(){
   $('#setTankName').value = state.settings.tankName;
@@ -3212,12 +2877,13 @@ $('#btnIcs').addEventListener('click', function(){
   }catch(e){ toast('This browser blocked the download'); }
 });
 ['capAlk','capCa','capMg'].forEach(function(id){
+  if(!$('#'+id)) return;
   $('#'+id).addEventListener('change', function(){
     var k = id.replace('cap','').toLowerCase(), v = num(this.value);
     if(v && v > 0){ state.settings.caps[k] = v; save(); if($('#results').innerHTML) renderResults(true); }
   });
 });
-$('#btnAddProduct').addEventListener('click', function(){
+if($('#btnAddProduct')) $('#btnAddProduct').addEventListener('click', function(){
   var box = $('#customForm');
   if(box.style.display === 'block'){ box.style.display = 'none'; return; }
   renderCustomForm();
