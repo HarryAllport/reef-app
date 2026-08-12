@@ -90,6 +90,15 @@ header{
 .icp-rep .rep-c{font-size:11px;font-family:var(--f-mono);color:var(--muted);white-space:nowrap}
 .icp-rep .rep-c b{color:var(--alert)}
 .icp-rep .rep-body{padding:0 14px 12px}
+.icp-ch{border:1px solid var(--line);border-radius:var(--radius);background:var(--deep);padding:12px 14px;margin-top:10px}
+.icp-ch .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.icp-ch select{flex:1;min-width:150px}
+.icp-ranges{display:flex;gap:5px;overflow-x:auto;scrollbar-width:none;margin-bottom:8px}
+.icp-ranges::-webkit-scrollbar{display:none}
+.icp-ranges button{flex:0 0 auto;padding:5px 11px;font-size:11px;border-radius:999px;
+  font-family:var(--f-display);font-weight:700;letter-spacing:.02em}
+.icp-ranges button.on{background:var(--fill);border-color:var(--fill);color:#fff}
+.icp-ch .cap{font-size:11px;color:var(--muted);margin-top:7px;line-height:1.5}
 .icp-tr{border:1px solid var(--line);border-radius:var(--radius);background:var(--deep);padding:12px 14px;margin-top:10px}
 .icp-tr table{width:100%;border-collapse:collapse;font-size:12px}
 .icp-tr th{text-align:right;font-size:10px;color:var(--muted);font-weight:600;padding:0 0 6px 8px;white-space:nowrap}
@@ -472,10 +481,10 @@ nav button.on{color:var(--titrant)}
 
     <div class="card" id="icpCard" data-pro="ICP analysis" data-why="Type in a Triton report and the app reads all 45 figures against their setpoints, works out which water change would correct what, and says plainly which elements it cannot fix from your shelf.">
       <div class="card-title">ICP analysis</div>
-      <div class="sub">A lab report covers the elements no home kit reaches. Reports are kept on the ICP tab, with the change since last time.</div>
+      <div class="sub">A lab report covers the elements no home kit reaches. Every report is kept on the ICP tab, alongside what has changed since the last one.</div>
       <div class="btn-row" style="margin-bottom:0">
         <button class="small" id="btnIcpOpen">Enter ICP results</button>
-        <button class="small ghost" id="btnIcpLast">Latest report</button>
+        <button class="small ghost" id="btnIcpLast">Reports</button>
       </div>
       <div id="icpOut"></div>
     </div>
@@ -527,6 +536,7 @@ nav button.on{color:var(--titrant)}
       <div class="btn-row">
         <button class="primary" id="btnIcpOpen2">Enter a report</button>
       </div>
+      <div id="icpChart"></div>
       <div id="icpTrend"></div>
       <div id="icpHistory" class="icp-hist"></div>
     </div>
@@ -1155,6 +1165,7 @@ function syncActive(){
   if(t){ t.settings = state.settings; t.log = state.log; }
 }
 function useTank(id){
+  icpChartKey = null;
   var t = tankById(id) || vault.tanks[0];
   vault.activeId = t.id;
   state.settings = t.settings;
@@ -2008,7 +2019,10 @@ function icpTrendKeys(reps){
       var v = r.values[e.k];
       if(v === undefined || v === null) return;
       var sp = icpSetpoint(r, e), verdict = icpVerdict(e, v, sp);
-      if(verdict !== 'ok' && verdict !== 'unset') seen[e.k] = 2;
+      /* Contaminants outrank a merely low element: if copper has ever shown
+         up, that is the line worth looking at first. */
+      if(verdict === 'metal') seen[e.k] = 3;
+      else if(verdict !== 'ok' && verdict !== 'unset') seen[e.k] = Math.max(seen[e.k] || 0, 2);
       else if(!seen[e.k]) seen[e.k] = 1;
     });
   });
@@ -2016,6 +2030,120 @@ function icpTrendKeys(reps){
     if(seen[b] !== seen[a]) return seen[b] - seen[a];
     return ICP_ELEMENTS.findIndex(function(e){ return e.k === a; }) -
            ICP_ELEMENTS.findIndex(function(e){ return e.k === b; });
+  });
+}
+var icpChartKey = null, icpChartMonths = 6;
+var ICP_RANGES = [[1,'1M'],[3,'3M'],[6,'6M'],[12,'12M'],[24,'24M']];
+/* Elements with at least two readings anywhere in the archive — anything with
+   one point cannot show a trend, so it is left out of the picker rather than
+   drawn as a lone dot. */
+function icpChartable(){
+  var counts = {};
+  icpSorted().forEach(function(r){
+    ICP_ELEMENTS.forEach(function(e){
+      var v = r.values[e.k];
+      if(v !== undefined && v !== null) counts[e.k] = (counts[e.k] || 0) + 1;
+    });
+  });
+  return ICP_ELEMENTS.filter(function(e){ return counts[e.k] >= 2; });
+}
+function renderIcpChart(){
+  var el = document.getElementById('icpChart');
+  if(!el) return;
+  var all = icpSorted();
+  var able = icpChartable();
+  if(!able.length){
+    el.innerHTML = all.length
+      ? '<div class="hint" style="margin-top:10px">A chart needs the same element in two reports. Enter your next one and it will appear here.</div>'
+      : '';
+    return;
+  }
+  if(!icpChartKey || !able.some(function(e){ return e.k === icpChartKey; })){
+    /* Open on something that has actually gone wrong, if anything has. */
+    var flagged = icpTrendKeys(all).filter(function(k){
+      return able.some(function(e){ return e.k === k; });
+    });
+    icpChartKey = flagged.length ? flagged[0] : able[0].k;
+  }
+  var e = icpEl(icpChartKey);
+
+  /* Start of that day, not this minute — a report sampled exactly six months
+     ago should sit inside the six-month window, not fall out of it by hours. */
+  var cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() - icpChartMonths);
+  cutoff.setHours(0, 0, 0, 0);
+  var pts = all.filter(function(r){
+    var v = r.values[icpChartKey];
+    if(v === undefined || v === null) return false;
+    return new Date(icpDate(r)) >= cutoff;
+  }).map(function(r){ return {t:new Date(icpDate(r)).getTime(), v:r.values[icpChartKey], sp:icpSetpoint(r, e)}; });
+
+  var head = '<div class="icp-ch"><div class="row"><select id="icpChartSel">' +
+    able.map(function(x){
+      return '<option value="' + x.k + '"' + (x.k === icpChartKey ? ' selected' : '') + '>' +
+             esc(x.n) + ' (' + x.k + ')</option>';
+    }).join('') + '</select></div><div class="icp-ranges">' +
+    ICP_RANGES.map(function(r){
+      return '<button type="button" data-months="' + r[0] + '"' + (r[0] === icpChartMonths ? ' class="on"' : '') + '>' + r[1] + '</button>';
+    }).join('') + '</div>';
+
+  if(pts.length < 2){
+    el.innerHTML = head + '<div class="hint">' +
+      (pts.length ? 'Only one ' + e.n.toLowerCase() + ' reading in this window. Widen the range to see a line.'
+                  : 'No ' + e.n.toLowerCase() + ' readings in this window.') +
+      '</div></div>';
+    wireIcpChart();
+    return;
+  }
+
+  var W = 320, H = 132, padL = 6, padR = 6, padT = 10, padB = 16;
+  var sp = pts[pts.length - 1].sp;
+  var vals = pts.map(function(x){ return x.v; });
+  var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+  if(sp !== null && sp !== undefined){ lo = Math.min(lo, sp); hi = Math.max(hi, sp); }
+  var pad = (hi - lo) * 0.18 || (hi || 1) * 0.12;
+  lo -= pad; hi += pad;
+  if(lo < 0 && Math.min.apply(null, vals) >= 0) lo = 0;
+
+  var t0 = cutoff.getTime(), t1 = Date.now();
+  if(pts[0].t < t0) t0 = pts[0].t;
+  var X = function(t){ return padL + (W - padL - padR) * (t1 === t0 ? 0.5 : (t - t0) / (t1 - t0)); };
+  var Y = function(v){ return padT + (H - padT - padB) * (1 - (v - lo) / (hi - lo || 1)); };
+
+  var line = pts.map(function(x){ return X(x.t).toFixed(1) + ',' + Y(x.v).toFixed(1); }).join(' ');
+  var dots = pts.map(function(x){ return 'M' + X(x.t).toFixed(1) + ',' + Y(x.v).toFixed(1) + 'h0.01'; }).join('');
+  var spLine = (sp === null || sp === undefined) ? '' :
+    '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + Y(sp).toFixed(1) + '" y2="' + Y(sp).toFixed(1) +
+    '" stroke="var(--titrant)" stroke-width="1" stroke-dasharray="4 4" opacity=".65" vector-effect="non-scaling-stroke"/>';
+
+  var first = pts[0], last = pts[pts.length - 1];
+  var move = last.v - first.v;
+  var moveTxt = Math.abs(first.v) > 0 && Math.abs(move / first.v) > 0.05
+    ? (move > 0 ? 'up ' : 'down ') + fmt(Math.abs(move), Math.abs(move) < 10 ? 2 : 0) + ' ' + e.u
+    : 'steady';
+
+  el.innerHTML = head +
+    '<svg viewBox="0 0 ' + W + ' ' + H + '" class="chart-svg" preserveAspectRatio="none" role="img" aria-label="' +
+      esc(e.n) + ' over ' + icpChartMonths + ' months">' + spLine +
+      '<polyline points="' + line + '" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>' +
+      '<path d="' + dots + '" stroke="var(--dot)" stroke-width="6" stroke-linecap="round" vector-effect="non-scaling-stroke" fill="none"/>' +
+    '</svg>' +
+    '<div class="strip-foot"><span>' + esc(fmtDay(new Date(first.t).toISOString().slice(0,10))) + '</span>' +
+      '<span>' + esc(fmtDay(new Date(last.t).toISOString().slice(0,10))) + '</span></div>' +
+    '<div class="cap">' + pts.length + ' report' + (pts.length === 1 ? '' : 's') + ' in this window · latest ' +
+      fmt(last.v, last.v < 10 ? 2 : 0) + ' ' + e.u +
+      (sp === null || sp === undefined ? '' : ' against a setpoint of ' + sp + ' (dashed)') +
+      ' · ' + moveTxt + ' across the window.</div></div>';
+  wireIcpChart();
+}
+function wireIcpChart(){
+  var sel = document.getElementById('icpChartSel');
+  if(sel) sel.addEventListener('change', function(){ icpChartKey = this.value; renderIcpChart(); });
+  document.querySelectorAll('#icpChart [data-months]').forEach(function(b){
+    b.addEventListener('click', function(){
+      icpChartMonths = parseInt(b.getAttribute('data-months'), 10);
+      renderIcpChart();
+    });
   });
 }
 function renderIcpTrend(){
@@ -2827,7 +2955,7 @@ function switchTank(id){
   useTank(id);
   $('#results').innerHTML = '';
   refreshAll(); renderCorals(); populateTank(); renderTankPicker();
-  renderIcpTrend(); renderIcpHistory();
+  renderIcpChart(); renderIcpTrend(); renderIcpHistory();
   toast('Now on ' + (state.settings.tankName || 'this tank'));
 }
 function renderTankPicker(){
@@ -3169,6 +3297,12 @@ function csv(){
   return rows.join('\n');
 }
 
+/* Move to a tab as though the keeper had tapped it, so the nav highlight and
+   the view stay in step wherever the jump came from. */
+function goToView(name){
+  var b = document.querySelector('nav button[data-view="' + name + '"]');
+  if(b) b.click();
+}
 /* ---------- wiring ---------- */
 document.querySelectorAll('nav button').forEach(function(b){
   b.addEventListener('click', function(){
@@ -3179,7 +3313,7 @@ document.querySelectorAll('nav button').forEach(function(b){
     window.scrollTo({top:0});
     if(b.getAttribute('data-view') === 'log') renderLog();
     if(b.getAttribute('data-view') === 'setup') renderSetup();
-    if(b.getAttribute('data-view') === 'icp'){ renderIcpTrend(); renderIcpHistory(); }
+    if(b.getAttribute('data-view') === 'icp'){ renderIcpChart(); renderIcpTrend(); renderIcpHistory(); }
   });
 });
 $('#btnCalc').addEventListener('click', function(){
@@ -3480,15 +3614,14 @@ $('#btnIcpSave').addEventListener('click', function(){
   save();
   $('#icpModal').classList.remove('on');
   $('#icpToLog').checked = false;
-  renderIcp(rep);
-  renderIcpTrend(); renderIcpHistory(); renderLog(); renderHeader();
+  $('#icpOut').innerHTML = '';
+  renderLog(); renderHeader();
+  goToView('icp');
   toast(copied ? 'Report saved, ' + copied + ' readings added to the log' : 'Report saved');
-  $('#icpCard').scrollIntoView({behavior:'smooth', block:'start'});
 });
 $('#btnIcpLast').addEventListener('click', function(){
-  var last = icpLast();
-  if(!last){ toast('No ICP report saved yet'); return; }
-  renderIcp(last);
+  if(!icpLast()){ toast('No ICP report saved yet'); return; }
+  goToView('icp');
 });
 $('#btnIcpOpen2').addEventListener('click', function(){
   if(!FEATURES.corrections){
@@ -3726,7 +3859,7 @@ $('#restoreFile').addEventListener('change', function(){
       adopt(data);
       save();
       $('#results').innerHTML = '';
-      refreshAll(); renderCorals(); populateTank(); renderTankPicker();
+      refreshAll(); renderCorals(); populateTank(); renderTankPicker(); renderIcpChart();
       toast(vault.tanks.length > 1 ? 'Backup loaded — ' + vault.tanks.length + ' tanks' : 'Backup loaded');
     }catch(e){ toast('That file could not be read'); }
   };
@@ -3748,6 +3881,7 @@ load(function(){
   renderLog();
   renderSetup();
   renderSaltCalc();
+  renderIcpChart();
   renderIcpTrend();
   renderIcpHistory();
 });
