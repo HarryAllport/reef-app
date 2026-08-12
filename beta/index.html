@@ -582,6 +582,7 @@ nav button.on{color:var(--titrant)}
   </section>
 
   <section class="view" id="view-setup">
+    <!--PRO-ONLY:start-->
     <div class="card">
       <div class="card-title">What's on your shelf</div>
       <div class="sub">Tick everything you have to hand. Corrections are worked out from these and nothing else. The strength figures come from the labels — change any that your bottle disagrees with.</div>
@@ -592,6 +593,7 @@ nav button.on{color:var(--titrant)}
       <div id="customForm" style="display:none;margin-top:14px"></div>
     </div>
 
+    <!--PRO-ONLY:end-->
     <div class="card">
       <div class="card-title">Targets</div>
       <div class="sub" id="tgtSub">Low and high set the green band on each strip; target is what corrections aim for.</div>
@@ -603,6 +605,7 @@ nav button.on{color:var(--titrant)}
       <div class="hint">Resets the targets and daily limits to the published values for your tank type, set in the ⚙ panel top right. Use this after an update to pick up any revised figures.</div>
     </div>
 
+    <!--PRO-ONLY:start-->
     <div class="card">
       <div class="card-title">Daily limits</div>
       <div class="sub">Corrections larger than these get split across several days.</div>
@@ -619,6 +622,7 @@ nav button.on{color:var(--titrant)}
       <div id="provBody" style="margin-top:12px;font-size:13px;color:#8fa6b3;line-height:1.6"></div>
     </div>
 
+    <!--PRO-ONLY:end-->
     <div class="card">
       <div class="card-title">Data</div>
       <div class="sub" id="storageNote">Your settings and test log are stored by this browser on this machine.</div>
@@ -998,7 +1002,12 @@ function renderFeeding(){
       '<div class="btn-row" style="margin-top:0"><button class="primary" id="btnFeedSetup">Add your livestock</button></div>';
     var b = document.getElementById('btnFeedSetup');
     if(b) b.addEventListener('click', function(){
-      goToView('setup');
+      /* The stocking list is a paid feature, so say so here rather than
+         dropping a free user onto a settings screen to find that out. */
+      if(!FEATURES.livestock){
+        el.innerHTML = upsell('Your tank\'s feeding guide', 'Available in Reef Key Pro.');
+        return;
+      }
       $('#btnCog').click();
       setTimeout(function(){
         var sp = document.getElementById('coralSp');
@@ -3260,14 +3269,17 @@ function renderSetup(){
   $('#setVolume').value = state.settings.volUnit === 'gal'
     ? +(state.settings.netLitres / 3.78541).toFixed(1)
     : +state.settings.netLitres.toFixed(0);
-  $('#capAlk').value = state.settings.caps.alk;
-  $('#capCa').value = state.settings.caps.ca;
-  $('#capMg').value = state.settings.caps.mg;
+  /* These live on cards the free build does not ship. */
+  if($('#capAlk')){
+    $('#capAlk').value = state.settings.caps.alk;
+    $('#capCa').value = state.settings.caps.ca;
+    $('#capMg').value = state.settings.caps.mg;
+  }
 
   var prof = TANK_TYPES[state.settings.tankType || 'mixed'];
   $('#tgtSub').textContent = 'Active profile: ' + prof.name + '. Low and high set the green band on each strip; target is what corrections aim for.';
-  $('#provSub').textContent = 'Published values for your tank type: ' + prof.name + '.';
-  $('#provBody').innerHTML = prof.blurb;
+  if($('#provSub')) $('#provSub').textContent = 'Published values for your tank type: ' + prof.name + '.';
+  if($('#provBody')) $('#provBody').innerHTML = prof.blurb;
 
   renderShelf();
 
@@ -4178,12 +4190,13 @@ $('#btnIcs').addEventListener('click', function(){
   }catch(e){ toast('This browser blocked the download'); }
 });
 ['capAlk','capCa','capMg'].forEach(function(id){
+  if(!$('#'+id)) return;
   $('#'+id).addEventListener('change', function(){
     var k = id.replace('cap','').toLowerCase(), v = num(this.value);
     if(v && v > 0){ state.settings.caps[k] = v; save(); if($('#results').innerHTML) renderResults(true); }
   });
 });
-$('#btnAddProduct').addEventListener('click', function(){
+if($('#btnAddProduct')) $('#btnAddProduct').addEventListener('click', function(){
   var box = $('#customForm');
   if(box.style.display === 'block'){ box.style.display = 'none'; return; }
   renderCustomForm();
