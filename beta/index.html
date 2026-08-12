@@ -81,6 +81,16 @@ header{
 /* stand-in shown where a Pro feature would be, in the lite build */
 .check{display:flex;align-items:flex-start;gap:9px;font-size:12px;color:var(--foam);line-height:1.45;cursor:pointer}
 .check input{width:17px;height:17px;flex:0 0 auto;margin:1px 0 0;accent-color:var(--titrant)}
+.feed-grp{margin-top:16px}
+.feed-grp h4{font-family:var(--f-display);font-weight:800;font-size:12px;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--titrant);margin:0 0 3px}
+.feed-grp .gnote{font-size:12px;color:var(--muted);line-height:1.55;margin:0 0 8px}
+.feed-sp{border-top:1px solid var(--line);padding:9px 0}
+.feed-sp:last-child{padding-bottom:0}
+.feed-sp .nm{font-family:var(--f-display);font-weight:700;font-size:13px}
+.feed-sp .qty{font-size:10px;color:var(--muted);font-family:var(--f-mono);margin-left:6px}
+.feed-sp p{margin:3px 0 0;font-size:12px;line-height:1.55;color:var(--foam)}
+.feed-sp p.gen{color:var(--muted)}
 .icp-hist{margin-top:10px}
 .icp-rep{border:1px solid var(--line);border-radius:var(--radius);background:var(--deep);margin-bottom:8px;overflow:hidden}
 .icp-rep summary{list-style:none;cursor:pointer;padding:12px 14px;display:flex;justify-content:space-between;align-items:baseline;gap:10px}
@@ -99,6 +109,15 @@ header{
   font-family:var(--f-display);font-weight:700;letter-spacing:.02em}
 .icp-ranges button.on{background:var(--fill);border-color:var(--fill);color:#fff}
 .icp-ch .cap{font-size:11px;color:var(--muted);margin-top:7px;line-height:1.5}
+.icp-ch .cap b.better{color:var(--good)}
+.icp-ch .cap b.worse{color:var(--alert)}
+.icp-ch .cap b.flat{color:var(--near)}
+.icp-key{display:flex;gap:12px;flex-wrap:wrap;font-size:10px;color:var(--muted);margin-top:6px}
+.icp-key span{display:flex;align-items:center;gap:5px}
+.icp-key i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.icp-tr td.d-better{color:var(--good)}
+.icp-tr td.d-worse{color:var(--alert)}
+.icp-tr td.d-flat{color:var(--muted)}
 .icp-tr{border:1px solid var(--line);border-radius:var(--radius);background:var(--deep);padding:12px 14px;margin-top:10px}
 .icp-tr table{width:100%;border-collapse:collapse;font-size:12px}
 .icp-tr th{text-align:right;font-size:10px;color:var(--muted);font-weight:600;padding:0 0 6px 8px;white-space:nowrap}
@@ -542,6 +561,14 @@ nav button.on{color:var(--titrant)}
     </div>
   </section>
 
+  <section class="view" id="view-feed">
+    <div class="card">
+      <div class="card-title">Feeding</div>
+      <div class="sub">What the animals in this tank actually eat, drawn from the livestock you have added. Corals are not all photosynthetic and fish are not all flake-eaters — the ones that need more than the tank provides are the ones that quietly starve.</div>
+      <div id="feedOut"></div>
+    </div>
+  </section>
+
   <section class="view" id="view-setup">
     <div class="card">
       <div class="card-title">What's on your shelf</div>
@@ -601,6 +628,7 @@ nav button.on{color:var(--titrant)}
   <button class="on" data-view="test">Test</button>
   <button data-view="log">Log</button>
   <button data-view="icp">ICP</button>
+  <button data-view="feed">Feeding</button>
   <button data-view="setup">Setup</button>
 </nav>
 
@@ -850,6 +878,23 @@ var CORAL_SIZES = [
 ];
 /* Published dietary needs worth a reminder — keyed by species id. Shown as a
    feeding check whenever a water change is planned, for stocked species only. */
+/* Group-level husbandry: what this kind of animal lives on, how often, and the
+   failure mode when it is fed as though it were something else. Species notes
+   below add to this rather than repeat it. */
+var FEED_GROUPS = {
+  Fish:   {name:'Fish',
+    note:'Feed small amounts once or twice a day rather than one large meal — reef fish graze continuously in the wild and a big single feed mostly ends up as nitrate. Vary the foods: a frozen mix, a quality pellet and something green covers most community stock. Anything that hides at feeding time needs watching, because a fish that is not competing is losing weight weeks before it looks thin.'},
+  SPS:    {name:'SPS corals',
+    note:'Overwhelmingly photosynthetic. They take some fine particulate food and dissolved nutrients, but they are fed mainly by light and by stable chemistry, and they do not want to be target fed. What they do need is nutrients that are not zero — nitrate and phosphate at the bottom of the range starve the zooxanthellae and the tissue pales. If your nutrients are bottoming out, the answer is usually to feed the fish more, not the corals.'},
+  LPS:    {name:'LPS corals',
+    note:'These have real feeding responses and benefit from it. Target feed meaty foods — mysis, brine, a pellet sized to the mouth — roughly once or twice a week, after the lights dim when the tentacles are out. Feed the polyp, not the tank: use a pipette or a turkey baster and let the coral close on it. Do not force food into a coral that is not reaching for it.'},
+  Soft:   {name:'Soft corals',
+    note:'Mostly photosynthetic and mostly self-sufficient. Leathers, zoas, mushrooms and xenia rarely need target feeding and will grow on light and water quality alone. They do take dissolved organics, so they generally do better in a tank that is fed well than in a spotless one.'},
+  Clams:  {name:'Clams',
+    note:'Photosynthetic once they are of a decent size, and they also filter feed. A clam under about 5 cm cannot meet its needs from light alone and needs phytoplankton several times a week; a larger one takes most of what it needs from strong light and the nitrate and phosphate already in the water. Clams are among the first animals to suffer in an over-stripped tank.'},
+  Inverts:{name:'Inverts',
+    note:'Cleanup crews are not fed by the tank as often as people assume. Snails and hermits run out of algae in a mature system and will starve quietly; shrimp and crabs will take what the fish miss but benefit from a piece of food placed for them. Filter feeders such as feather dusters and non-photosynthetic gorgonians need regular fine particulate or phyto and are the hardest of all to keep fed.'}
+};
 var FEED_NOTES = {
   moorishidol:'sponge-based foods are part of its natural diet — offer a sponge-containing preparation daily',
   regalangel:'a shy specialist feeder — sponge and tunicate preparations, fed often',
@@ -922,6 +967,79 @@ function stockedFeedNotes(){
   });
   return out;
 }
+/* Feeding advice for what is actually in this tank, grouped the way the
+   stocking list is grouped. */
+function renderFeeding(){
+  var el = document.getElementById('feedOut');
+  if(!el) return;
+  var cs = state.settings.corals || [];
+  if(!cs.length){
+    el.innerHTML = '<div class="empty" style="padding:26px 10px"><strong>No livestock added yet</strong>' +
+      'Add the fish, corals and inverts you keep and this becomes a feeding guide for your tank rather than a general one.</div>' +
+      '<div class="btn-row" style="margin-top:0"><button class="primary" id="btnFeedSetup">Add your livestock</button></div>';
+    var b = document.getElementById('btnFeedSetup');
+    if(b) b.addEventListener('click', function(){
+      goToView('setup');
+      $('#btnCog').click();
+      setTimeout(function(){
+        var sp = document.getElementById('coralSp');
+        if(sp && sp.scrollIntoView) sp.scrollIntoView({behavior:'smooth', block:'center'});
+      }, 120);
+    });
+    return;
+  }
+  /* One entry per species, keeping the total kept so the advice can speak
+     about a shoal differently from a single specimen. */
+  var byGroup = {}, counts = {}, unknown = 0;
+  cs.forEach(function(c){
+    /* coralById falls back to the first coral for an unrecognised id, which
+       would quietly file a mystery species under Acropora and give it the
+       wrong feeding advice. Better to leave it out and say so. */
+    var sp = coralExact(c.sp);
+    if(!sp){ unknown++; return; }
+    var g = sp.group;
+    counts[c.sp] = (counts[c.sp] || 0) + (c.qty || 1);
+    if(!byGroup[g]) byGroup[g] = [];
+    if(!byGroup[g].some(function(x){ return x.id === c.sp; })) byGroup[g].push({id:c.sp, sp:sp});
+  });
+  var ORDER = ['Fish','LPS','SPS','Soft','Clams','Inverts'];
+  var html = '';
+  ORDER.forEach(function(g){
+    var list = byGroup[g];
+    if(!list || !list.length) return;
+    var gi = FEED_GROUPS[g] || {name:g, note:''};
+    html += '<div class="feed-grp"><h4>' + esc(gi.name) + '</h4>' +
+            '<p class="gnote">' + esc(gi.note) + '</p>';
+    list.sort(function(a, b){ return a.sp.name.localeCompare(b.sp.name); });
+    list.forEach(function(x){
+      var nm = x.sp.name.replace(/\s*\(.*\)$/, '');
+      var latin = (x.sp.name.match(/\(([^)]+)\)/) || [])[1];
+      var n = counts[x.id];
+      html += '<div class="feed-sp"><span class="nm">' + esc(nm) + '</span>' +
+              (n > 1 ? '<span class="qty">×' + n + '</span>' : '') +
+              (latin ? '<span class="qty">' + esc(latin) + '</span>' : '') +
+              (FEED_NOTES[x.id]
+                ? '<p>' + esc(FEED_NOTES[x.id].charAt(0).toUpperCase() + FEED_NOTES[x.id].slice(1)) + '.</p>'
+                : '<p class="gen">Nothing beyond the general guidance above — it takes the same foods as the rest of its group.</p>') +
+              '</div>';
+    });
+    html += '</div>';
+  });
+  if(unknown){
+    html += '<div class="hint" style="margin-top:14px">' + unknown + ' entr' + (unknown === 1 ? 'y is' : 'ies are') +
+      ' not in the species list any more, so there is no feeding advice for ' + (unknown === 1 ? 'it' : 'them') +
+      '. Re-add ' + (unknown === 1 ? 'it' : 'them') + ' under your livestock if you still keep ' + (unknown === 1 ? 'it' : 'them') + '.</div>';
+  }
+  var specials = cs.filter(function(c){ return FEED_NOTES[c.sp]; }).length;
+  html += '<div class="hint" style="margin-top:16px">' +
+    (specials
+      ? specials + ' of your animals have a specific dietary need listed above. Those are the ones worth checking on at feeding time — a specialist feeder in a mixed tank is usually the last to eat.'
+      : 'None of your current stock has a specialist diet. Keep an eye on the general guidance for each group.') +
+    '</div>' +
+    '<div class="hint" style="margin-top:6px">Feeding and your numbers are the same conversation: nitrate and phosphate come from food. If they are bottoming out, feed more before you dose anything; if they are climbing, look at the feeding before you reach for a water change.</div>';
+  el.innerHTML = html;
+}
+function coralExact(id){ for(var i=0;i<CORALS.length;i++){ if(CORALS[i].id===id) return CORALS[i]; } return null; }
 function coralById(id){ for(var i=0;i<CORALS.length;i++){ if(CORALS[i].id===id) return CORALS[i]; } return CORALS[0]; }
 function coralSizeById(id){ for(var i=0;i<CORAL_SIZES.length;i++){ if(CORAL_SIZES[i].id===id) return CORAL_SIZES[i]; } return CORAL_SIZES[0]; }
 
@@ -955,6 +1073,16 @@ var PRODUCTS = [
   {id:'mg-blend', src:'calc',brand:'Raw salts and DIY', name:'Magnesium blend, 5:1 chloride to sulphate',form:'g',  method:'dissolve', effects:{mg:1.16}},
   {id:'mgcl', src:'calc',   brand:'Raw salts and DIY', name:'Magnesium chloride hexahydrate',            form:'g',  method:'dissolve', effects:{mg:1.2}},
   {id:'epsom', src:'calc',  brand:'Raw salts and DIY', name:'Epsom salt (magnesium sulphate)',           form:'g',  method:'dissolve', effects:{mg:0.99}},
+  {id:'kh2po4', src:'calc', brand:'Raw salts and DIY', name:'Monopotassium phosphate (KH2PO4)', form:'g', method:'dissolve',
+   effects:{po4:6.98},
+   note:'Follows from the formula weight. It is very strong for the range you are working in — a tenth of a gram in 100 litres moves phosphate by about 0.007 ppm, so make up a dilute stock solution rather than weighing tiny amounts each time.'},
+  {id:'k2hpo4', src:'calc', brand:'Raw salts and DIY', name:'Dipotassium phosphate (K2HPO4)', form:'g', method:'dissolve',
+   effects:{po4:5.45},
+   note:'Follows from the formula weight. Same caution as the monopotassium form: make up a stock solution, and re-test before adding more.'},
+  {id:'bw-neophos', src:'blank', brand:'Brightwell', name:'NeoPhos liquid phosphate', form:'ml', method:'direct', effects:{po4:null}},
+  {id:'af-phos', src:'blank', brand:'Aquaforest', name:'Phosphorus', form:'ml', method:'direct', effects:{po4:null}},
+  {id:'gen-po4', src:'blank', brand:'Other or unbranded', name:'Phosphate supplement — other brand', form:'ml', method:'direct', effects:{po4:null}},
+  {id:'gen-no3', src:'blank', brand:'Other or unbranded', name:'Nitrate supplement — other brand', form:'ml', method:'direct', effects:{no3:null}},
   {id:'nano3', src:'calc',  brand:'Raw salts and DIY', name:'Sodium nitrate',                            form:'g',  method:'dissolve', effects:{no3:7.3}},
   {id:'sc-radv', src:'label', brand:'Seachem', name:'Reef Advantage Calcium', form:'g', method:'dissolve', effects:{ca:3.6},
    note:'Seachem publish 5 g per 150 L raising calcium by about 12 ppm, which is where the 3.6 comes from. Dissolve in at least 250 ml of fresh water first, keep it at least 30 minutes away from any carbonate supplement, and do not exceed 10 g per 150 L in a day.'},
@@ -1208,6 +1336,17 @@ function toDisp(key,v){
   if(v===null||v===undefined||!isFinite(v)) return v;
   return (key==='salinity' && sgMode()) ? 1 + v/1327 : v;
 }
+/* Home test kits do not resolve past three decimals — a Hanna phosphate
+   checker reads 0.056, not 0.056000000000000001. Predicted values worked out
+   in floating point are rounded here so what is shown and what is stored are
+   the same number, and neither carries false precision. Salinity in specific
+   gravity is the exception: 1.0253 is a real reading, so it keeps its own
+   places. ICP figures are held separately and are not touched by this. */
+function round3(key, v){
+  if(v === null || v === undefined || !isFinite(v)) return v;
+  if(key === 'salinity') return Math.round(v * 10000) / 10000;
+  return Math.round(v * 1000) / 1000;
+}
 function toInternal(key,v){
   if(v===null||v===undefined||!isFinite(v)) return v;
   return (key==='salinity' && sgMode()) ? (v-1)*1327 : v;
@@ -1363,10 +1502,10 @@ function renderRows(){
     var el = document.getElementById('in-'+p.key);
     if(state.readings[p.key] !== undefined && state.readings[p.key] !== null){
       var shown = toDisp(p.key, state.readings[p.key]);
-      el.value = p.key === 'salinity' ? Number(shown.toFixed(meta(p.key).dp)) : shown;
+      el.value = p.key === 'salinity' ? Number(shown.toFixed(meta(p.key).dp)) : round3(p.key, shown);
     }
     el.addEventListener('input', function(){
-      state.readings[p.key] = toInternal(p.key, num(el.value));
+      state.readings[p.key] = round3(p.key, toInternal(p.key, num(el.value)));
       updateStrip(p.key);
     });
     updateStrip(p.key);
@@ -1423,7 +1562,7 @@ function shelfList(){
     var base = libProduct(entry.id) || {id:entry.id, name:entry.name || 'Custom product',
       form:entry.form || 'g', method:entry.method || 'dissolve', effects:{}};
     var eff = {};
-    ['alk','ca','mg','no3'].forEach(function(k){
+    ['alk','ca','mg','no3','po4'].forEach(function(k){
       var v = (entry.effects && entry.effects[k] !== undefined && entry.effects[k] !== '')
         ? num(entry.effects[k]) : base.effects[k];
       if(v && v > 0) eff[k] = v;
@@ -1466,11 +1605,84 @@ function methodText(p, amount){
   }
   return 'Dose slowly into high flow. No mixing needed.';
 }
+/* ---------- sizing a water change against every parameter at once ----------
+   A water change is the bluntest tool in the box: it pulls nutrients down and
+   pushes the calcification elements up, in fixed proportion, whether that is
+   wanted or not. So rather than quoting a percentage for nitrate and letting
+   alkalinity land where it may, this walks the volume up in small steps and
+   stops at the largest one that does not break something else. */
+function wcAfter(frac){
+  var r = state.readings, el = currentSaltElements();
+  var mix = {alk:el.alk, ca:el.ca, mg:el.mg, no3:0, po4:0};
+  var out = {};
+  ['alk','ca','mg','no3','po4'].forEach(function(k){
+    if(r[k] === null || r[k] === undefined) return;
+    out[k] = r[k] * (1 - frac) + mix[k] * frac;
+  });
+  return out;
+}
+/* Is this volume safe for the elements the keeper is not trying to change? */
+function wcBreaks(frac){
+  var r = state.readings, after = wcAfter(frac), caps = state.settings.caps || {};
+  var reasons = [];
+  ['alk','ca','mg'].forEach(function(k){
+    if(after[k] === undefined) return;
+    var t = T(k), move = Math.abs(after[k] - r[k]), nm = k === 'alk' ? 'alkalinity' : k === 'ca' ? 'calcium' : 'magnesium';
+    if(caps[k] > 0 && move > caps[k] + 1e-9){
+      reasons.push('it would move ' + nm + ' by ' + fmt(move, k === 'alk' ? 2 : 0) + ' ' + UNITS[k] +
+                   ', past the ' + fmt(caps[k], k === 'alk' ? 2 : 0) + ' you allow in a day');
+    } else if(after[k] > t.high){
+      reasons.push('it would push ' + nm + ' to ' + fmt(after[k], k === 'alk' ? 2 : 0) + ' ' + UNITS[k] + ', over its ceiling');
+    } else if(after[k] < t.low && after[k] < r[k]){
+      reasons.push('it would drag ' + nm + ' down to ' + fmt(after[k], k === 'alk' ? 2 : 0) + ' ' + UNITS[k] + ', under its floor');
+    }
+  });
+  ['no3','po4'].forEach(function(k){
+    if(after[k] === undefined) return;
+    var t = T(k);
+    if(after[k] < t.low){
+      reasons.push('it would take ' + (k === 'no3' ? 'nitrate' : 'phosphate') + ' below ' + fmt(t.low, k === 'no3' ? 1 : 3) +
+                   ', and corals starve on zero nutrients');
+    }
+  });
+  return reasons;
+}
+/* The largest change worth doing today, or null when none is called for. */
+function recommendWaterChange(){
+  var r = state.readings, L = state.settings.netLitres;
+  if(!L) return null;
+  var wants = false;
+  ['no3','po4'].forEach(function(k){
+    if(r[k] !== null && r[k] !== undefined && r[k] > T(k).high) wants = true;
+  });
+  if(!wants) return null;
+  var best = null, blocked = null;
+  for(var pct = 5; pct <= 50; pct += 5){
+    var frac = pct / 100, why = wcBreaks(frac);
+    if(why.length){ if(!blocked) blocked = {pct:pct, why:why}; break; }
+    var after = wcAfter(frac), enough = true;
+    best = {pct:pct, frac:frac, after:after};
+    /* Stop as soon as both nutrients are inside their band — no reason to
+       change more water than the job needs. */
+    ['no3','po4'].forEach(function(k){
+      if(after[k] !== undefined && after[k] > T(k).high) enough = false;
+    });
+    if(enough) break;
+  }
+  if(!best) return null;
+  best.litres = L * best.frac;
+  best.blocked = blocked;
+  best.done = ['no3','po4'].every(function(k){
+    return best.after[k] === undefined || best.after[k] <= T(k).high;
+  });
+  return best;
+}
+
 /* Work out what to add, given what is on the shelf.
    Each product is dosed to whichever parameter runs out first, so nothing
    overshoots; multi-element products go first, then singles top up the rest. */
-function planBigThree(){
-  var r = state.readings, L = state.settings.netLitres;
+function planBigThree(readingsOverride){
+  var r = readingsOverride || state.readings, L = state.settings.netLitres;
   var need = {}, head = {}, tested = {};
   BIG3.forEach(function(k){
     if(r[k] === null || r[k] === undefined) return;
@@ -1559,6 +1771,11 @@ function buildCorrections(){
   function inRange(k){ return status(k, r[k]) === 'good'; }
   function have(k){ return r[k] !== null && r[k] !== undefined; }
   function push(step,title,dose,body,cls,imgs){ out.push({step:step,title:title,dose:dose,body:body,cls:cls||'',imgs:imgs||null}); }
+  /* Worked out before anything else, because if a water change is happening
+     it changes every other number on this page. Everything downstream is then
+     calculated from the water as it will be afterwards, not as it is now. */
+  var wc = recommendWaterChange();
+  var after = wc ? wc.after : null;
 
   /* 1. livestock alarm */
   if((have('nh3') && r.nh3 > T('nh3').high) || (have('no2') && r.no2 > T('no2').high)){
@@ -1606,8 +1823,37 @@ function buildCorrections(){
     ok.push(name + ' ' + fmt(r[k], k === 'alk' ? 2 : 0) + ' ' + UNITS[k]);
   });
 
+  if(wc){
+    var moved = ['alk','ca','mg'].filter(function(k){
+      return after[k] !== undefined && Math.abs(after[k] - r[k]) > (k === 'alk' ? 0.05 : k === 'ca' ? 2 : 5);
+    }).map(function(k){
+      var nm = k === 'alk' ? 'alkalinity' : k === 'ca' ? 'calcium' : 'magnesium';
+      return nm + ' ' + fmt(r[k], k === 'alk' ? 2 : 0) + ' → ' + fmt(after[k], k === 'alk' ? 2 : 0) + ' ' + UNITS[k];
+    });
+    var nutr = ['no3','po4'].filter(function(k){ return after[k] !== undefined; }).map(function(k){
+      var nm = k === 'no3' ? 'nitrate' : 'phosphate', dp = k === 'no3' ? 1 : 3;
+      return nm + ' ' + fmt(r[k], dp) + ' → ' + fmt(after[k], dp) + ' ' + UNITS[k];
+    });
+    var body = ['Do this first. It brings ' + nutr.join(' and ') + '.'];
+    if(moved.length){
+      body.push('It also moves ' + moved.join(' and ') +
+        ' — fresh salt carries those, so a water change raises them whether you wanted it to or not. Everything below is worked out from the water as it will be afterwards.');
+    }
+    if(wc.blocked){
+      body.push('Not more than this today: ' + wc.blocked.pct + '% was the next step up, and ' + wc.blocked.why[0] + '.');
+    }
+    if(!wc.done){
+      body.push('This will not finish the job in one go. Repeat weekly and re-test rather than doing one enormous change — a fast drop in nutrients stresses corals more than the nutrients did.');
+    }
+    push('First', 'Water change', Math.round(wc.pct) + '% — about ' + Math.round(wc.litres) + ' litres',
+      body, wc.done ? '' : 'warn');
+  }
+
   if(lows.length){
-    var plan = planBigThree();
+    /* Dose the water that will exist after the change, not the water in front
+       of you — otherwise the change and the dose both correct the same gap and
+       between them overshoot it. */
+    var plan = planBigThree(after);
 
     /* Published correction order: magnesium first (it keeps calcium carbonate
        in solution — without it the other two precipitate straight back out),
@@ -1719,8 +1965,8 @@ function buildCorrections(){
     var tn = T('no3');
     if(r.no3 > tn.high){
       var pct = Math.min(30, ((r.no3 - tn.target) / r.no3) * 100);
-      var after = r.no3 * (1 - pct/100);
-      var nb = ['That brings nitrate to roughly ' + fmt(after,1) + ' ppm. ' + (after > tn.high ? 'Still above target — repeat weekly rather than doing one huge change.' : ''), 'No hurry here. A mixed LPS and soft coral reef runs perfectly well up to about 50 ppm, and corals are more often harmed by a fast drop than by the nitrate itself. Bring it down over weeks.',
+      var afterN = r.no3 * (1 - pct/100);
+      var nb = ['That brings nitrate to roughly ' + fmt(afterN,1) + ' ppm. ' + (after > tn.high ? 'Still above target — repeat weekly rather than doing one huge change.' : ''), 'No hurry here. A mixed LPS and soft coral reef runs perfectly well up to about 50 ppm, and corals are more often harmed by a fast drop than by the nitrate itself. Bring it down over weeks.',
          'If it keeps climbing, the cause is import versus export: check feeding, skimmer performance, detritus in the sump, and whether the rock is releasing what it stored.'];
       var red = reducerOnShelf('no3');
       if(red){
@@ -1728,7 +1974,16 @@ function buildCorrections(){
                 fmt(red.dose.typical * L / red.dose.per, 1) + ' ml — start at half that, around ' +
                 fmt(red.dose.start * L / red.dose.per / 2, 1) + ' ml, and let it work over weeks rather than reaching for a bigger water change. It needs a well-run skimmer and daily consistency; it cannot be used as a one-off correction.');
       }
-      push('Then','Nitrate is high', Math.round(pct) + '% water change (' + (L*pct/100).toFixed(0) + ' litres)', nb);
+      if(wc){
+        /* The sized change above already covers this; repeating a second,
+           differently sized figure here would just contradict it. */
+        nb.shift();
+        nb.unshift('The ' + Math.round(wc.pct) + '% change above is sized for this, and takes nitrate to about ' +
+                   fmt(after.no3, 1) + ' ppm. It is deliberately not larger: a bigger change would push alkalinity, calcium or magnesium further than is safe in a day.');
+        push('Why','Nitrate is high', 'Covered by the water change above', nb);
+      } else {
+        push('Then','Nitrate is high', Math.round(pct) + '% water change (' + (L*pct/100).toFixed(0) + ' litres)', nb);
+      }
     } else if(r.no3 < tn.low){
       var g = ((tn.target - r.no3) * 0.137) * (L/100);
       push('Then','Nitrate is low', amt(g,'g') + ' of sodium nitrate',
@@ -1741,11 +1996,40 @@ function buildCorrections(){
     var tp = T('po4');
     if(r.po4 > tp.high){
       var pctp = Math.min(30, ((r.po4 - tp.target) / r.po4) * 100);
-      push('Then','Phosphate is high', Math.round(pctp) + '% water change (' + (L*pctp/100).toFixed(0) + ' litres)',
-        ['Bring it down gradually over weeks — corals adjust their uptake slowly, and a fast drop causes more stress than the phosphate did. Pair the water change with GFO run gently, or lanthanum through a filter sock, and re-test every other day.']);
+      var pb = ['Bring it down gradually over weeks — corals adjust their uptake slowly, and a fast drop causes more stress than the phosphate did. Pair the water change with GFO run gently, or lanthanum through a filter sock, and re-test every other day.'];
+      if(wc){
+        pb.unshift('The ' + Math.round(wc.pct) + '% change above takes phosphate to about ' + fmt(after.po4, 3) +
+                   ' ppm. That single change is sized for both nutrients at once — doing a separate one for phosphate would move the calcification elements twice over.');
+        push('Why','Phosphate is high', 'Covered by the water change above', pb);
+      } else {
+        push('Then','Phosphate is high', Math.round(pctp) + '% water change (' + (L*pctp/100).toFixed(0) + ' litres)', pb);
+      }
     } else if(r.po4 < tp.low){
-      push('Then','Phosphate is low','Dose a phosphate supplement to label',
-        ['Work in small steps and re-test — the useful range here is a few hundredths of a ppm, so home-mixed solutions are easy to overshoot. Check nitrate at the same time; the two want to come up together.']);
+      /* On an SPS system this is the common failure: nutrients driven to zero
+         in pursuit of colour, and the corals pale because the zooxanthellae
+         have nothing to work with. Feeding is the first lever, not a bottle. */
+      var uln = (state.settings.tankType || '').indexOf('sps') > -1 || tp.high <= 0.12;
+      var poProd = shelfList().filter(function(x){ return x.effects.po4; })[0];
+      var pbody = [];
+      if(uln){
+        pbody.push('At ' + fmt(r.po4, 3) + ' ppm this tank is running ultra-low, and on an SPS system that is usually deliberate — but below about ' +
+          fmt(tp.low, 3) + ' the zooxanthellae are underfed, tissue pales, and growth slows even though every other number looks perfect. Zero is not the goal; a small, stable, non-zero figure is.');
+        pbody.push('Feed the tank more before you dose anything. More food means more phosphate and more nitrate, in the ratio the animals actually use, and it feeds the fish and corals at the same time. An extra frozen cube, a second small feed in the day, or simply easing off the skimmer or the GFO will usually lift it within a week.');
+      }
+      if(poProd){
+        var needPo = Math.max(0, tp.target - r.po4);
+        var amtPo = needPo * L / 100 / poProd.effects.po4;
+        pbody.push('If feeding alone will not hold it, you have ' + poProd.name + ' on the shelf: about ' +
+          amt(amtPo, poProd.form) + ' would take ' + fmt(r.po4, 3) + ' to ' + fmt(tp.target, 3) +
+          ' ppm across your ' + Math.round(L) + ' litres. Add a quarter of that a day and re-test — the whole useful range here is a few hundredths of a ppm, so it is very easy to overshoot.');
+      } else if(unfilledFor('po4').length){
+        pbody.push('You have ' + unfilledFor('po4')[0].name + ' ticked but no strength set for it. Fill that in under Setup and the app can work out the dose.');
+      } else {
+        pbody.push('If feeding alone will not hold it, a phosphate supplement is the controlled way to do it — Brightwell NeoPhos, Aquaforest Phosphorus, or monopotassium phosphate made up as a dilute stock solution. Tick what you buy under Setup and the dose gets worked out for you.');
+        shopping.push({key:'po4', why:'Phosphate is below the floor for this tank and there is nothing on your shelf to raise it — feeding more comes first, but a supplement gives you control when it will not hold.'});
+      }
+      pbody.push('Check nitrate at the same time. The two are consumed together and want to come up together; lifting phosphate while nitrate sits at zero tends to feed algae rather than corals.');
+      push('Then','Phosphate is low', poProd ? 'Feed more, then top up if it will not hold' : 'Feed more heavily', pbody);
       shopping.push({key:'po4', why:'Phosphate reads below target — a bottled phosphate supplement dosed to label brings it up in the tiny steps this range needs.'});
     } else ok.push('Phosphate ' + fmt(r.po4,3) + ' ppm');
   }
@@ -1848,7 +2132,9 @@ function buildCorrections(){
   }
 
   /* combined note */
-  if(have('alk') && have('ca') && have('mg') && r.alk < T('alk').low && r.ca < T('ca').low && r.mg < T('mg').low){
+  if(!wc && have('alk') && have('ca') && have('mg') && r.alk < T('alk').low && r.ca < T('ca').low && r.mg < T('mg').low){
+    /* Suppressed when a change has already been sized above — two different
+       percentages on one page is how a keeper ends up doing both. */
     push('Overall','All three are depleted','Water change first',
       ['When alkalinity, calcium and magnesium have all dropped together, a 20% water change resets all three at once and in the right proportions. Then start a daily routine sized to consumption instead of correcting after the fact.']);
   }
@@ -2047,6 +2333,35 @@ function icpChartable(){
   });
   return ICP_ELEMENTS.filter(function(e){ return counts[e.k] >= 2; });
 }
+/* Colour of a single reading: where it sat against its setpoint at the time. */
+function icpPointColour(e, v, sp){
+  var verdict = icpVerdict(e, v, sp);
+  if(verdict === 'metal') return 'var(--alert)';
+  if(verdict === 'low' || verdict === 'high') return 'var(--near)';
+  if(verdict === 'unset') return 'var(--muted)';
+  return 'var(--good)';
+}
+/* Direction of travel between two reports. "Better" means closer to the
+   setpoint, which is not the same as "up" — potassium climbing towards 400 is
+   good news, copper climbing away from zero is not. A move under 5% is called
+   flat, because trace elements wander between reports. */
+function icpMove(e, cur, prev, sp){
+  if(prev === undefined || prev === null || cur === undefined || cur === null) return null;
+  var d = cur - prev;
+  var rel = Math.abs(prev) > 0 ? Math.abs(d / prev) : (d === 0 ? 0 : 1);
+  var out = {d:d, rel:rel, dir:'flat'};
+  if(rel <= 0.05) return out;
+  if(sp === null || sp === undefined){ out.dir = 'flat'; return out; }
+  if(e.kind === 'toxic'){ out.dir = d < 0 ? 'better' : 'worse'; return out; }
+  out.dir = Math.abs(cur - sp) < Math.abs(prev - sp) ? 'better' : 'worse';
+  return out;
+}
+function icpMoveText(e, m){
+  if(!m) return null;
+  var mag = fmt(Math.abs(m.d), Math.abs(m.d) < 10 ? 2 : 0) + ' ' + e.u;
+  if(m.dir === 'flat') return {cls:'flat', txt:'held steady'};
+  return {cls:m.dir, txt:(m.d > 0 ? 'up ' : 'down ') + mag + (m.dir === 'better' ? ', toward the setpoint' : ', away from the setpoint')};
+}
 function renderIcpChart(){
   var el = document.getElementById('icpChart');
   if(!el) return;
@@ -2111,29 +2426,39 @@ function renderIcpChart(){
   var Y = function(v){ return padT + (H - padT - padB) * (1 - (v - lo) / (hi - lo || 1)); };
 
   var line = pts.map(function(x){ return X(x.t).toFixed(1) + ',' + Y(x.v).toFixed(1); }).join(' ');
-  var dots = pts.map(function(x){ return 'M' + X(x.t).toFixed(1) + ',' + Y(x.v).toFixed(1) + 'h0.01'; }).join('');
+  /* One marker per report, coloured by where that reading stood at the time,
+     so the shape of the line and the health of each point read together. */
+  var dots = pts.map(function(x){
+    return '<circle cx="' + X(x.t).toFixed(1) + '" cy="' + Y(x.v).toFixed(1) + '" r="3.2" fill="' +
+           icpPointColour(e, x.v, x.sp) + '" stroke="var(--deep)" stroke-width="1.4" vector-effect="non-scaling-stroke"/>';
+  }).join('');
   var spLine = (sp === null || sp === undefined) ? '' :
     '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + Y(sp).toFixed(1) + '" y2="' + Y(sp).toFixed(1) +
     '" stroke="var(--titrant)" stroke-width="1" stroke-dasharray="4 4" opacity=".65" vector-effect="non-scaling-stroke"/>';
 
   var first = pts[0], last = pts[pts.length - 1];
-  var move = last.v - first.v;
-  var moveTxt = Math.abs(first.v) > 0 && Math.abs(move / first.v) > 0.05
-    ? (move > 0 ? 'up ' : 'down ') + fmt(Math.abs(move), Math.abs(move) < 10 ? 2 : 0) + ' ' + e.u
-    : 'steady';
+  var since = icpMoveText(e, icpMove(e, last.v, pts.length > 1 ? pts[pts.length - 2].v : null, last.sp));
+  var across = icpMoveText(e, icpMove(e, last.v, first.v, last.sp));
 
   el.innerHTML = head +
     '<svg viewBox="0 0 ' + W + ' ' + H + '" class="chart-svg" preserveAspectRatio="none" role="img" aria-label="' +
       esc(e.n) + ' over ' + icpChartMonths + ' months">' + spLine +
-      '<polyline points="' + line + '" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>' +
-      '<path d="' + dots + '" stroke="var(--dot)" stroke-width="6" stroke-linecap="round" vector-effect="non-scaling-stroke" fill="none"/>' +
+      '<polyline points="' + line + '" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity=".8" vector-effect="non-scaling-stroke"/>' +
+      dots +
     '</svg>' +
     '<div class="strip-foot"><span>' + esc(fmtDay(new Date(first.t).toISOString().slice(0,10))) + '</span>' +
       '<span>' + esc(fmtDay(new Date(last.t).toISOString().slice(0,10))) + '</span></div>' +
     '<div class="cap">' + pts.length + ' report' + (pts.length === 1 ? '' : 's') + ' in this window · latest ' +
       fmt(last.v, last.v < 10 ? 2 : 0) + ' ' + e.u +
-      (sp === null || sp === undefined ? '' : ' against a setpoint of ' + sp + ' (dashed)') +
-      ' · ' + moveTxt + ' across the window.</div></div>';
+      (sp === null || sp === undefined ? '' : ' against a setpoint of ' + sp + ' (dashed)') + '.' +
+      (since ? ' Since the report before: <b class="' + since.cls + '">' + since.txt + '</b>.' : '') +
+      (across && pts.length > 2 ? ' Across the window: <b class="' + across.cls + '">' + across.txt + '</b>.' : '') +
+    '</div>' +
+    '<div class="icp-key">' +
+      '<span><i style="background:var(--good)"></i>at setpoint</span>' +
+      '<span><i style="background:var(--near)"></i>outside its band</span>' +
+      '<span><i style="background:var(--alert)"></i>contaminant present</span>' +
+    '</div></div>';
   wireIcpChart();
 }
 function wireIcpChart(){
@@ -2162,7 +2487,7 @@ function renderIcpTrend(){
   show.forEach(function(r, i){
     h += '<th>' + (i === show.length - 1 ? 'Latest' : fmtDay(icpDate(r)).slice(0, 6)) + '</th>';
   });
-  h += '<th></th></tr></thead><tbody>';
+  h += '<th>Change</th></tr></thead><tbody>';
   keys.forEach(function(k){
     var e = icpEl(k);
     h += '<tr><td>' + e.k + ' <span style="color:var(--muted);font-size:10px">' + e.u.replace('/l', '') + '</span></td>';
@@ -2171,17 +2496,26 @@ function renderIcpTrend(){
       var last = i === vals.length - 1;
       h += '<td class="' + (last ? 'now' : 'was') + '">' + (v === undefined || v === null ? '·' : fmt(v, v < 10 ? 2 : 0)) + '</td>';
     });
-    /* direction over the whole window, ignoring gaps */
-    var seen = vals.filter(function(v){ return v !== undefined && v !== null; });
-    var dir = 'flat', mark = '—';
+    /* Change against the previous report that carried this element, judged by
+       whether it moved toward the setpoint rather than merely up or down. */
+    var seen = [];
+    show.forEach(function(r){
+      var v = r.values[k];
+      if(v !== undefined && v !== null) seen.push({v:v, sp:icpSetpoint(r, e)});
+    });
+    var cls = 'd-flat', mark = '—';
     if(seen.length > 1){
-      var d = seen[seen.length - 1] - seen[0];
-      var rel = seen[0] ? Math.abs(d / seen[0]) : 0;
-      if(rel > 0.05){ dir = d > 0 ? 'up' : 'down'; mark = d > 0 ? '↑' : '↓'; }
+      var cur = seen[seen.length - 1], prev = seen[seen.length - 2];
+      var m = icpMove(e, cur.v, prev.v, cur.sp);
+      if(m){
+        cls = 'd-' + m.dir;
+        mark = m.dir === 'flat' ? '—'
+             : (m.d > 0 ? '+' : '−') + fmt(Math.abs(m.d), Math.abs(m.d) < 10 ? 2 : 0);
+      }
     }
-    h += '<td class="dir ' + dir + '">' + mark + '</td></tr>';
+    h += '<td class="' + cls + '">' + mark + '</td></tr>';
   });
-  h += '</tbody></table><div class="hint" style="margin-top:8px">Arrows compare the oldest and newest column shown, ignoring moves under 5%.</div></div>';
+  h += '</tbody></table><div class="hint" style="margin-top:8px">Change is against the report before it. Green means the element moved toward its setpoint, red means away, and moves under 5% are treated as steady.</div></div>';
   el.innerHTML = h;
 }
 function renderIcpHistory(){
@@ -2356,8 +2690,9 @@ function renderIcp(rep){
    Driven by what today's calculation actually needed and could not do with
    the shelf as it stands. Images are drawn in-app, so nothing depends on a
    shop's website. */
-var SHOP_PREF = {alk:['rs-b','rs-khp','soda'], ca:['rs-a','cacl-di'], mg:['rs-c','mgcl'], no3:['nano3']};
+var SHOP_PREF = {alk:['rs-b','rs-khp','soda'], ca:['rs-a','cacl-di'], mg:['rs-c','mgcl'], no3:['nano3'], po4:['bw-neophos','af-phos','kh2po4']};
 var SHOP_LABEL = {alk:'KH', ca:'Ca', mg:'Mg', no3:'NO3', po4:'PO4'};
+var SHOP_PO4 = ['bw-neophos','af-phos','kh2po4'];
 /* No remote imagery: every product tile is drawn in the app, so nothing
    depends on a manufacturer's CDN staying put — and nothing carries a
    trademark that is not ours to use. */
@@ -2546,7 +2881,7 @@ function uptakeStats(key){
     else skipped++;
   }
   if(used < 1 || totDays < 0.9) return null;
-  return {perDay: totDrop/totDays, used:used, skipped:skipped};
+  return {perDay: totDrop/totDays, used:used, skipped:skipped, days:totDays};
 }
 /* When no rate can be computed, say why in plain English. */
 function uptakeWhy(key){
@@ -2570,22 +2905,19 @@ function uptakeWhy(key){
 }
 /* Every product that raises a given element — the full library plus any
    custom shelf products — with shelf-edited strengths applied. */
+/* Only products the keeper has actually ticked, and only those that move this
+   element. The library runs to seventy items now — offering all of them here
+   would mean scrolling past two dozen calcium products they do not own to
+   find the bottle standing next to the sump. A product with no strength set
+   is left out too: there is no rate to work from until it has one. */
 function doserProducts(k){
-  var strengths = {};
-  shelfList().forEach(function(p){ if(p.effects[k]) strengths[p.id] = p.effects[k]; });
   var list = [];
-  PRODUCTS.forEach(function(p){
+  shelfList().forEach(function(p){
     if(!p.effects[k]) return;
-    list.push({id:p.id, name:p.name, form:p.form, method:p.method,
-      eff:strengths[p.id] || p.effects[k],
+    var base = libProduct(p.id);
+    list.push({id:p.id, name:p.name, form:p.form, method:p.method, eff:p.effects[k],
+      brand:(base && base.brand) || null,
       multi:(p.effects.alk?1:0) + (p.effects.ca?1:0) + (p.effects.mg?1:0) > 1});
-  });
-  (state.settings.shelf || []).forEach(function(e){
-    if(libProduct(e.id)) return;
-    if(e.effects && num(e.effects[k]) > 0){
-      list.push({id:e.id, name:e.name || 'Custom product', form:e.form || 'g',
-        method:e.method || 'dissolve', eff:num(e.effects[k]), multi:false});
-    }
   });
   return list;
 }
@@ -2623,7 +2955,8 @@ function consumptionCard(){
     }
     var optHtml = '';
     opts.forEach(function(o){
-      optHtml += '<option value="'+o.id+'"'+(o.id === sel ? ' selected' : '')+'>'+esc(o.name)+'</option>';
+      optHtml += '<option value="'+o.id+'"'+(o.id === sel ? ' selected' : '')+'>'+
+                 esc((o.brand ? o.brand + ' ' : '') + o.name)+'</option>';
     });
     return {sel:sel, chosen:opts.filter(function(o){ return o.id === sel; })[0], optHtml:optHtml};
   }
@@ -2643,10 +2976,23 @@ function consumptionCard(){
       return;
     }
     var dp = (k === 'alk') ? 2 : 1, dpw = (k === 'alk') ? 1 : 0;
-    rows += '<div class="wc-row"><span>'+NAMES[k]+'</span>'+
+    var basis = x.est ? 'from your stocking, until tests measure it'
+      : x.s.used + ' interval' + (x.s.used === 1 ? '' : 's') +
+        (x.s.days ? ' over ' + Math.round(x.s.days) + ' days' : '');
+    rows += '<div class="wc-row"><span>'+NAMES[k]+
+      '<span class="hint" style="display:block;font-size:10px;margin-top:1px">'+esc(basis)+'</span></span>'+
       '<span class="mono">'+(x.est ? '≈ ' : '')+fmt(x.s.perDay,dp)+' '+UNITS[k]+'/day · <b>'+fmt(x.s.perDay*7,dpw)+' '+UNITS[k]+'/week</b></span></div>';
     var opts = doserProducts(k);
-    if(!opts.length) return;
+    if(!opts.length){
+      doseFields += '<div class="field" style="margin-top:10px;margin-bottom:0">'+
+        '<label>'+NAMES[k]+' product</label>'+
+        '<div class="hint">Nothing on your shelf raises '+NAMES[k].toLowerCase()+' yet'+
+        (unfilledFor(k).length
+          ? ' with a strength set — '+esc(unfilledFor(k)[0].name)+' is ticked but has no figure against it. Fill that in under what is on your shelf and the daily rate appears here.'
+          : '. Tick the bottle you dose under what is on your shelf, and the weekly and daily amounts appear here.')+
+        '</div></div>';
+      return;
+    }
     var sel = (state.settings.doser || {})[k];
     if(!opts.some(function(o){ return o.id === sel; })){
       var def = (DEFAULTS.doser || {})[k];
@@ -2657,7 +3003,8 @@ function consumptionCard(){
     var daily = weekly / 7;
     var optHtml = '';
     opts.forEach(function(o){
-      optHtml += '<option value="'+o.id+'"'+(o.id === sel ? ' selected' : '')+'>'+esc(o.name)+'</option>';
+      optHtml += '<option value="'+o.id+'"'+(o.id === sel ? ' selected' : '')+'>'+
+                 esc((o.brand ? o.brand + ' ' : '') + o.name)+'</option>';
     });
     var cp = (costSettings().products || {})[chosen.id];
     var costTxt = '';
@@ -2681,7 +3028,8 @@ function consumptionCard(){
   if(doseFields){
     html += '<div style="margin-top:12px"><div class="eyebrow">Dose to match uptake</div>'+doseFields+
       (anyCost ? '<div class="hint" style="margin-top:8px"><b>Dosing total ≈ £'+costTotal.toFixed(2)+' a week</b> at these rates and your prices (set in ⚙).</div>' : '')+
-      '<div class="hint" style="margin-top:10px">Start at these rates, re-test in a week, and nudge the dose — not the tank. When dose matches uptake the graph goes flat, which is exactly what corals want.</div></div>';
+      '<div class="hint" style="margin-top:10px">Start at these rates, re-test in a week, and nudge the dose — not the tank. When dose matches uptake the graph goes flat, which is exactly what corals want.</div>'+
+      '<div class="hint" style="margin-top:6px">These figures re-work themselves every time you log a test. Add corals and the measured uptake climbs, so the daily amount here climbs with it — you do not have to recalculate anything, but do re-read this card after any change to the stocking.</div></div>';
   }
   if(anyEst){
     html += '<div class="hint" style="margin-top:8px">≈ figures are estimated from the corals in your ⚙ settings — measured uptake from your log replaces them automatically as tests build up.</div>';
@@ -2759,7 +3107,7 @@ function renderShelf(){
         return;
       }
       html += '<div class="prod-eff">';
-      ['alk','ca','mg','no3'].forEach(function(k){
+      ['alk','ca','mg','no3','po4'].forEach(function(k){
         var b = base.effects[k];
         if(b === undefined) return;
         var own = entry.effects && entry.effects[k] !== undefined;
@@ -2955,7 +3303,7 @@ function switchTank(id){
   useTank(id);
   $('#results').innerHTML = '';
   refreshAll(); renderCorals(); populateTank(); renderTankPicker();
-  renderIcpChart(); renderIcpTrend(); renderIcpHistory();
+  renderIcpChart(); renderIcpTrend(); renderIcpHistory(); renderFeeding();
   toast('Now on ' + (state.settings.tankName || 'this tank'));
 }
 function renderTankPicker(){
@@ -3262,7 +3610,7 @@ function calcWC(driver){
     '<button class="small" id="wcLog">Save to log</button>'+
     '<button class="small primary" id="wcApply">Calculate adjustments</button></div></div>';
   function applyPreds(){
-    preds.forEach(function(p){ state.readings[p.key] = p.after; });
+    preds.forEach(function(p){ state.readings[p.key] = round3(p.key, p.after); });
     renderRows();
   }
   $('#wcLog').addEventListener('click', function(){
@@ -3314,6 +3662,7 @@ document.querySelectorAll('nav button').forEach(function(b){
     if(b.getAttribute('data-view') === 'log') renderLog();
     if(b.getAttribute('data-view') === 'setup') renderSetup();
     if(b.getAttribute('data-view') === 'icp'){ renderIcpChart(); renderIcpTrend(); renderIcpHistory(); }
+    if(b.getAttribute('data-view') === 'feed') renderFeeding();
   });
 });
 $('#btnCalc').addEventListener('click', function(){
@@ -3465,7 +3814,7 @@ function renderCorals(){
   $('#coralChips').innerHTML = html;
   function stockChanged(msg){
     applyStocking();
-    save(); refreshAll(); renderCorals();
+    save(); refreshAll(); renderCorals(); renderFeeding();
     toast(msg || 'Targets updated to your stocking');
   }
   $('#coralChips').querySelectorAll('[data-rmcoral]').forEach(function(b){
@@ -3725,7 +4074,7 @@ $('#btnAddCoral').addEventListener('click', function(){
   if(existing){ existing.qty = (existing.qty || 1) + qty; }
   else { state.settings.corals.push(counted ? {sp:sp, size:size, qty:qty} : {sp:sp, size:size}); }
   var b = applyStocking();
-  save(); refreshAll(); renderCorals();
+  save(); refreshAll(); renderCorals(); renderFeeding();
   toast('Targets updated to your stocking' + (b.conflict ? ' — ranges partly conflict, middle ground used' : ''));
 });
 [['costSaltPrice','saltPrice'],['costSaltKg','saltKg'],['costRo','roPerL']].forEach(function(pair){
@@ -3884,6 +4233,7 @@ load(function(){
   renderIcpChart();
   renderIcpTrend();
   renderIcpHistory();
+  renderFeeding();
 });
 })();
 </script>
