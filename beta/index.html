@@ -948,6 +948,79 @@ var PRODUCTS = [
   {id:'nano3', src:'calc',  brand:'Raw salts and DIY', name:'Sodium nitrate',                            form:'g',  method:'dissolve', effects:{no3:7.3}},
   {id:'sc-radv', src:'label', brand:'Seachem', name:'Reef Advantage Calcium', form:'g', method:'dissolve', effects:{ca:3.6},
    note:'Seachem publish 5 g per 150 L raising calcium by about 12 ppm, which is where the 3.6 comes from. Dissolve in at least 250 ml of fresh water first, keep it at least 30 minutes away from any carbonate supplement, and do not exceed 10 g per 150 L in a day.'},
+  {id:'nyos-camg', src:'mixed', brand:'NYOS', name:'ION-B CA/MG+ (made-up solution)', form:'ml', method:'direct', effects:{ca:0.72, mg:null},
+   note:'NYOS publish 1000 ml of made-up CA/MG+ solution containing about 72,000 mg of calcium, which is the 0.72 here — it assumes you mixed the powder exactly as instructed (the 1,122 g unit into 2.4 L of RO to make 3,000 ml). They do not publish the magnesium content, so that box is yours to fill from testing. Their guideline dose is 5-10 ml a day per 100 L.'},
+  {id:'nyos-alk',  src:'blank', brand:'NYOS', name:'ION-B ALK/PH+ (made-up solution)', form:'ml', method:'direct', effects:{alk:null}},
+
+  {id:'ati-ess1',  src:'blank', brand:'ATI', name:'Essentials Pro 1 — alkalinity', form:'ml', method:'direct', effects:{alk:null}},
+  {id:'ati-ess2',  src:'blank', brand:'ATI', name:'Essentials Pro 2 — calcium',    form:'ml', method:'direct', effects:{ca:null}},
+  {id:'ati-mg',    src:'blank', brand:'ATI', name:'Magnesium',                      form:'ml', method:'direct', effects:{mg:null}},
+
+  {id:'mr-alk',    src:'blank', brand:'Modern Reef', name:'Alkalinity', form:'ml', method:'direct', effects:{alk:null},
+   note:'Modern Reef do not print concentrations on the bottle, which is a known frustration among their users. The figure has to come from your own before-and-after test: note the reading, dose a measured amount, wait for it to mix and read again.'},
+  {id:'mr-ca',     src:'blank', brand:'Modern Reef', name:'Calcium',    form:'ml', method:'direct', effects:{ca:null}},
+  {id:'mr-mg',     src:'blank', brand:'Modern Reef', name:'Magnesium',  form:'ml', method:'direct', effects:{mg:null}},
+
+  {id:'kz-a',      src:'blank', brand:'Korallen-Zucht', name:'Balling A — calcium',    form:'g', method:'dissolve', effects:{ca:null}},
+  {id:'kz-b',      src:'blank', brand:'Korallen-Zucht', name:'Balling B — alkalinity', form:'g', method:'dissolve', effects:{alk:null}},
+  {id:'kz-c',      src:'blank', brand:'Korallen-Zucht', name:'Balling C — trace salt', form:'g', method:'dissolve', effects:{mg:null}},
+
+  {id:'kalk',   src:'calc',  brand:'Raw salts and DIY', name:'Kalkwasser (calcium hydroxide)', form:'g', method:'dissolve',
+   effects:{ca:5.41, alk:0.76},
+   note:'Follows from the formula weight, but it is not dosed like the other powders: it must go in as saturated limewater, added slowly to high flow, and it raises pH sharply. Never add the dry powder to the tank, and never dose it faster than the pH will tolerate.'},
+
+  {id:'bw-alk83',  src:'label', brand:'Brightwell', name:'Alkalin8.3 liquid', form:'ml', method:'direct', effects:{alk:0.117},
+   note:'Brightwell publish 1 ml raising one US gallon by 3.1 dKH, which is the 0.117 here.'},
+  {id:'bw-alk83p', src:'label', brand:'Brightwell', name:'Alkalin8.3-P powder', form:'g', method:'dissolve', effects:{alk:0.43},
+   note:'Taken from Brightwell\'s own formula — gallons multiplied by the dKH rise multiplied by 0.089 gives the grams. Their label separately quotes 12 dKH per gram per gallon, which works out slightly higher at 0.45; the figure here follows the formula. Check yours if precision matters.'},
+  {id:'bw-calcion', src:'blank', brand:'Brightwell', name:'CalciON liquid calcium',  form:'ml', method:'direct', effects:{ca:null}},
+  {id:'bw-magnesion',src:'blank',brand:'Brightwell', name:'MagnesION liquid magnesium', form:'ml', method:'direct', effects:{mg:null}},
+  {id:'bw-codea',  src:'blank', brand:'Brightwell', name:'Reef Code A — calcium part',    form:'ml', method:'direct', effects:{ca:null}},
+  {id:'bw-codeb',  src:'blank', brand:'Brightwell', name:'Reef Code B — alkalinity part', form:'ml', method:'direct', effects:{alk:null}},
+
+  {id:'rz-ca',   src:'blank', brand:'Reef Zlements', name:'Calcium',    form:'ml', method:'direct', effects:{ca:null}},
+  {id:'rz-alk',  src:'blank', brand:'Reef Zlements', name:'Alkalinity', form:'ml', method:'direct', effects:{alk:null}},
+  {id:'rz-mg',   src:'label', brand:'Reef Zlements', name:'Magnesium',  form:'ml', method:'direct', effects:{mg:1},
+   note:'Reef Zlements publish 10 ml raising 100 L by 10 mg/l of magnesium, which is the 1.0 here.'},
+  {id:'rz-zc1',  src:'blank', brand:'Reef Zlements', name:'Z-Complete Part 1', form:'ml', method:'direct', effects:{alk:null}},
+  {id:'rz-zc2',  src:'blank', brand:'Reef Zlements', name:'Z-Complete Part 2 (Universal)', form:'ml', method:'direct', effects:{ca:null}},
+
+  {id:'tm-afr',  src:'blank', brand:'Tropic Marin', name:'All-For-Reef liquid',   form:'ml', method:'direct', effects:{ca:null, alk:null}},
+  {id:'tm-afrp', src:'blank', brand:'Tropic Marin', name:'All-For-Reef powder',   form:'g',  method:'dissolve', effects:{ca:null, alk:null}},
+  {id:'tm-biocal',src:'blank',brand:'Tropic Marin', name:'Bio-Calcium powder',    form:'g',  method:'dissolve', effects:{ca:null, alk:null}},
+  {id:'tm-biomag',src:'blank',brand:'Tropic Marin', name:'Bio-Magnesium powder',  form:'g',  method:'dissolve', effects:{mg:null}},
+  {id:'tm-aelem',src:'blank', brand:'Tropic Marin', name:'A- Elements',           form:'ml', method:'direct', effects:{alk:null}},
+  {id:'tm-kelem',src:'blank', brand:'Tropic Marin', name:'K+ Elements',           form:'ml', method:'direct', effects:{ca:null}},
+  {id:'tm-balla',src:'blank', brand:'Tropic Marin', name:'Original Balling Part A — calcium',    form:'g', method:'dissolve', effects:{ca:null}},
+  {id:'tm-ballb',src:'blank', brand:'Tropic Marin', name:'Original Balling Part B — alkalinity', form:'g', method:'dissolve', effects:{alk:null}},
+  {id:'tm-ballc',src:'blank', brand:'Tropic Marin', name:'Original Balling Part C — sea salt',   form:'g', method:'dissolve', effects:{mg:null}},
+
+  {id:'af-c1',   src:'blank', brand:'Aquaforest', name:'Component 1+ — calcium',    form:'ml', method:'direct', effects:{ca:null}},
+  {id:'af-c2',   src:'blank', brand:'Aquaforest', name:'Component 2+ — alkalinity', form:'ml', method:'direct', effects:{alk:null}},
+  {id:'af-c3',   src:'blank', brand:'Aquaforest', name:'Component 3+ — magnesium',  form:'ml', method:'direct', effects:{mg:null}},
+  {id:'af-khb',  src:'blank', brand:'Aquaforest', name:'KH Buffer powder',          form:'g',  method:'dissolve', effects:{alk:null}},
+  {id:'af-camg', src:'blank', brand:'Aquaforest', name:'Calcium / Magnesium powder',form:'g',  method:'dissolve', effects:{ca:null, mg:null}},
+
+  {id:'esv-1',   src:'blank', brand:'ESV', name:'B-Ionic Part 1 — calcium',    form:'ml', method:'direct', effects:{ca:null}},
+  {id:'esv-2',   src:'blank', brand:'ESV', name:'B-Ionic Part 2 — alkalinity', form:'ml', method:'direct', effects:{alk:null}},
+  {id:'esv-mg',  src:'blank', brand:'ESV', name:'B-Ionic Magnesium',           form:'ml', method:'direct', effects:{mg:null}},
+
+  {id:'sc-carb', src:'blank', brand:'Seachem', name:'Reef Carbonate',           form:'ml', method:'direct', effects:{alk:null}},
+  {id:'sc-build',src:'blank', brand:'Seachem', name:'Reef Builder powder',      form:'g',  method:'dissolve', effects:{alk:null}},
+  {id:'sc-radm', src:'blank', brand:'Seachem', name:'Reef Advantage Magnesium', form:'g',  method:'dissolve', effects:{mg:null}},
+  {id:'sc-fus1', src:'blank', brand:'Seachem', name:'Reef Fusion 1 — calcium',  form:'ml', method:'direct', effects:{ca:null}},
+  {id:'sc-fus2', src:'blank', brand:'Seachem', name:'Reef Fusion 2 — alkalinity',form:'ml',method:'direct', effects:{alk:null}},
+
+  {id:'fm-b1',   src:'blank', brand:'Fauna Marin', name:'Balling Salt Part 1 — calcium',    form:'g', method:'dissolve', effects:{ca:null}},
+  {id:'fm-b2',   src:'blank', brand:'Fauna Marin', name:'Balling Salt Part 2 — alkalinity', form:'g', method:'dissolve', effects:{alk:null}},
+  {id:'fm-b3',   src:'blank', brand:'Fauna Marin', name:'Balling Salt Part 3 — trace salt', form:'g', method:'dissolve', effects:{mg:null}},
+
+  {id:'tlf-ca',  src:'blank', brand:'Two Little Fishies', name:'C-Balance A',  form:'ml', method:'direct', effects:{ca:null}},
+  {id:'tlf-alk', src:'blank', brand:'Two Little Fishies', name:'C-Balance B',  form:'ml', method:'direct', effects:{alk:null}},
+
+  {id:'kent-buf',src:'blank', brand:'Kent Marine', name:'Superbuffer-dKH', form:'g',  method:'dissolve', effects:{alk:null}},
+  {id:'kent-ca', src:'blank', brand:'Kent Marine', name:'Turbo-Calcium',   form:'g',  method:'dissolve', effects:{ca:null}},
+
   {id:'gen-alk', src:'typical', brand:'Other or unbranded', name:'Alkalinity liquid — other brand',           form:'ml', method:'direct', effects:{alk:0.1}},
   {id:'gen-ca', src:'typical', brand:'Other or unbranded', name:'Calcium liquid — other brand',              form:'ml', method:'direct', effects:{ca:0.5}},
   {id:'gen-mg', src:'typical', brand:'Other or unbranded', name:'Magnesium liquid — other brand',            form:'ml', method:'direct', effects:{mg:1}}
@@ -1433,10 +1506,37 @@ function planBigThree(){
   return {doses:doses, shortfall:short, untested:untested, blocked:blocked, empty:products.length === 0};
 }
 function d0(n){ return n; }
+/* Products the keeper has ticked that are meant to move this parameter but
+   have no strength behind them yet. They are the difference between "you own
+   nothing for this" and "you own the right thing but I cannot use it", and
+   those need very different advice. */
+function unfilledFor(k){
+  var out = [];
+  (state.settings.shelf || []).forEach(function(entry){
+    var base = libProduct(entry.id);
+    if(!base || !base.effects || !(k in base.effects)) return;
+    var own = entry.effects && entry.effects[k];
+    var v = (own !== undefined && own !== '') ? num(own) : base.effects[k];
+    if(!(v > 0)) out.push(base);
+  });
+  return out;
+}
+function paramName(k){ return k === 'alk' ? 'alkalinity' : k === 'ca' ? 'calcium' : 'magnesium'; }
+/* What to reach for, named from the shelf where possible rather than from a
+   brand the keeper may not own. */
 function fixSuggestion(k){
-  if(k === 'alk') return 'soda ash, bicarbonate of soda, or a carbonate liquid such as Red Sea Foundation B';
-  if(k === 'ca') return 'calcium chloride, or a calcium liquid such as Red Sea Foundation A';
-  return 'a magnesium blend, or a magnesium liquid such as Red Sea Foundation C';
+  var mine = shelfList().filter(function(p){ return p.effects[k]; });
+  if(mine.length){
+    return 'more ' + mine.map(function(p){ return p.name; }).slice(0, 2).join(' or ') +
+           ', or a single-element ' + paramName(k) + ' supplement so the others are not pushed with it';
+  }
+  var waiting = unfilledFor(k);
+  if(waiting.length){
+    return waiting[0].name + ', which is already on your shelf — it just needs its strength filling in under Setup';
+  }
+  if(k === 'alk') return 'soda ash, bicarbonate of soda, or any carbonate liquid';
+  if(k === 'ca') return 'calcium chloride, or any single-element calcium liquid';
+  return 'a magnesium blend, or any single-element magnesium liquid';
 }
 
 function buildCorrections(){
@@ -1515,14 +1615,34 @@ function buildCorrections(){
     }
 
     if(plan.empty){
-      push('Then','Nothing on your shelf raises these','Add a supplement',
-        ['Go to Setup and tick what you actually have. Without at least one product that raises ' +
-         lows.map(function(k){ return k === 'alk' ? 'alkalinity' : k === 'ca' ? 'calcium' : 'magnesium'; }).join(' or ') +
-         ', there is no dose to work out.'],'crit');
+      /* Distinguish the two cases. Owning the right bottle but never having
+         typed its strength is a two-minute fix, not a shopping trip. */
+      var waiting = [];
       lows.forEach(function(k){
-        var nm2 = k === 'alk' ? 'alkalinity' : k === 'ca' ? 'calcium' : 'magnesium';
-        shopping.push({key:k, why:'Nothing on your shelf raises ' + nm2 + ' — today’s low reading cannot even be corrected until you have a product for it.'});
+        unfilledFor(k).forEach(function(b){
+          if(!waiting.some(function(w){ return w.p.id === b.id; })) waiting.push({p:b, k:k});
+        });
       });
+      if(waiting.length){
+        push('First', waiting.length === 1 ? waiting[0].p.name + ' has no strength set' : 'Your products have no strengths set',
+          'Fill in ' + (waiting.length === 1 ? 'one figure' : waiting.length + ' figures') + ' under Setup',
+          [waiting.map(function(w){
+             var n = w.p.name, pn = paramName(w.k);
+             /* Do not write "Magnesium (magnesium)" when the product is simply named after the element. */
+             return n.toLowerCase().indexOf(pn) > -1 ? n : n + ' (' + pn + ')';
+           }).join(', ') +
+             ' ' + (waiting.length === 1 ? 'is' : 'are') + ' on your shelf, but the strength has never been entered, so there is nothing to calculate from.',
+           'Open Setup, find ' + (waiting.length === 1 ? 'it' : 'them') + ' under what is on your shelf, and copy the figure off the bottle — how much one ' +
+             (waiting[0].p.form === 'ml' ? 'millilitre' : 'gram') + ' raises 100 litres by. It is a one-off: the app remembers it and every dose from then on is worked from your actual product.',
+           'The figure is deliberately not guessed for you. A supplement dosed on someone else\'s number is worse than no suggestion at all.'],'crit');
+      } else {
+        push('Then','Nothing on your shelf raises these','Add a supplement',
+          ['Go to Setup and tick what you actually have. Without at least one product that raises ' +
+           lows.map(paramName).join(' or ') + ', there is no dose to work out.'],'crit');
+        lows.forEach(function(k){
+          shopping.push({key:k, why:'Nothing on your shelf raises ' + paramName(k) + ' — today’s low reading cannot even be corrected until you have a product for it.'});
+        });
+      }
     }
 
     plan.doses.forEach(function(d){
@@ -1561,6 +1681,11 @@ function buildCorrections(){
           ' below target. To close it you would need ' + fixSuggestion(k) + '.';
       });
       lines.push('This happens when a balanced product runs out of room: dosing more of it would push another parameter past its ceiling, so the calculator stops there.');
+      shortKeys.forEach(function(k){
+        unfilledFor(k).forEach(function(b){
+          lines.push('You do have ' + b.name + ' ticked for ' + paramName(k) + ', but its strength has not been filled in — enter it under Setup and the calculator can use it next time.');
+        });
+      });
       push('Still short', shortKeys.length > 1 ? 'Two parameters stay low' : 'One parameter stays low',
         'Not everything can be fixed with what you have', lines, 'crit');
       shortKeys.forEach(function(k){
@@ -2446,7 +2571,7 @@ function shelfEntry(id){
   for(var i=0;i<list.length;i++){ if(list[i].id === id) return list[i]; }
   return null;
 }
-var BRAND_ORDER = ['Red Sea', 'Seachem', 'Raw salts and DIY', 'Other or unbranded', 'Your own products'];
+var BRAND_ORDER = ['Red Sea', 'Tropic Marin', 'Aquaforest', 'Modern Reef', 'Reef Zlements', 'NYOS', 'ATI', 'Fauna Marin', 'Korallen-Zucht', 'Brightwell', 'ESV', 'Seachem', 'Two Little Fishies', 'Kent Marine', 'Raw salts and DIY', 'Other or unbranded', 'Your own products'];
 /* Where each figure came from, and whether it is the app's place to defend it.
    `fixed` decides the default: a number that follows from a formula weight or
    a published label is shown rather than typed, because a stray keystroke
@@ -2462,6 +2587,8 @@ var SRC_INFO = {
            why:'Only some of these come from the maker. See the note below, and set them from your own testing if you measure otherwise.'},
   check:  {fixed:false, label:'Not verified against a current label',
            why:'This figure has been carried in the app rather than read off a bottle, and formulations change. Check it against your own packaging and correct it — the dose the app gives you is only as good as this number.'},
+  blank:  {fixed:false, label:'Strength not filled in yet',
+           why:'This product is listed so you can find it, but its figure is not published anywhere I could verify. Read the strength off your bottle and enter it once — until you do, the app will not use this product in any dose it works out.'},
   typical:{fixed:false, label:'A typical value, not your product',
            why:'A placeholder for an unnamed brand. Read the strength off your own bottle and enter it, or the doses will be guesswork.'}
 };
@@ -2506,9 +2633,10 @@ function renderShelf(){
       html += '<div class="prod-eff">';
       ['alk','ca','mg','no3'].forEach(function(k){
         var b = base.effects[k];
+        if(b === undefined) return;
         var own = entry.effects && entry.effects[k] !== undefined;
         var v = own ? entry.effects[k] : b;
-        if(v === undefined) return;
+        if(v === null) v = '';
         html += '<label>'+(k === 'alk' ? 'dKH' : UNITS[k])+' / '+form+' / 100 L';
         if(edit){
           html += '<input type="number" step="0.01" inputmode="decimal" data-eff="'+prod.id+'|'+k+'" value="'+v+'">';
