@@ -1,0 +1,43 @@
+Copyright © 2026 Harry J. Allport. All rights reserved.
+
+Reef Key — reef aquarium chemistry software.
+
+This software and its source code, design, product data, written guidance and
+accompanying materials are the property of Harry J. Allport and are protected
+by copyright law.
+
+NO LICENCE IS GRANTED.
+
+You may not copy, reproduce, modify, adapt, translate, publish, distribute,
+sublicense, sell, host, or create derivative works from any part of this
+software, in whole or in part, by any means, without the prior written
+permission of the copyright holder.
+
+Viewing this repository, or the source of any page it serves, does not grant
+any right to use, reuse or reproduce its contents. Making the source visible
+is a technical consequence of the software running in a web browser; it is not
+an offer of a licence and does not place the work in the public domain.
+
+The following are asserted as the original work of the copyright holder and
+are expressly not licensed for reuse:
+
+  - the correction engine, including the ordering of amendments, the daily
+    change limits and the shelf-aware dose calculation
+  - the water change sizing method, which sizes a change against every
+    parameter simultaneously
+  - the ICP assessment, including the treatment of sample date versus report
+    date and the judging of change by movement toward or away from a setpoint
+  - the livestock-derived target refinement
+  - the compiled product library, its figures and their stated provenance
+  - all written guidance, husbandry notes and interface copy
+
+"Reef Key" is used as an unregistered trade mark of Harry J. Allport.
+
+Enquiries about licensing: raise an issue on this repository.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED. THE COPYRIGHT HOLDER SHALL NOT BE LIABLE FOR ANY CLAIM, DAMAGES, LOSS
+OF LIVESTOCK, OR OTHER LIABILITY ARISING FROM THE USE OF THIS SOFTWARE. Dosing
+figures are calculated from user-supplied values and product information that
+may be incorrect or out of date; the keeper remains responsible for verifying
+any dose before adding anything to an aquarium.
