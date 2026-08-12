@@ -346,7 +346,7 @@ nav button.on{color:var(--titrant)}
         <path d="M32 35.5h6M32 40h4.5" stroke="#2fe0c6" stroke-width="3.2" stroke-linecap="round"/>
       </svg>
       <div>
-        <div class="eyebrow">Reef Key</div>
+        <div class="eyebrow" id="brandLine">Reef Key</div>
         <h1 id="tankName">Reef tank</h1>
       </div>
     </div>
@@ -3318,7 +3318,15 @@ function renderTankPicker(){
 }
 /* Lite keeps every Pro control in the page but switched off, so a tank set up
    in Pro is never damaged by opening it here. */
+/* The masthead says which build this is. In the store version the same flag
+   will be set by the purchase rather than by build.py, so the line changes the
+   moment the unlock lands — no separate binary and nothing else to update. */
+function renderBrandLine(){
+  var el = document.getElementById('brandLine');
+  if(el) el.textContent = 'Reef Key — ' + (TIER === 'pro' ? 'Pro' : 'Lite');
+}
 function applyTier(){
+  renderBrandLine();
   if(TIER === 'pro') return;          /* nothing is ever gated in the paid build */
   document.querySelectorAll('[data-pro]').forEach(function(el){
     var name = el.getAttribute('data-pro');
