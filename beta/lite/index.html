@@ -1612,121 +1612,26 @@ function methodText(p, amount){
    alkalinity land where it may, this walks the volume up in small steps and
    stops at the largest one that does not break something else. */
 function wcAfter(frac){
-  var r = state.readings, el = currentSaltElements();
-  var mix = {alk:el.alk, ca:el.ca, mg:el.mg, no3:0, po4:0};
-  var out = {};
-  ['alk','ca','mg','no3','po4'].forEach(function(k){
-    if(r[k] === null || r[k] === undefined) return;
-    out[k] = r[k] * (1 - frac) + mix[k] * frac;
-  });
-  return out;
+  /* Removed from the free build. */
+  return {};
 }
 /* Is this volume safe for the elements the keeper is not trying to change? */
 function wcBreaks(frac){
-  var r = state.readings, after = wcAfter(frac), caps = state.settings.caps || {};
-  var reasons = [];
-  ['alk','ca','mg'].forEach(function(k){
-    if(after[k] === undefined) return;
-    var t = T(k), move = Math.abs(after[k] - r[k]), nm = k === 'alk' ? 'alkalinity' : k === 'ca' ? 'calcium' : 'magnesium';
-    if(caps[k] > 0 && move > caps[k] + 1e-9){
-      reasons.push('it would move ' + nm + ' by ' + fmt(move, k === 'alk' ? 2 : 0) + ' ' + UNITS[k] +
-                   ', past the ' + fmt(caps[k], k === 'alk' ? 2 : 0) + ' you allow in a day');
-    } else if(after[k] > t.high){
-      reasons.push('it would push ' + nm + ' to ' + fmt(after[k], k === 'alk' ? 2 : 0) + ' ' + UNITS[k] + ', over its ceiling');
-    } else if(after[k] < t.low && after[k] < r[k]){
-      reasons.push('it would drag ' + nm + ' down to ' + fmt(after[k], k === 'alk' ? 2 : 0) + ' ' + UNITS[k] + ', under its floor');
-    }
-  });
-  ['no3','po4'].forEach(function(k){
-    if(after[k] === undefined) return;
-    var t = T(k);
-    if(after[k] < t.low){
-      reasons.push('it would take ' + (k === 'no3' ? 'nitrate' : 'phosphate') + ' below ' + fmt(t.low, k === 'no3' ? 1 : 3) +
-                   ', and corals starve on zero nutrients');
-    }
-  });
-  return reasons;
+  /* Removed from the free build. */
+  return [];
 }
 /* The largest change worth doing today, or null when none is called for. */
 function recommendWaterChange(){
-  var r = state.readings, L = state.settings.netLitres;
-  if(!L) return null;
-  var wants = false;
-  ['no3','po4'].forEach(function(k){
-    if(r[k] !== null && r[k] !== undefined && r[k] > T(k).high) wants = true;
-  });
-  if(!wants) return null;
-  var best = null, blocked = null;
-  for(var pct = 5; pct <= 50; pct += 5){
-    var frac = pct / 100, why = wcBreaks(frac);
-    if(why.length){ if(!blocked) blocked = {pct:pct, why:why}; break; }
-    var after = wcAfter(frac), enough = true;
-    best = {pct:pct, frac:frac, after:after};
-    /* Stop as soon as both nutrients are inside their band — no reason to
-       change more water than the job needs. */
-    ['no3','po4'].forEach(function(k){
-      if(after[k] !== undefined && after[k] > T(k).high) enough = false;
-    });
-    if(enough) break;
-  }
-  if(!best) return null;
-  best.litres = L * best.frac;
-  best.blocked = blocked;
-  best.done = ['no3','po4'].every(function(k){
-    return best.after[k] === undefined || best.after[k] <= T(k).high;
-  });
-  return best;
+  /* Removed from the free build. */
+  return null;
 }
 
 /* Work out what to add, given what is on the shelf.
    Each product is dosed to whichever parameter runs out first, so nothing
    overshoots; multi-element products go first, then singles top up the rest. */
 function planBigThree(readingsOverride){
-  var r = readingsOverride || state.readings, L = state.settings.netLitres;
-  var need = {}, head = {}, tested = {};
-  BIG3.forEach(function(k){
-    if(r[k] === null || r[k] === undefined) return;
-    tested[k] = true;
-    need[k] = Math.max(0, T(k).target - r[k]);
-    head[k] = Math.max(0, T(k).high - r[k]);
-  });
-  var products = shelfList().filter(function(p){
-    return BIG3.some(function(k){ return p.effects[k]; });
-  });
-  products.sort(function(a,b){ return (b.multi ? 1 : 0) - (a.multi ? 1 : 0); });
-
-  var doses = [], untested = {}, blocked = [];
-  products.forEach(function(p){
-    var limit = Infinity, drives = false, blocker = null;
-    BIG3.forEach(function(k){
-      if(!p.effects[k]) return;
-      if(!tested[k]){ untested[k] = true; return; }
-      if(need[k] > 0.0001) drives = true;
-      /* Only ever dose up to target — never push a parameter that is already
-         there, even though there is headroom below its ceiling. */
-      var perUnit = p.effects[k] * 100 / L, cap = need[k] / perUnit;
-      if(cap < limit){ limit = cap; blocker = k; }
-    });
-    if(!drives) return;
-    if(!isFinite(limit) || limit < 0.05){
-      if(p.multi && blocker) blocked.push({p:p, k:blocker});
-      return;
-    }
-    var delivered = {}, days = 1;
-    BIG3.forEach(function(k){
-      if(!p.effects[k] || !tested[k]) return;
-      var d = limit * p.effects[k] * 100 / L;
-      delivered[k] = d;
-      need[k] = Math.max(0, need[k] - d);
-      head[k] = Math.max(0, head[k] - d);
-      var cap = state.settings.caps[k];
-      if(cap > 0) days = Math.max(days, Math.ceil(d / cap - 0.0001));
-    });
-    doses.push({p:p, amount:limit, delivered:delivered, days:days});
-  });
-  var short = {};
-  BIG3.forEach(function(k){ if(tested[k] && need[k] > 0.05 && r[k] < T(k).low) short[k] = need[k]; });
-  return {doses:doses, shortfall:short, untested:untested, blocked:blocked, empty:products.length === 0};
+  /* Removed from the free build. */
+  return {picks:[], empty:true, short:[], days:1};
 }
 function d0(n){ return n; }
 /* Products the keeper has ticked that are meant to move this parameter but
@@ -1763,480 +1668,13 @@ function fixSuggestion(k){
 }
 
 function buildCorrections(){
-  var r = state.readings, S = state.settings, L = S.netLitres, out = [], ok = [], shopping = [];
-  var used = false;
-  PARAMS.forEach(function(p){ if(r[p.key] !== null && r[p.key] !== undefined) used = true; });
-  if(!used) return null;
-
-  function inRange(k){ return status(k, r[k]) === 'good'; }
-  function have(k){ return r[k] !== null && r[k] !== undefined; }
-  function push(step,title,dose,body,cls,imgs){ out.push({step:step,title:title,dose:dose,body:body,cls:cls||'',imgs:imgs||null}); }
-  /* Worked out before anything else, because if a water change is happening
-     it changes every other number on this page. Everything downstream is then
-     calculated from the water as it will be afterwards, not as it is now. */
-  var wc = recommendWaterChange();
-  var after = wc ? wc.after : null;
-
-  /* 1. livestock alarm */
-  if((have('nh3') && r.nh3 > T('nh3').high) || (have('no2') && r.no2 > T('no2').high)){
-    push('First','Ammonia or nitrite is detectable','Stop dosing anything else',
-      ['Anything above zero means the biological filter is not keeping up. Do a 25–30% water change with matched temperature and salinity, check for a dead animal or an overfeed, and hold off on the corrections below until both read zero.'],'crit');
-  }
-
-  /* 2. salinity */
-  if(have('salinity')){
-    var t = T('salinity'), sal = r.salinity;
-    if(sal < t.low){
-      var grams = L * (t.target - sal) * 1.05;
-      push('Then','Salinity is low', amt(grams,'g') + ' of salt mix',
-        ['Dissolve in RO/DI in a separate container and add over 24–48 hours — no more than about 0.001 SPG every couple of days. You are reading SPG ' + (1 + sal/1327).toFixed(3) + ' at 25 °C; the target is SPG ' + (1 + t.target/1327).toFixed(3) + '.',
-         'Correct salinity before you act on any calcium, magnesium or nutrient result: those readings all shift with it.']);
-    } else if(sal > t.high){
-      var ro = L * (sal - t.target) / sal;
-      push('Then','Salinity is high', ro.toFixed(1) + ' litres RO/DI',
-        ['Replace tank water with RO/DI in stages — no more than about 0.001 SPG every couple of days. Check the auto top-up is keeping pace with evaporation.',
-         'Correct salinity before you act on any calcium, magnesium or nutrient result: those readings all shift with it.']);
-    } else ok.push('Salinity SPG ' + (1 + sal/1327).toFixed(3));
-  }
-
-  /* 3. the big three, dosed from whatever is on the shelf */
-  var lows = [];
-  BIG3.forEach(function(k){
-    if(!have(k)) return;
-    var t = T(k), name = (k === 'alk' ? 'Alkalinity' : k === 'ca' ? 'Calcium' : 'Magnesium');
-    if(r[k] < t.low){ lows.push(k); return; }
-    if(r[k] > t.high){
-      if(k === 'mg'){
-        push('Note','Magnesium is high','Pause magnesium dosing',
-          ['Nothing consumes magnesium quickly, so let water changes bring it back. Worth re-testing before acting — magnesium kits are titration-heavy and easy to over-read.']);
-      } else if(k === 'alk'){
-        push('Then','Alkalinity is high','Stop alkalinity dosing',
-          ['Let consumption pull it down rather than chasing it with a water change — the drop is safer that way. If you dose automatically, cut the daily volume by roughly 20% and re-test in two days.',
-           'Above about 9.5 dKH, LPS tissue can recede at the skeleton edge and soft corals stay shut, especially if nutrients are low at the same time.',
-           have('no3') && r.no3 < T('no3').low ? 'Note the low nitrate alongside this: starved corals stop taking up alkalinity, which is often why it climbs.' : '']);
-      } else {
-        push('Note','Calcium is high','Pause calcium dosing',
-          ['Calcium sits high harmlessly for a while. Let water changes bring it in rather than correcting it directly.']);
-      }
-      return;
-    }
-    ok.push(name + ' ' + fmt(r[k], k === 'alk' ? 2 : 0) + ' ' + UNITS[k]);
-  });
-
-  if(wc){
-    var moved = ['alk','ca','mg'].filter(function(k){
-      return after[k] !== undefined && Math.abs(after[k] - r[k]) > (k === 'alk' ? 0.05 : k === 'ca' ? 2 : 5);
-    }).map(function(k){
-      var nm = k === 'alk' ? 'alkalinity' : k === 'ca' ? 'calcium' : 'magnesium';
-      return nm + ' ' + fmt(r[k], k === 'alk' ? 2 : 0) + ' → ' + fmt(after[k], k === 'alk' ? 2 : 0) + ' ' + UNITS[k];
-    });
-    var nutr = ['no3','po4'].filter(function(k){ return after[k] !== undefined; }).map(function(k){
-      var nm = k === 'no3' ? 'nitrate' : 'phosphate', dp = k === 'no3' ? 1 : 3;
-      return nm + ' ' + fmt(r[k], dp) + ' → ' + fmt(after[k], dp) + ' ' + UNITS[k];
-    });
-    var body = ['Do this first. It brings ' + nutr.join(' and ') + '.'];
-    if(moved.length){
-      body.push('It also moves ' + moved.join(' and ') +
-        ' — fresh salt carries those, so a water change raises them whether you wanted it to or not. Everything below is worked out from the water as it will be afterwards.');
-    }
-    if(wc.blocked){
-      body.push('Not more than this today: ' + wc.blocked.pct + '% was the next step up, and ' + wc.blocked.why[0] + '.');
-    }
-    if(!wc.done){
-      body.push('This will not finish the job in one go. Repeat weekly and re-test rather than doing one enormous change — a fast drop in nutrients stresses corals more than the nutrients did.');
-    }
-    push('First', 'Water change', Math.round(wc.pct) + '% — about ' + Math.round(wc.litres) + ' litres',
-      body, wc.done ? '' : 'warn');
-  }
-
-  if(lows.length){
-    /* Dose the water that will exist after the change, not the water in front
-       of you — otherwise the change and the dose both correct the same gap and
-       between them overshoot it. */
-    var plan = planBigThree(after);
-
-    /* Published correction order: magnesium first (it keeps calcium carbonate
-       in solution — without it the other two precipitate straight back out),
-       then alkalinity, then calcium. Sort the dose cards to match. */
-    var ELEM_ORDER = {mg:0, alk:1, ca:2};
-    function dosePriority(d){
-      var m = 3;
-      BIG3.forEach(function(k){ if(d.p.effects[k] && ELEM_ORDER[k] < m) m = ELEM_ORDER[k]; });
-      return m;
-    }
-    plan.doses.sort(function(a,b){ return dosePriority(a) - dosePriority(b); });
-
-    if(lows.indexOf('mg') > -1){
-      push('First','Magnesium is low','Fix magnesium before the rest',
-        ['Below about 1250 ppm, calcium and alkalinity will not hold however much you dose, because calcium carbonate precipitates out instead of staying in solution.']);
-    }
-
-    if(plan.empty){
-      /* Distinguish the two cases. Owning the right bottle but never having
-         typed its strength is a two-minute fix, not a shopping trip. */
-      var waiting = [];
-      lows.forEach(function(k){
-        unfilledFor(k).forEach(function(b){
-          if(!waiting.some(function(w){ return w.p.id === b.id; })) waiting.push({p:b, k:k});
-        });
-      });
-      if(waiting.length){
-        push('First', waiting.length === 1 ? waiting[0].p.name + ' has no strength set' : 'Your products have no strengths set',
-          'Fill in ' + (waiting.length === 1 ? 'one figure' : waiting.length + ' figures') + ' under Setup',
-          [waiting.map(function(w){
-             var n = w.p.name, pn = paramName(w.k);
-             /* Do not write "Magnesium (magnesium)" when the product is simply named after the element. */
-             return n.toLowerCase().indexOf(pn) > -1 ? n : n + ' (' + pn + ')';
-           }).join(', ') +
-             ' ' + (waiting.length === 1 ? 'is' : 'are') + ' on your shelf, but the strength has never been entered, so there is nothing to calculate from.',
-           'Open Setup, find ' + (waiting.length === 1 ? 'it' : 'them') + ' under what is on your shelf, and copy the figure off the bottle — how much one ' +
-             (waiting[0].p.form === 'ml' ? 'millilitre' : 'gram') + ' raises 100 litres by. It is a one-off: the app remembers it and every dose from then on is worked from your actual product.',
-           'The figure is deliberately not guessed for you. A supplement dosed on someone else\'s number is worse than no suggestion at all.'],'crit');
-      } else {
-        push('Then','Nothing on your shelf raises these','Add a supplement',
-          ['Go to Setup and tick what you actually have. Without at least one product that raises ' +
-           lows.map(paramName).join(' or ') + ', there is no dose to work out.'],'crit');
-        lows.forEach(function(k){
-          shopping.push({key:k, why:'Nothing on your shelf raises ' + paramName(k) + ' — today’s low reading cannot even be corrected until you have a product for it.'});
-        });
-      }
-    }
-
-    plan.doses.forEach(function(d){
-      var got = BIG3.filter(function(k){ return d.delivered[k] > 0.005; }).map(function(k){
-        var nm = k === 'alk' ? 'alkalinity' : k === 'ca' ? 'calcium' : 'magnesium';
-        return nm + ' +' + fmt(d.delivered[k], k === 'alk' ? 2 : 0) + ' ' + UNITS[k];
-      }).join(', ');
-      var body = [];
-      if(got) body.push('That raises ' + got + '.');
-      body.push(d.days > 1
-        ? 'Split it over ' + d.days + ' days — roughly ' + amt(d.amount / d.days, d.p.form) + ' a day — to stay inside your daily limits.'
-        : 'Fine to add in one go.');
-      body.push(methodText(d.p, d.amount));
-      if(d.p.note) body.push(d.p.note);
-      push('Then', d.p.name, amt(d.amount, d.p.form), body);
-    });
-
-    if(plan.doses.length > 1){
-      push('While dosing','Dose in the order shown, and keep doses apart','Magnesium → alkalinity → calcium, an hour between them',
-        ['The order matters: magnesium stabilises the water so the others hold, alkalinity settles fastest, and calcium goes last. This is the standard published sequence for reef chemistry corrections.',
-         'Calcium and alkalinity supplements added together in the same spot will precipitate each other out, so you lose both and coat your heater. Different times, or different ends of the sump.']);
-    }
-
-    plan.blocked.forEach(function(b){
-      var nm = b.k === 'alk' ? 'Alkalinity' : b.k === 'ca' ? 'Calcium' : 'Magnesium';
-      push('Not this time', d0(b.p.name) + ' cannot help here', 'Use a single-element supplement instead',
-        [nm + ' is already at target, so any dose of a balanced product would push it higher just to move the parameter you actually need. That is the trade-off with an all-in-one powder.']);
-    });
-
-    var shortKeys = [];
-    for(var sk in plan.shortfall) shortKeys.push(sk);
-    if(shortKeys.length){
-      var lines = shortKeys.map(function(k){
-        var nm = k === 'alk' ? 'Alkalinity' : k === 'ca' ? 'Calcium' : 'Magnesium';
-        return nm + ' stays about ' + fmt(plan.shortfall[k], k === 'alk' ? 2 : 0) + ' ' + UNITS[k] +
-          ' below target. To close it you would need ' + fixSuggestion(k) + '.';
-      });
-      lines.push('This happens when a balanced product runs out of room: dosing more of it would push another parameter past its ceiling, so the calculator stops there.');
-      shortKeys.forEach(function(k){
-        unfilledFor(k).forEach(function(b){
-          lines.push('You do have ' + b.name + ' ticked for ' + paramName(k) + ', but its strength has not been filled in — enter it under Setup and the calculator can use it next time.');
-        });
-      });
-      push('Still short', shortKeys.length > 1 ? 'Two parameters stay low' : 'One parameter stays low',
-        'Not everything can be fixed with what you have', lines, 'crit');
-      shortKeys.forEach(function(k){
-        var nm3 = k === 'alk' ? 'alkalinity' : k === 'ca' ? 'calcium' : 'magnesium';
-        shopping.push({key:k, why:'Your balanced product ran out of headroom today and ' + nm3 + ' stayed below target — a single-element supplement closes that gap without pushing anything else.'});
-      });
-    }
-
-    var untestedKeys = [];
-    for(var uk in plan.untested) untestedKeys.push(uk);
-    if(untestedKeys.length && plan.doses.length){
-      push('Worth knowing','Untested parameters are also being raised','Test before the next dose',
-        [untestedKeys.map(function(k){ return k === 'alk' ? 'alkalinity' : k === 'ca' ? 'calcium' : 'magnesium'; }).join(' and ') +
-         ' will move too, and the calculator has no reading to keep it inside its ceiling.']);
-    }
-  }
-
-  /* 6. nutrients */
-  if(have('no3')){
-    var tn = T('no3');
-    if(r.no3 > tn.high){
-      var pct = Math.min(30, ((r.no3 - tn.target) / r.no3) * 100);
-      var afterN = r.no3 * (1 - pct/100);
-      var nb = ['That brings nitrate to roughly ' + fmt(afterN,1) + ' ppm. ' + (after > tn.high ? 'Still above target — repeat weekly rather than doing one huge change.' : ''), 'No hurry here. A mixed LPS and soft coral reef runs perfectly well up to about 50 ppm, and corals are more often harmed by a fast drop than by the nitrate itself. Bring it down over weeks.',
-         'If it keeps climbing, the cause is import versus export: check feeding, skimmer performance, detritus in the sump, and whether the rock is releasing what it stored.'];
-      var red = reducerOnShelf('no3');
-      if(red){
-        nb.push('You have ' + red.name + ' on the shelf. Its recommended daily dose for ' + Math.round(L) + ' L is about ' +
-                fmt(red.dose.typical * L / red.dose.per, 1) + ' ml — start at half that, around ' +
-                fmt(red.dose.start * L / red.dose.per / 2, 1) + ' ml, and let it work over weeks rather than reaching for a bigger water change. It needs a well-run skimmer and daily consistency; it cannot be used as a one-off correction.');
-      }
-      if(wc){
-        /* The sized change above already covers this; repeating a second,
-           differently sized figure here would just contradict it. */
-        nb.shift();
-        nb.unshift('The ' + Math.round(wc.pct) + '% change above is sized for this, and takes nitrate to about ' +
-                   fmt(after.no3, 1) + ' ppm. It is deliberately not larger: a bigger change would push alkalinity, calcium or magnesium further than is safe in a day.');
-        push('Why','Nitrate is high', 'Covered by the water change above', nb);
-      } else {
-        push('Then','Nitrate is high', Math.round(pct) + '% water change (' + (L*pct/100).toFixed(0) + ' litres)', nb);
-      }
-    } else if(r.no3 < tn.low){
-      var g = ((tn.target - r.no3) * 0.137) * (L/100);
-      push('Then','Nitrate is low', amt(g,'g') + ' of sodium nitrate',
-        ['Dissolve in RO/DI and add a quarter of it a day while watching the corals. Zero nitrate is not clean water — it pales tissue, stalls growth and often drags phosphate down with it.',
-         'A commercial nitrate supplement at label dose does the same job with less arithmetic.']);
-      if(!onShelf('nano3')) shopping.push({key:'no3', why:'Nitrate reads below target and you have no nitrate supplement — sodium nitrate lets you raise it in small, controlled steps.'});
-    } else ok.push('Nitrate ' + fmt(r.no3,1) + ' ppm');
-  }
-  if(have('po4')){
-    var tp = T('po4');
-    if(r.po4 > tp.high){
-      var pctp = Math.min(30, ((r.po4 - tp.target) / r.po4) * 100);
-      var pb = ['Bring it down gradually over weeks — corals adjust their uptake slowly, and a fast drop causes more stress than the phosphate did. Pair the water change with GFO run gently, or lanthanum through a filter sock, and re-test every other day.'];
-      if(wc){
-        pb.unshift('The ' + Math.round(wc.pct) + '% change above takes phosphate to about ' + fmt(after.po4, 3) +
-                   ' ppm. That single change is sized for both nutrients at once — doing a separate one for phosphate would move the calcification elements twice over.');
-        push('Why','Phosphate is high', 'Covered by the water change above', pb);
-      } else {
-        push('Then','Phosphate is high', Math.round(pctp) + '% water change (' + (L*pctp/100).toFixed(0) + ' litres)', pb);
-      }
-    } else if(r.po4 < tp.low){
-      /* On an SPS system this is the common failure: nutrients driven to zero
-         in pursuit of colour, and the corals pale because the zooxanthellae
-         have nothing to work with. Feeding is the first lever, not a bottle. */
-      var uln = (state.settings.tankType || '').indexOf('sps') > -1 || tp.high <= 0.12;
-      var poProd = shelfList().filter(function(x){ return x.effects.po4; })[0];
-      var pbody = [];
-      if(uln){
-        pbody.push('At ' + fmt(r.po4, 3) + ' ppm this tank is running ultra-low, and on an SPS system that is usually deliberate — but below about ' +
-          fmt(tp.low, 3) + ' the zooxanthellae are underfed, tissue pales, and growth slows even though every other number looks perfect. Zero is not the goal; a small, stable, non-zero figure is.');
-        pbody.push('Feed the tank more before you dose anything. More food means more phosphate and more nitrate, in the ratio the animals actually use, and it feeds the fish and corals at the same time. An extra frozen cube, a second small feed in the day, or simply easing off the skimmer or the GFO will usually lift it within a week.');
-      }
-      if(poProd){
-        var needPo = Math.max(0, tp.target - r.po4);
-        var amtPo = needPo * L / 100 / poProd.effects.po4;
-        pbody.push('If feeding alone will not hold it, you have ' + poProd.name + ' on the shelf: about ' +
-          amt(amtPo, poProd.form) + ' would take ' + fmt(r.po4, 3) + ' to ' + fmt(tp.target, 3) +
-          ' ppm across your ' + Math.round(L) + ' litres. Add a quarter of that a day and re-test — the whole useful range here is a few hundredths of a ppm, so it is very easy to overshoot.');
-      } else if(unfilledFor('po4').length){
-        pbody.push('You have ' + unfilledFor('po4')[0].name + ' ticked but no strength set for it. Fill that in under Setup and the app can work out the dose.');
-      } else {
-        pbody.push('If feeding alone will not hold it, a phosphate supplement is the controlled way to do it — Brightwell NeoPhos, Aquaforest Phosphorus, or monopotassium phosphate made up as a dilute stock solution. Tick what you buy under Setup and the dose gets worked out for you.');
-        shopping.push({key:'po4', why:'Phosphate is below the floor for this tank and there is nothing on your shelf to raise it — feeding more comes first, but a supplement gives you control when it will not hold.'});
-      }
-      pbody.push('Check nitrate at the same time. The two are consumed together and want to come up together; lifting phosphate while nitrate sits at zero tends to feed algae rather than corals.');
-      push('Then','Phosphate is low', poProd ? 'Feed more, then top up if it will not hold' : 'Feed more heavily', pbody);
-      shopping.push({key:'po4', why:'Phosphate reads below target — a bottled phosphate supplement dosed to label brings it up in the tiny steps this range needs.'});
-    } else ok.push('Phosphate ' + fmt(r.po4,3) + ' ppm');
-  }
-
-  /* 6b. livestock sensitivity flags: name the animals whose published
-     tolerance the current reading breaches, per the stocking list. */
-  (function(){
-    var cs = S.corals || [];
-    if(!cs.length) return;
-    var seen = {}, byGroup = {};
-    cs.forEach(function(c){
-      var sp = coralById(c.sp);
-      if(seen[sp.id]) return;
-      seen[sp.id] = true;
-      [['alk','alkalinity'],['no3','nitrate'],['po4','phosphate']].forEach(function(p){
-        var v = r[p[0]];
-        if(v === null || v === undefined) return;
-        var lo = sp[p[0]][0], hi = sp[p[0]][1];
-        if(v > hi){
-          (byGroup[p[0]+'|high'] = byGroup[p[0]+'|high'] || {param:p[1], key:p[0], dir:'high', list:[]}).list.push({name:sp.name, limit:hi, grp:sp.group});
-        } else if(v < lo){
-          (byGroup[p[0]+'|low'] = byGroup[p[0]+'|low'] || {param:p[1], key:p[0], dir:'low', list:[]}).list.push({name:sp.name, limit:lo, grp:sp.group});
-        }
-      });
-    });
-    for(var gk in byGroup){
-      var g = byGroup[gk], m = meta(g.key);
-      g.list.sort(function(a,b){ return g.dir === 'high' ? a.limit - b.limit : b.limit - a.limit; });
-      var names = g.list.map(function(x){
-        return x.name + ' (published ' + (g.dir === 'high' ? 'ceiling' : 'floor') + ' ' + fmt(x.limit, m.dp) + ' ' + m.unit + ')';
-      }).join('; ');
-      var tgt2 = T(g.key).target;
-      /* A photo of each animal at risk, fetched from Wikipedia by its
-         scientific name — single genus or binomial names only. */
-      var imgs = [];
-      g.list.forEach(function(x){
-        var mm = x.name.match(/\(([^)]+)\)\s*$/);
-        if(!mm) return;
-        var latin = mm[1];
-        if(latin.indexOf('/') > -1) return;
-        latin = latin.replace(/\s+spp\.?$/, '').trim();
-        if(latin) imgs.push({title:latin, name:x.name, grp:x.grp});
-      });
-      /* Published side effects, phrased for the kinds of livestock actually
-         affected. */
-      var gp = {};
-      g.list.forEach(function(x){ gp[x.grp] = true; });
-      var isFish = gp.Fish, isCoral = gp.SPS || gp.LPS || gp.Soft || gp.Clams, isInv = gp.Inverts;
-      var fx = [];
-      if(g.key === 'no3'){
-        if(g.dir === 'high'){
-          if(isFish) fx.push('in fish: chronic stress, a weakened immune system and — in tangs and angels especially — head and lateral line erosion');
-          if(isCoral) fx.push('in corals and clams: browning as zooxanthellae overgrow, dulled colour and slowed growth');
-          if(isInv) fx.push('in inverts: anemones shrink, wander or bleach, and sensitive stars and shrimp decline');
-        } else {
-          fx.push('pale, starved tissue and stalled growth in photosynthetic livestock');
-        }
-      } else if(g.key === 'po4'){
-        if(g.dir === 'high'){
-          if(isCoral) fx.push('in corals: calcification is chemically inhibited so skeletal growth slows, while nuisance algae gain ground');
-          if(isFish || isInv) fx.push('for fish and inverts the harm is mostly indirect — algae blooms and degrading water quality');
-        } else {
-          fx.push('corals pale and starve — phosphate is a nutrient, not just a pollutant');
-        }
-      } else if(g.key === 'alk'){
-        if(g.dir === 'high') fx.push('burnt tips and receding tissue at the growth edges, hardest on SPS');
-        else fx.push('slowed calcification and weaker skeletal growth');
-      }
-      push('Livestock',
-        g.param.charAt(0).toUpperCase() + g.param.slice(1) + ' is ' + (g.dir === 'high' ? 'above' : 'below') + ' what some of your livestock tolerate',
-        'Adjust gradually toward ' + fmt(toDisp(g.key, tgt2), m.dp) + ' ' + m.unit,
-        ['Affected: ' + names + '. You are reading ' + fmt(toDisp(g.key, r[g.key]), m.dp) + ' ' + m.unit + '.',
-         fx.length ? 'Published side effects — ' + fx.join('; ') + '.' : '',
-         g.key === 'no3' || g.key === 'po4'
-           ? (g.dir === 'high'
-              ? 'Bring it down in steps with the water change planner — 10–20% at a time, days apart. The speed of the drop stresses livestock more than the level itself, so walk it, don’t yank it.'
-              : 'Raise it slowly with small feedings or dosing — sensitive livestock dislike swings in either direction.')
-           : 'Move alkalinity within your daily limit only — the corrections above already pace it safely.'],
-        g.dir === 'high' ? 'crit' : '', imgs);
-    }
-  })();
-
-  /* 7. advisories */
-  if(have('ph')){
-    var tph = T('ph');
-    if(r.ph < tph.low){
-      push('Watch','pH is low','Air, not chemicals',
-        ['Low pH with healthy alkalinity is nearly always indoor CO₂. Run the skimmer air line to a window, add a CO₂ scrubber, or run refugium lighting at night. Do not raise pH by pushing alkalinity up.']);
-    } else if(r.ph > tph.high){
-      push('Watch','pH is high','Re-test before acting',
-        ['Above 8.4 usually means a kalkwasser or limewater overdose, or a probe due for calibration. Check alkalinity alongside it.']);
-    } else ok.push('pH ' + fmt(r.ph,2));
-  }
-  if(have('temp')){
-    var tt = T('temp');
-    if(r.temp < tt.low || r.temp > tt.high){
-      push('Watch','Temperature is off target','Move it 0.5 °C a day at most',
-        [r.temp < tt.low ? 'Check the heater and its controller before assuming the room is cold.' : 'Fans across the surface drop a degree or two cheaply; check the return pump is not overheating a small sump.']);
-    } else ok.push('Temperature ' + fmt(r.temp,1) + ' °C');
-  }
-
-  /* combined note */
-  if(!wc && have('alk') && have('ca') && have('mg') && r.alk < T('alk').low && r.ca < T('ca').low && r.mg < T('mg').low){
-    /* Suppressed when a change has already been sized above — two different
-       percentages on one page is how a keeper ends up doing both. */
-    push('Overall','All three are depleted','Water change first',
-      ['When alkalinity, calcium and magnesium have all dropped together, a 20% water change resets all three at once and in the right proportions. Then start a daily routine sized to consumption instead of correcting after the fact.']);
-  }
-
-  /* 8. fine-tuning: parameters already in the green, nudged toward the exact
-     optimum. Calcification elements get real doses; nutrients get gentle
-     guidance with a hard floor — published guidance is unambiguous that zero
-     nitrate or phosphate starves corals. */
-  var TUNE_TOL = {alk:0.15, ca:5, mg:15};
-  function fineTuneDose(k, deficit){
-    var prods = shelfList().filter(function(p){ return p.effects[k]; });
-    if(!prods.length) return null;
-    prods.sort(function(a,b){ return (a.multi ? 1 : 0) - (b.multi ? 1 : 0); });
-    var p = prods[0];
-    return {p:p, amount:deficit * L / 100 / p.effects[k]};
-  }
-  ['alk','ca','mg'].forEach(function(k){
-    if(!have(k) || status(k, r[k]) !== 'good') return;
-    var t3 = T(k), dev = t3.target - r[k];
-    var dp3 = k === 'alk' ? 2 : 0;
-    var nm = k === 'alk' ? 'Alkalinity' : k === 'ca' ? 'Calcium' : 'Magnesium';
-    if(dev > TUNE_TOL[k]){
-      var ft = fineTuneDose(k, dev);
-      if(!ft) return;
-      var days3 = S.caps[k] > 0 ? Math.ceil(dev / S.caps[k] - 0.0001) : 1;
-      push('Fine-tune', nm + ' is in range — a touch under optimum', amt(ft.amount, ft.p.form) + ' of ' + ft.p.name,
-        ['You are in the green at ' + fmt(r[k], dp3) + ' ' + UNITS[k] + '. This optional nudge closes the last ' +
-         fmt(dev, dp3) + ' ' + UNITS[k] + ' to the optimum of ' + fmt(t3.target, dp3) + ' — worth doing for the calcification elements, which reward sitting right on target.',
-         days3 > 1 ? 'Split it over ' + days3 + ' days to stay inside your daily limit.' : 'Small enough to add in one go.',
-         ft.p.multi ? 'A balanced product, so the other two elements rise in proportion — fine while they also sit at or under their optimums.' : ''], 'ok');
-    } else if(dev < -TUNE_TOL[k]){
-      push('Fine-tune', nm + ' is in range — a touch over optimum', 'Trim the daily dose slightly',
-        ['You are at ' + fmt(r[k], dp3) + ' ' + UNITS[k] + ' against an optimum of ' + fmt(t3.target, dp3) +
-         '. Nothing to correct — let consumption drift it down, and if you dose daily, cut the rate by roughly 10% and re-test in a week.'], 'ok');
-    }
-  });
-  if(have('no3') && status('no3', r.no3) === 'good'){
-    var tn2 = T('no3'), devN = r.no3 - tn2.target;
-    if(devN > 2){
-      var pctN = Math.min(15, (devN / r.no3) * 100);
-      push('Fine-tune', 'Nitrate is in range — above optimum', Math.round(pctN) + '% water change, or slightly stronger export',
-        ['At ' + fmt(r.no3, 1) + ' ppm against an optimum of ' + fmt(tn2.target, 1) + '. Entirely optional — this range is healthy.',
-         'Never chase nitrate below ' + fmt(tn2.low, 0) + ' ppm: at zero, corals pale, growth stalls, and ultra-low-nutrient tanks invite dinoflagellates. The floor matters as much as the ceiling.'], 'ok');
-    } else if(devN < -2 && r.no3 >= tn2.low){
-      var gN = ((tn2.target - r.no3) * 0.137) * (L / 100);
-      push('Fine-tune', 'Nitrate is in range — below optimum', amt(gN, 'g') + ' of sodium nitrate, or feed a touch more',
-        ['At ' + fmt(r.no3, 1) + ' ppm against an optimum of ' + fmt(tn2.target, 1) + '. A gentle lift keeps corals fed — deliberately not zero.'], 'ok');
-    }
-  }
-  if(have('po4') && status('po4', r.po4) === 'good'){
-    var tp2 = T('po4'), devP = r.po4 - tp2.target;
-    if(devP > 0.02){
-      push('Fine-tune', 'Phosphate is in range — above optimum', 'Run GFO a little harder, or a small water change',
-        ['At ' + fmt(r.po4, 3) + ' ppm against an optimum of ' + fmt(tp2.target, 3) + '. Optional polish only.',
-         'Never strip phosphate below ' + fmt(tp2.low, 2) + ' ppm — it is an essential nutrient, and driving it to zero starves corals faster than a high reading harms them.'], 'ok');
-    } else if(devP < -0.02 && r.po4 >= tp2.low){
-      push('Fine-tune', 'Phosphate is in range — below optimum', 'Ease the export slightly, or feed a touch more',
-        ['At ' + fmt(r.po4, 3) + ' ppm against an optimum of ' + fmt(tp2.target, 3) + '. Nudge it up gently — the floor of ' + fmt(tp2.low, 2) + ' ppm exists because zero phosphate is harmful, not clean.'], 'ok');
-    }
-  }
-
-  return {actions:out, ok:ok, shopping:shopping};
+  /* Removed from the free build. */
+  return {actions:[], shopping:[]};
 }
 
 function renderResults(quiet){
-  var res = buildCorrections();
-  var el = $('#results');
-  if(!res){ el.innerHTML = '<div class="empty"><strong>Nothing to work from yet</strong>Enter at least one reading above.</div>'; return; }
-  var html = '';
-  var allFine = res.actions.length > 0 && res.actions.every(function(a){ return a.step === 'Fine-tune'; });
-  if(allFine){
-    html += '<div class="fix ok"><h3>Everything is inside your targets</h3><p>Nothing needs correcting — below is optional polish toward the optimums. Corals value stability over perfection, so treat these as gentle nudges, never chores.</p></div>';
-  }
-  if(res.actions.length === 0){
-    html += '<div class="fix ok"><h3>Everything is inside your targets</h3><p>No corrections needed. Keep the dosing routine as it is and test again on schedule — stability is worth more than any single number.</p></div>';
-  } else {
-    res.actions.forEach(function(a){
-      html += '<div class="fix '+a.cls+'"><div class="step">'+esc(a.step)+'</div><h3>'+esc(a.title)+'</h3>'+
-        '<div class="dose">'+esc(a.dose)+'</div>';
-      a.body.forEach(function(b){ if(b) html += '<p>'+esc(b)+'</p>'; });
-      if(a.imgs && a.imgs.length){
-        html += '<div class="lv-imgs">';
-        a.imgs.forEach(function(im){
-          html += '<span class="lv-img" data-wiki="'+esc(im.title)+'" data-grp="'+esc(im.grp || '')+'" title="'+esc(im.name)+'"></span>';
-        });
-        html += '</div>';
-      }
-      html += '</div>';
-    });
-  }
-  if(res.ok.length){
-    html += '<div class="card"><div class="eyebrow">On target</div><div class="chips">';
-    res.ok.forEach(function(o){ html += '<span class="chip">'+esc(o)+'</span>'; });
-    html += '</div></div>';
-  }
-  html += shoppingCard(res.shopping || []);
-  html += '<div class="btn-row"><button class="primary" id="btnSave">Save to log</button></div>';
-  el.innerHTML = html;
-  var sv = document.getElementById('btnSave');
-  if(sv) sv.addEventListener('click', saveEntry);
-  hydrateSpeciesImages(el);
-  if(quiet !== true) el.scrollIntoView({behavior:'smooth', block:'start'});
+  /* Removed from the free build. */
+  var el = $('#results'); if(el) el.innerHTML = '';
 }
 /* Fill .lv-img placeholders with a photo of the species. Corals search
    Wikimedia Commons for an aquarium photograph first (wild reef-scape lead
@@ -2299,24 +1737,8 @@ function icpToLogEntry(rep){
 /* Elements worth watching over time: the ones that move, plus anything that
    has ever been flagged. */
 function icpTrendKeys(reps){
-  var seen = {};
-  reps.forEach(function(r){
-    ICP_ELEMENTS.forEach(function(e){
-      var v = r.values[e.k];
-      if(v === undefined || v === null) return;
-      var sp = icpSetpoint(r, e), verdict = icpVerdict(e, v, sp);
-      /* Contaminants outrank a merely low element: if copper has ever shown
-         up, that is the line worth looking at first. */
-      if(verdict === 'metal') seen[e.k] = 3;
-      else if(verdict !== 'ok' && verdict !== 'unset') seen[e.k] = Math.max(seen[e.k] || 0, 2);
-      else if(!seen[e.k]) seen[e.k] = 1;
-    });
-  });
-  return Object.keys(seen).sort(function(a, b){
-    if(seen[b] !== seen[a]) return seen[b] - seen[a];
-    return ICP_ELEMENTS.findIndex(function(e){ return e.k === a; }) -
-           ICP_ELEMENTS.findIndex(function(e){ return e.k === b; });
-  });
+  /* Removed from the free build. */
+  return [];
 }
 var icpChartKey = null, icpChartMonths = 6;
 var ICP_RANGES = [[1,'1M'],[3,'3M'],[6,'6M'],[12,'12M'],[24,'24M']];
@@ -2335,131 +1757,24 @@ function icpChartable(){
 }
 /* Colour of a single reading: where it sat against its setpoint at the time. */
 function icpPointColour(e, v, sp){
-  var verdict = icpVerdict(e, v, sp);
-  if(verdict === 'metal') return 'var(--alert)';
-  if(verdict === 'low' || verdict === 'high') return 'var(--near)';
-  if(verdict === 'unset') return 'var(--muted)';
-  return 'var(--good)';
+  /* Removed from the free build. */
+  return 'var(--muted)';
 }
 /* Direction of travel between two reports. "Better" means closer to the
    setpoint, which is not the same as "up" — potassium climbing towards 400 is
    good news, copper climbing away from zero is not. A move under 5% is called
    flat, because trace elements wander between reports. */
 function icpMove(e, cur, prev, sp){
-  if(prev === undefined || prev === null || cur === undefined || cur === null) return null;
-  var d = cur - prev;
-  var rel = Math.abs(prev) > 0 ? Math.abs(d / prev) : (d === 0 ? 0 : 1);
-  var out = {d:d, rel:rel, dir:'flat'};
-  if(rel <= 0.05) return out;
-  if(sp === null || sp === undefined){ out.dir = 'flat'; return out; }
-  if(e.kind === 'toxic'){ out.dir = d < 0 ? 'better' : 'worse'; return out; }
-  out.dir = Math.abs(cur - sp) < Math.abs(prev - sp) ? 'better' : 'worse';
-  return out;
+  /* Removed from the free build. */
+  return null;
 }
 function icpMoveText(e, m){
-  if(!m) return null;
-  var mag = fmt(Math.abs(m.d), Math.abs(m.d) < 10 ? 2 : 0) + ' ' + e.u;
-  if(m.dir === 'flat') return {cls:'flat', txt:'held steady'};
-  return {cls:m.dir, txt:(m.d > 0 ? 'up ' : 'down ') + mag + (m.dir === 'better' ? ', toward the setpoint' : ', away from the setpoint')};
+  /* Removed from the free build. */
+  return null;
 }
 function renderIcpChart(){
-  var el = document.getElementById('icpChart');
-  if(!el) return;
-  var all = icpSorted();
-  var able = icpChartable();
-  if(!able.length){
-    el.innerHTML = all.length
-      ? '<div class="hint" style="margin-top:10px">A chart needs the same element in two reports. Enter your next one and it will appear here.</div>'
-      : '';
-    return;
-  }
-  if(!icpChartKey || !able.some(function(e){ return e.k === icpChartKey; })){
-    /* Open on something that has actually gone wrong, if anything has. */
-    var flagged = icpTrendKeys(all).filter(function(k){
-      return able.some(function(e){ return e.k === k; });
-    });
-    icpChartKey = flagged.length ? flagged[0] : able[0].k;
-  }
-  var e = icpEl(icpChartKey);
-
-  /* Start of that day, not this minute — a report sampled exactly six months
-     ago should sit inside the six-month window, not fall out of it by hours. */
-  var cutoff = new Date();
-  cutoff.setMonth(cutoff.getMonth() - icpChartMonths);
-  cutoff.setHours(0, 0, 0, 0);
-  var pts = all.filter(function(r){
-    var v = r.values[icpChartKey];
-    if(v === undefined || v === null) return false;
-    return new Date(icpDate(r)) >= cutoff;
-  }).map(function(r){ return {t:new Date(icpDate(r)).getTime(), v:r.values[icpChartKey], sp:icpSetpoint(r, e)}; });
-
-  var head = '<div class="icp-ch"><div class="row"><select id="icpChartSel">' +
-    able.map(function(x){
-      return '<option value="' + x.k + '"' + (x.k === icpChartKey ? ' selected' : '') + '>' +
-             esc(x.n) + ' (' + x.k + ')</option>';
-    }).join('') + '</select></div><div class="icp-ranges">' +
-    ICP_RANGES.map(function(r){
-      return '<button type="button" data-months="' + r[0] + '"' + (r[0] === icpChartMonths ? ' class="on"' : '') + '>' + r[1] + '</button>';
-    }).join('') + '</div>';
-
-  if(pts.length < 2){
-    el.innerHTML = head + '<div class="hint">' +
-      (pts.length ? 'Only one ' + e.n.toLowerCase() + ' reading in this window. Widen the range to see a line.'
-                  : 'No ' + e.n.toLowerCase() + ' readings in this window.') +
-      '</div></div>';
-    wireIcpChart();
-    return;
-  }
-
-  var W = 320, H = 132, padL = 6, padR = 6, padT = 10, padB = 16;
-  var sp = pts[pts.length - 1].sp;
-  var vals = pts.map(function(x){ return x.v; });
-  var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
-  if(sp !== null && sp !== undefined){ lo = Math.min(lo, sp); hi = Math.max(hi, sp); }
-  var pad = (hi - lo) * 0.18 || (hi || 1) * 0.12;
-  lo -= pad; hi += pad;
-  if(lo < 0 && Math.min.apply(null, vals) >= 0) lo = 0;
-
-  var t0 = cutoff.getTime(), t1 = Date.now();
-  if(pts[0].t < t0) t0 = pts[0].t;
-  var X = function(t){ return padL + (W - padL - padR) * (t1 === t0 ? 0.5 : (t - t0) / (t1 - t0)); };
-  var Y = function(v){ return padT + (H - padT - padB) * (1 - (v - lo) / (hi - lo || 1)); };
-
-  var line = pts.map(function(x){ return X(x.t).toFixed(1) + ',' + Y(x.v).toFixed(1); }).join(' ');
-  /* One marker per report, coloured by where that reading stood at the time,
-     so the shape of the line and the health of each point read together. */
-  var dots = pts.map(function(x){
-    return '<circle cx="' + X(x.t).toFixed(1) + '" cy="' + Y(x.v).toFixed(1) + '" r="3.2" fill="' +
-           icpPointColour(e, x.v, x.sp) + '" stroke="var(--deep)" stroke-width="1.4" vector-effect="non-scaling-stroke"/>';
-  }).join('');
-  var spLine = (sp === null || sp === undefined) ? '' :
-    '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + Y(sp).toFixed(1) + '" y2="' + Y(sp).toFixed(1) +
-    '" stroke="var(--titrant)" stroke-width="1" stroke-dasharray="4 4" opacity=".65" vector-effect="non-scaling-stroke"/>';
-
-  var first = pts[0], last = pts[pts.length - 1];
-  var since = icpMoveText(e, icpMove(e, last.v, pts.length > 1 ? pts[pts.length - 2].v : null, last.sp));
-  var across = icpMoveText(e, icpMove(e, last.v, first.v, last.sp));
-
-  el.innerHTML = head +
-    '<svg viewBox="0 0 ' + W + ' ' + H + '" class="chart-svg" preserveAspectRatio="none" role="img" aria-label="' +
-      esc(e.n) + ' over ' + icpChartMonths + ' months">' + spLine +
-      '<polyline points="' + line + '" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity=".8" vector-effect="non-scaling-stroke"/>' +
-      dots +
-    '</svg>' +
-    '<div class="strip-foot"><span>' + esc(fmtDay(new Date(first.t).toISOString().slice(0,10))) + '</span>' +
-      '<span>' + esc(fmtDay(new Date(last.t).toISOString().slice(0,10))) + '</span></div>' +
-    '<div class="cap">' + pts.length + ' report' + (pts.length === 1 ? '' : 's') + ' in this window · latest ' +
-      fmt(last.v, last.v < 10 ? 2 : 0) + ' ' + e.u +
-      (sp === null || sp === undefined ? '' : ' against a setpoint of ' + sp + ' (dashed)') + '.' +
-      (since ? ' Since the report before: <b class="' + since.cls + '">' + since.txt + '</b>.' : '') +
-      (across && pts.length > 2 ? ' Across the window: <b class="' + across.cls + '">' + across.txt + '</b>.' : '') +
-    '</div>' +
-    '<div class="icp-key">' +
-      '<span><i style="background:var(--good)"></i>at setpoint</span>' +
-      '<span><i style="background:var(--near)"></i>outside its band</span>' +
-      '<span><i style="background:var(--alert)"></i>contaminant present</span>' +
-    '</div></div>';
-  wireIcpChart();
+  /* Removed from the free build. */
+  var el = document.getElementById('icpChart'); if(el) el.innerHTML = '';
 }
 function wireIcpChart(){
   var sel = document.getElementById('icpChartSel');
@@ -2472,73 +1787,12 @@ function wireIcpChart(){
   });
 }
 function renderIcpTrend(){
-  var el = document.getElementById('icpTrend');
-  if(!el) return;
-  var reps = icpSorted();
-  if(reps.length < 2){
-    el.innerHTML = reps.length
-      ? '<div class="hint" style="margin-top:10px">One report so far. A second will show what has moved between them.</div>'
-      : '';
-    return;
-  }
-  var show = reps.slice(-4);                 /* four columns fits a phone */
-  var keys = icpTrendKeys(show).slice(0, 14);
-  var h = '<div class="icp-tr"><table><thead><tr><th>Element</th>';
-  show.forEach(function(r, i){
-    h += '<th>' + (i === show.length - 1 ? 'Latest' : fmtDay(icpDate(r)).slice(0, 6)) + '</th>';
-  });
-  h += '<th>Change</th></tr></thead><tbody>';
-  keys.forEach(function(k){
-    var e = icpEl(k);
-    h += '<tr><td>' + e.k + ' <span style="color:var(--muted);font-size:10px">' + e.u.replace('/l', '') + '</span></td>';
-    var vals = show.map(function(r){ return r.values[k]; });
-    vals.forEach(function(v, i){
-      var last = i === vals.length - 1;
-      h += '<td class="' + (last ? 'now' : 'was') + '">' + (v === undefined || v === null ? '·' : fmt(v, v < 10 ? 2 : 0)) + '</td>';
-    });
-    /* Change against the previous report that carried this element, judged by
-       whether it moved toward the setpoint rather than merely up or down. */
-    var seen = [];
-    show.forEach(function(r){
-      var v = r.values[k];
-      if(v !== undefined && v !== null) seen.push({v:v, sp:icpSetpoint(r, e)});
-    });
-    var cls = 'd-flat', mark = '—';
-    if(seen.length > 1){
-      var cur = seen[seen.length - 1], prev = seen[seen.length - 2];
-      var m = icpMove(e, cur.v, prev.v, cur.sp);
-      if(m){
-        cls = 'd-' + m.dir;
-        mark = m.dir === 'flat' ? '—'
-             : (m.d > 0 ? '+' : '−') + fmt(Math.abs(m.d), Math.abs(m.d) < 10 ? 2 : 0);
-      }
-    }
-    h += '<td class="' + cls + '">' + mark + '</td></tr>';
-  });
-  h += '</tbody></table><div class="hint" style="margin-top:8px">Change is against the report before it. Green means the element moved toward its setpoint, red means away, and moves under 5% are treated as steady.</div></div>';
-  el.innerHTML = h;
+  /* Removed from the free build. */
+  var el = document.getElementById('icpTrend'); if(el) el.innerHTML = '';
 }
 function renderIcpHistory(){
-  var el = document.getElementById('icpHistory');
-  if(!el) return;
-  var reps = icpSorted().reverse();
-  if(!reps.length){
-    el.innerHTML = '<div class="hint" style="margin-top:12px">No reports yet. Enter one and the app will read it against its setpoints and keep it here.</div>';
-    return;
-  }
-  var h = '';
-  reps.forEach(function(r, i){
-    var a = assessIcp(r);
-    var bad = a.findings.filter(function(f){ return f.cls === 'metal'; }).length;
-    h += '<details class="icp-rep"' + (i === 0 ? ' open' : '') + '><summary>' +
-         '<span><span class="rep-d">' + esc(fmtDay(icpDate(r))) + '</span>' +
-         (r.t && r.t !== icpDate(r) ? '<span class="rep-s"> · reported ' + esc(fmtDay(r.t)) + '</span>' : '') +
-         '<span class="rep-s"><br>' + Object.keys(r.values).length + ' elements</span></span>' +
-         '<span class="rep-c">' + (bad ? '<b>' + bad + ' contaminant' + (bad === 1 ? '' : 's') + '</b> · ' : '') +
-         a.findings.length + ' to act on</span></summary>' +
-         '<div class="rep-body">' + icpFindingsHtml(a) + '</div></details>';
-  });
-  el.innerHTML = h;
+  /* Removed from the free build. */
+  var el = document.getElementById('icpHistory'); if(el) el.innerHTML = '';
 }
 function renderIcpForm(){
   var last = icpLast(), prev = (last && last.values) || {}, sps = (last && last.setpoints) || {};
@@ -2611,73 +1865,12 @@ function icpVerdict(e, v, sp){
   return 'ok';
 }
 function assessIcp(rep){
-  var L = state.settings.netLitres, out = [], ok = [], unset = [];
-  ICP_ELEMENTS.forEach(function(e){
-    var v = rep.values[e.k];
-    if(v === undefined || v === null) return;
-    var sp = icpSetpoint(rep, e), verdict = icpVerdict(e, v, sp);
-    if(verdict === 'unset'){ unset.push(e.k); return; }
-    if(verdict === 'ok'){ ok.push(e.k); return; }
-
-    var body = '', why = e.note || '';
-    if(verdict === 'metal' || verdict === 'high'){
-      /* Freshly mixed water is assumed clean of contaminants; for the major
-         ions the salt brand's own published level is the floor. */
-      var mix = 0;
-      if(e.maps === 'ca') mix = currentSaltElements().ca;
-      if(e.maps === 'mg') mix = currentSaltElements().mg;
-      var f = dilutionFraction(v, sp, mix);
-      if(f === null){
-        body = 'At ' + fmt(v, v < 10 ? 2 : 0) + ' ' + e.u + ' against a setpoint of ' + sp + '. A water change will not bring this down, because the replacement water is not lower than the target. Find the source first.';
-      } else {
-        var pct = Math.round(f * 100), litres = Math.round(f * L);
-        if(pct > 40){
-          if(e.kind === 'toxic'){
-            /* Diluting this far would take months of water changes, by which
-               time whatever is leaching it has topped it back up. */
-            body = 'At ' + fmt(v, v < 10 ? 2 : 0) + ' ' + e.u + ' against ' + sp + '. Water changes alone will not clear this — it would take about ' + pct + '% of the volume, and a weekly 20% change would need roughly ' + Math.ceil(Math.log(sp / v) / Math.log(0.8)) + ' weeks. Find and remove the source first, then run a metal-binding resin or fresh carbon alongside your normal changes.';
-          } else {
-            body = 'At ' + fmt(v, v < 10 ? 2 : 0) + ' ' + e.u + ' against ' + sp + '. Reaching the setpoint in one go would mean replacing ' + pct + '% of the tank — too much at once. Run 20% changes weekly and re-test after three.';
-          }
-        } else {
-          body = 'At ' + fmt(v, v < 10 ? 2 : 0) + ' ' + e.u + ' against ' + sp + '. A ' + pct + '% water change — about ' + litres + ' litres of your ' + Math.round(L) + ' — brings it to the setpoint.';
-        }
-      }
-      if(e.kind === 'toxic' && !why) why = 'Track down where it is entering from, or it will simply climb back.';
-      out.push({cls:e.kind === 'toxic' ? 'metal' : 'high', title:e.n + ' (' + e.k + ') is high', body:body, why:why, rank:e.kind === 'toxic' ? 0 : 2});
-    } else {
-      /* Shortfall expressed as mass, so any brand can be measured against it. */
-      var deficit = sp - v;
-      var mg = e.u === 'mg/l' ? deficit * L : deficit * L / 1000;
-      var mass = mg >= 1000 ? fmt(mg/1000, 1) + ' g' : mg >= 1 ? fmt(mg, 1) + ' mg' : fmt(mg*1000, 0) + ' µg';
-      body = 'At ' + fmt(v, v < 10 ? 2 : 0) + ' ' + e.u + ' against a setpoint of ' + sp + '. Your ' + Math.round(L) + ' litres are short by about ' + mass + ' of elemental ' + e.n.toLowerCase() + '.';
-      if(e.maps === 'ca' || e.maps === 'mg'){
-        body += ' This one the app already doses for — enter it on the test screen and work out corrections.';
-      } else if(onShelf('rs-abcplus') && (e.k === 'Sr' || e.k === 'K')){
-        why = 'A routine water change with fresh salt replaces this steadily; a single-element supplement is only worth it if the next report says the same.';
-      } else {
-        why = 'Nothing on your shelf lists ' + e.n.toLowerCase() + ', so the app has no dose to give you. A water change with fresh salt is the usual first answer.';
-      }
-      out.push({cls:'low', title:e.n + ' (' + e.k + ') is low', body:body, why:why, rank:e.maps ? 1 : 3});
-    }
-  });
-  out.sort(function(a,b){ return a.rank - b.rank; });
-  return {findings:out, ok:ok, unset:unset};
+  /* Removed from the free build. */
+  return {findings:[], ok:[], unset:[]};
 }
 function icpFindingsHtml(a){
-  var h = '';
-  if(!a.findings.length){
-    h += '<div class="icp-find ok"><h5>Nothing needs correcting</h5><p>Every element entered sits within range of its setpoint.</p></div>';
-  }
-  a.findings.forEach(function(f){
-    h += '<div class="icp-find ' + f.cls + '"><h5>' + esc(f.title) + '</h5><p>' + esc(f.body) + '</p>' +
-         (f.why ? '<p class="why">' + esc(f.why) + '</p>' : '') + '</div>';
-  });
-  if(a.unset.length){
-    h += '<div class="hint" style="margin-top:10px">No setpoint entered for ' + a.unset.join(', ') +
-         ', so these were skipped. Copy the setpoint from your report to have them read.</div>';
-  }
-  return h;
+  /* Removed from the free build. */
+  return '';
 }
 function renderIcp(rep){
   if(!rep){ $('#icpOut').innerHTML = ''; return; }
@@ -3760,26 +2953,8 @@ function calcEstimate(){
    published preferred ranges. If the ranges genuinely conflict, settle on
    the middle ground and say so. */
 function refinedBands(){
-  var prof = TANK_TYPES[state.settings.tankType || 'mixed'].targets;
-  var cs = state.settings.corals || [];
-  var res = {conflict:false};
-  ['alk','no3','po4'].forEach(function(p){
-    var lo = prof[p].low, hi = prof[p].high;
-    cs.forEach(function(c){
-      var sp = coralById(c.sp);
-      lo = Math.max(lo, sp[p][0]);
-      hi = Math.min(hi, sp[p][1]);
-    });
-    if(lo >= hi){
-      res.conflict = true;
-      var mid = (lo + hi) / 2, half = p === 'alk' ? 0.3 : p === 'no3' ? 2 : 0.02;
-      lo = mid - half; hi = mid + half;
-    }
-    /* Keep the profile's published target wherever it still fits the
-       refined band; clamp it in only when the band excludes it. */
-    res[p] = {low:lo, high:hi, target:Math.min(Math.max(prof[p].target, lo), hi)};
-  });
-  return res;
+  /* Removed from the free build. */
+  return {conflict:false, bands:{}};
 }
 /* Stocking-based demand estimate: alkalinity per day from coral sizes and
    demand factors, calcium and magnesium via the calcification ratio. */
@@ -4063,13 +3238,8 @@ $('#btnUseEst').addEventListener('click', function(){
    the alk / nitrate / phosphate bands from the tank type plus the published
    ranges of everything kept. An empty list means the profile alone. */
 function applyStocking(){
-  var b = refinedBands();
-  ['alk','no3','po4'].forEach(function(k){
-    state.settings.targets[k] = {
-      low:+b[k].low.toFixed(2), target:+b[k].target.toFixed(2), high:+b[k].high.toFixed(2)
-    };
-  });
-  return b;
+  /* Removed from the free build. */
+  return {conflict:false};
 }
 $('#btnAddCoral').addEventListener('click', function(){
   state.settings.corals = state.settings.corals || [];
