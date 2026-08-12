@@ -1,4 +1,16 @@
 <!DOCTYPE html>
+<!--
+  Reef Key — reef aquarium chemistry.
+  Copyright (c) 2026 Harry J. Allport. All rights reserved.
+
+  No licence is granted. You may not copy, reproduce, modify, adapt,
+  republish, host or create derivative works from any part of this file.
+  Viewing this source in a browser is a technical consequence of the app
+  running client-side; it is not an offer of a licence and does not place
+  this work in the public domain.
+
+  "Reef Key" is used as an unregistered trade mark of Harry J. Allport.
+-->
 <html lang="en-GB">
 <head>
 <meta charset="utf-8">
@@ -390,7 +402,7 @@ nav button.on{color:var(--titrant)}
 <div class="modal" id="tankModal">
   <div class="card">
     <div class="card-title">Tank</div>
-    <div id="tankPickWrap" data-pro="More than one tank" data-why="Add a frag tank, a quarantine or a second display, each with its own targets, shelf and log. Switch between them from the pills under the title.">
+    <div id="tankPickWrap" data-pro="More than one tank" data-why="Available in Reef Key Pro.">
       <div class="field" style="margin-top:12px;margin-bottom:8px">
         <label for="tankPick">Active tank</label>
         <select id="tankPick"></select>
@@ -418,7 +430,7 @@ nav button.on{color:var(--titrant)}
       <div class="hint">Sets the published target bands and daily limits the whole app calculates from — corrections, water change predictions and uptake dosing all follow it.</div>
     </div>
 
-    <div data-pro="Livestock-refined targets" data-why="Add what you actually keep and the target bands narrow to the overlap of their published care ranges, rather than a generic figure for the tank type.">
+    <div data-pro="Livestock-refined targets" data-why="Available in Reef Key Pro.">
     <h3 class="salt-sub">Livestock in the tank</h3>
     <div class="sub">Add what you actually keep — corals, clams, fish and inverts — and how big it is. Targets refine to the overlap of their published care ranges (a butterflyfish caps nitrate, a Linckia starfish demands cleaner water still), and calcifiers drive the demand estimate until your log can measure the real thing.</div>
     <div class="grid3" style="margin-top:10px">
@@ -452,7 +464,7 @@ nav button.on{color:var(--titrant)}
     <div class="hint" style="margin-top:-4px" id="estOut"></div>
     <div class="btn-row"><button class="small" id="btnUseEst">Use this estimate</button></div>
 
-    <div data-pro="Running costs" data-why="Enter what you pay for salt, RO water and each supplement, and every dose and water change is priced as it is worked out.">
+    <div data-pro="Running costs" data-why="Available in Reef Key Pro.">
     <h3 class="salt-sub" style="margin-top:16px">Running costs</h3>
     <div class="sub">Optional — add what you pay and the app shows what dosing and each water change cost.</div>
     <div class="grid3" style="margin-top:8px">
@@ -498,7 +510,7 @@ nav button.on{color:var(--titrant)}
     </div>
     <div id="results"></div>
 
-    <div class="card" id="icpCard" data-pro="ICP analysis" data-why="Type in a Triton report and the app reads all 45 figures against their setpoints, works out which water change would correct what, and says plainly which elements it cannot fix from your shelf.">
+    <div class="card" id="icpCard" data-pro="ICP analysis" data-why="Available in Reef Key Pro.">
       <div class="card-title">ICP analysis</div>
       <div class="sub">A lab report covers the elements no home kit reaches. Every report is kept on the ICP tab, alongside what has changed since the last one.</div>
       <div class="btn-row" style="margin-bottom:0">
@@ -619,6 +631,13 @@ nav button.on{color:var(--titrant)}
         <button class="small ghost" id="btnWipe">Erase log</button>
       </div>
       <input type="file" id="restoreFile" accept="application/json,.json" style="display:none">
+    </div>
+    <div class="card" style="text-align:center">
+      <div class="sub" style="margin:0">
+        <b>Reef Key</b> &copy; 2026 Harry J. Allport. All rights reserved.<br>
+        Dosing figures are worked out from the values and products you enter, which may be
+        wrong or out of date. Check any dose before it goes near the tank.
+      </div>
     </div>
   </section>
 
@@ -2060,21 +2079,8 @@ function chartSVG(key){
    timestamped tests. Intervals where it rose (a dose or water change happened
    in between) are left out, so the rate reflects what the corals are using. */
 function uptakeStats(key){
-  var es = [];
-  for(var i = state.log.length - 1; i >= 0; i--){
-    var e = state.log[i];
-    if(e.values[key] !== undefined) es.push({t:new Date(e.date).getTime(), v:e.values[key]});
-  }
-  var totDrop = 0, totDays = 0, used = 0, skipped = 0;
-  for(var j = 1; j < es.length; j++){
-    var days = (es[j].t - es[j-1].t) / 86400000;
-    if(days < 0.5) continue;
-    var d = es[j-1].v - es[j].v;
-    if(d > 0){ totDrop += d; totDays += days; used++; }
-    else skipped++;
-  }
-  if(used < 1 || totDays < 0.9) return null;
-  return {perDay: totDrop/totDays, used:used, skipped:skipped, days:totDays};
+  /* Removed from the free build. */
+  return null;
 }
 /* When no rate can be computed, say why in plain English. */
 function uptakeWhy(key){
@@ -2104,134 +2110,12 @@ function uptakeWhy(key){
    find the bottle standing next to the sump. A product with no strength set
    is left out too: there is no rate to work from until it has one. */
 function doserProducts(k){
-  var list = [];
-  shelfList().forEach(function(p){
-    if(!p.effects[k]) return;
-    var base = libProduct(p.id);
-    list.push({id:p.id, name:p.name, form:p.form, method:p.method, eff:p.effects[k],
-      brand:(base && base.brand) || null,
-      multi:(p.effects.alk?1:0) + (p.effects.ca?1:0) + (p.effects.mg?1:0) > 1});
-  });
-  return list;
+  /* Removed from the free build. */
+  return [];
 }
 function consumptionCard(){
-  var NAMES = {alk:'Alkalinity', ca:'Calcium', mg:'Magnesium'};
-  var stats = [];
-  BIG3.forEach(function(k){
-    var s = uptakeStats(k);
-    if(s) stats.push({key:k, s:s});
-  });
-  /* No measurement yet for an element? Fall back to the stocking estimate
-     from the corals set in the ⚙ panel, marked ≈ until the log takes over. */
-  var estU = stockingUptake();
-  if(estU){
-    ['alk','ca','mg'].forEach(function(k){
-      if(stats.some(function(x){ return x.key === k; })) return;
-      if(estU[k] > 0.0005) stats.push({key:k, s:{perDay:estU[k], used:0, skipped:0}, est:true});
-    });
-  }
-  var ORDER3 = ['alk','ca','mg'];
-  stats.sort(function(a,b){ return ORDER3.indexOf(a.key) - ORDER3.indexOf(b.key); });
-  var net = state.settings.netLitres;
-  var rows = '', doseFields = '', costTotal = 0, anyCost = false;
-  function fnum(v){ return v >= 100 ? String(Math.round(v)) : v >= 10 ? v.toFixed(0) : v.toFixed(1); }
-  var anyEst = stats.some(function(x){ return x.est; });
-  /* Every element gets a row, in a fixed order — with the reason spelled out
-     when a rate cannot be computed yet, instead of silently missing. */
-  function doserSelect(k){
-    var opts = doserProducts(k);
-    if(!opts.length) return null;
-    var sel = (state.settings.doser || {})[k];
-    if(!opts.some(function(o){ return o.id === sel; })){
-      var def = (DEFAULTS.doser || {})[k];
-      sel = opts.some(function(o){ return o.id === def; }) ? def : opts[0].id;
-    }
-    var optHtml = '';
-    opts.forEach(function(o){
-      optHtml += '<option value="'+o.id+'"'+(o.id === sel ? ' selected' : '')+'>'+
-                 esc((o.brand ? o.brand + ' ' : '') + o.name)+'</option>';
-    });
-    return {sel:sel, chosen:opts.filter(function(o){ return o.id === sel; })[0], optHtml:optHtml};
-  }
-  ORDER3.forEach(function(k){
-    var x = stats.filter(function(s){ return s.key === k; })[0];
-    if(!x){
-      rows += '<div class="wc-row"><span>'+NAMES[k]+'</span>'+
-        '<span class="hint" style="text-align:right;max-width:68%">'+uptakeWhy(k)+'</span></div>';
-      /* The product picker still shows, so it can be chosen ahead of the data. */
-      var pending = doserSelect(k);
-      if(pending){
-        doseFields += '<div class="field" style="margin-top:10px;margin-bottom:0">'+
-          '<label>'+NAMES[k]+' product</label>'+
-          '<select data-doseprod="'+k+'">'+pending.optHtml+'</select>'+
-          '<div class="hint">Weekly amount appears here once the log can measure this element’s uptake — '+uptakeWhy(k)+'.</div></div>';
-      }
-      return;
-    }
-    var dp = (k === 'alk') ? 2 : 1, dpw = (k === 'alk') ? 1 : 0;
-    var basis = x.est ? 'from your stocking, until tests measure it'
-      : x.s.used + ' interval' + (x.s.used === 1 ? '' : 's') +
-        (x.s.days ? ' over ' + Math.round(x.s.days) + ' days' : '');
-    rows += '<div class="wc-row"><span>'+NAMES[k]+
-      '<span class="hint" style="display:block;font-size:10px;margin-top:1px">'+esc(basis)+'</span></span>'+
-      '<span class="mono">'+(x.est ? '≈ ' : '')+fmt(x.s.perDay,dp)+' '+UNITS[k]+'/day · <b>'+fmt(x.s.perDay*7,dpw)+' '+UNITS[k]+'/week</b></span></div>';
-    var opts = doserProducts(k);
-    if(!opts.length){
-      doseFields += '<div class="field" style="margin-top:10px;margin-bottom:0">'+
-        '<label>'+NAMES[k]+' product</label>'+
-        '<div class="hint">Nothing on your shelf raises '+NAMES[k].toLowerCase()+' yet'+
-        (unfilledFor(k).length
-          ? ' with a strength set — '+esc(unfilledFor(k)[0].name)+' is ticked but has no figure against it. Fill that in under what is on your shelf and the daily rate appears here.'
-          : '. Tick the bottle you dose under what is on your shelf, and the weekly and daily amounts appear here.')+
-        '</div></div>';
-      return;
-    }
-    var sel = (state.settings.doser || {})[k];
-    if(!opts.some(function(o){ return o.id === sel; })){
-      var def = (DEFAULTS.doser || {})[k];
-      sel = opts.some(function(o){ return o.id === def; }) ? def : opts[0].id;
-    }
-    var chosen = opts.filter(function(o){ return o.id === sel; })[0];
-    var weekly = x.s.perDay * 7 * net / 100 / chosen.eff;
-    var daily = weekly / 7;
-    var optHtml = '';
-    opts.forEach(function(o){
-      optHtml += '<option value="'+o.id+'"'+(o.id === sel ? ' selected' : '')+'>'+
-                 esc((o.brand ? o.brand + ' ' : '') + o.name)+'</option>';
-    });
-    var cp = (costSettings().products || {})[chosen.id];
-    var costTxt = '';
-    if(cp && cp.price > 0 && cp.size > 0){
-      var wkCost = weekly / cp.size * cp.price;
-      costTotal += wkCost; anyCost = true;
-      costTxt = ' ≈ £' + wkCost.toFixed(2) + ' a week.';
-    }
-    doseFields += '<div class="field" style="margin-top:10px;margin-bottom:0">'+
-      '<label>'+NAMES[k]+' product</label>'+
-      '<select data-doseprod="'+k+'">'+optHtml+'</select>'+
-      '<div class="hint"><b>'+fnum(weekly)+' '+chosen.form+' a week — set a doser to '+fnum(daily)+' '+chosen.form+' a day.'+costTxt+'</b>'+
-      (chosen.form === 'g' ? ' A dry product: dissolve each day’s dose in RO/DI first, or pick a liquid — they suit dosing pumps better.' : '')+
-      (chosen.multi ? ' Balanced product: set the rate by alkalinity and watch the other two against their targets.' : '')+
-      '</div></div>';
-  });
-  var skippedTot = stats.reduce(function(n,x){ return n + x.s.skipped; }, 0);
-  var html = '<div class="card"><div class="card-title">Weekly uptake &amp; dosing</div>'+
-    '<div class="sub">Worked out from your timestamped log — only counting stretches where a level fell between tests, so doses and water changes in between don’t muddy the rate.</div>'+
-    '<div class="wc-rows">'+rows+'</div>';
-  if(doseFields){
-    html += '<div style="margin-top:12px"><div class="eyebrow">Dose to match uptake</div>'+doseFields+
-      (anyCost ? '<div class="hint" style="margin-top:8px"><b>Dosing total ≈ £'+costTotal.toFixed(2)+' a week</b> at these rates and your prices (set in ⚙).</div>' : '')+
-      '<div class="hint" style="margin-top:10px">Start at these rates, re-test in a week, and nudge the dose — not the tank. When dose matches uptake the graph goes flat, which is exactly what corals want.</div>'+
-      '<div class="hint" style="margin-top:6px">These figures re-work themselves every time you log a test. Add corals and the measured uptake climbs, so the daily amount here climbs with it — you do not have to recalculate anything, but do re-read this card after any change to the stocking.</div></div>';
-  }
-  if(anyEst){
-    html += '<div class="hint" style="margin-top:8px">≈ figures are estimated from the corals in your ⚙ settings — measured uptake from your log replaces them automatically as tests build up.</div>';
-  }
-  if(skippedTot > 0){
-    html += '<div class="hint" style="margin-top:6px">'+skippedTot+' interval'+(skippedTot>1?'s':'')+' where the level rose '+(skippedTot>1?'were':'was')+' left out of the average.</div>';
-  }
-  html += '</div>';
-  return html;
+  /* Removed from the free build. */
+  return '';
 }
 
 /* ---------- setup ---------- */
@@ -2868,8 +2752,7 @@ document.querySelectorAll('nav button').forEach(function(b){
 });
 $('#btnCalc').addEventListener('click', function(){
   if(!FEATURES.corrections){
-    $('#results').innerHTML = upsell('Corrections worked out for you',
-      'Pro reads today\'s numbers against your targets, works the doses from the products you have ticked on the shelf, splits anything too large across several days and tells you what is still short afterwards — in the order to do it.');
+    $('#results').innerHTML = upsell('Corrections worked out for you', 'Available in Reef Key Pro.');
     $('#results').scrollIntoView({behavior:'smooth', block:'nearest'});
     return;
   }
