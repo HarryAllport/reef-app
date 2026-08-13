@@ -400,7 +400,12 @@ button.small{padding:8px 11px;font-size:13px}
 .wc-row .mono{font-size:13px}
 .wc-row b{font-weight:600}
 .entry{border:1px solid var(--line);background:var(--deep);border-radius:10px;padding:13px;margin-bottom:9px}
-.wc-entry{border-left:3px solid var(--titrant)}
+.wc-entry{border-left:3px solid var(--titrant);background:linear-gradient(90deg,rgba(47,224,198,0.06),var(--deep) 55%)}
+.wc-gap{color:var(--titrant)}
+.wc-since{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;
+  border:1px dashed var(--line);border-radius:10px;padding:10px 13px;margin-bottom:10px;font-size:12px;color:var(--muted)}
+.wc-since b{color:var(--foam)}
+.wc-since .mono{font-family:var(--f-mono);color:var(--titrant)}
 .entry-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .entry-date{font-family:var(--f-mono);font-size:13px}
 .entry-vals{display:flex;flex-wrap:wrap;gap:10px;margin-top:9px;font-family:var(--f-mono);font-size:12px;color:#8fa6b3}
@@ -641,7 +646,7 @@ nav button.on{color:var(--titrant)}
           <select id="smBrand"></select>
           <div class="input-cluster"><input type="number" id="smStrength" step="0.1" inputmode="decimal"><span class="unit" style="min-width:86px">g/L at 1.026</span></div>
         </div>
-        <div class="hint">Grams per litre of RO/DI to reach SPG 1.026, from the tub's label — edit if yours says otherwise. Remembered per brand.</div>
+        <div class="hint" id="smGlHint">Grams per litre of RO/DI to reach SPG 1.026, from the tub's label — edit if yours says otherwise. Remembered per brand.</div>
       </div>
       <div class="grid3">
         <div class="field"><label>Alkalinity (dKH)</label><input type="number" id="smElAlk" step="0.1" inputmode="decimal"></div>
@@ -703,6 +708,10 @@ nav button.on{color:var(--titrant)}
     <div class="card">
       <div class="card-title">What's on your shelf</div>
       <div class="sub">Tick everything you have to hand. Corrections are worked out from these and nothing else. The strength figures come from the labels — change any that your bottle disagrees with.</div>
+      <div class="btn-row" style="margin-top:10px;margin-bottom:0">
+        <button class="small ghost" id="btnClearShelf">Clear the shelf</button>
+        <span class="hint" id="shelfCount" style="align-self:center"></span>
+      </div>
       <div id="shelfFields" style="margin-top:10px"></div>
       <div class="btn-row" style="margin-bottom:0">
         <button class="small" id="btnAddProduct">Add a product that isn't listed</button>
@@ -1216,6 +1225,33 @@ var PRODUCTS = [
   {id:'mg-blend', src:'calc',brand:'Raw salts and DIY', name:'Magnesium blend, 5:1 chloride to sulphate',form:'g',  method:'dissolve', effects:{mg:1.16}},
   {id:'mgcl', src:'calc',   brand:'Raw salts and DIY', name:'Magnesium chloride hexahydrate',            form:'g',  method:'dissolve', effects:{mg:1.2}},
   {id:'epsom', src:'calc',  brand:'Raw salts and DIY', name:'Epsom salt (magnesium sulphate)',           form:'g',  method:'dissolve', effects:{mg:0.99}},
+  /* Removal media. Like the carbon sources, there is no ppm-per-gram for
+     these: a resin has a capacity, not a strength, and how fast it works
+     depends on flow, exhaustion and how high the phosphate was to begin with.
+     So they carry a usage guideline and a warning, and the engine treats them
+     as a tool to reach for rather than a dose to calculate. */
+  {id:'rowa',    src:'label', brand:'Rowa', name:'RowaPhos (GFO)', form:'ml', method:'reactor', kind:'media',
+   effects:{}, targets:['po4'], dose:{start:50, typical:100, max:150, per:200},
+   note:'Ferric hydroxide, the original and still the benchmark. Run it in a reactor with gentle tumbling, or in a bag in high flow. Start at half the recommended quantity and work up: pulling phosphate down fast browns and burns SPS tips more reliably than the phosphate ever did. It does not regenerate — when the phosphate stops falling, it is spent.'},
+  {id:'brs-gfo', src:'blank', brand:'Bulk Reef Supply', name:'High Capacity GFO', form:'ml', method:'reactor', kind:'media',
+   effects:{}, targets:['po4'], dose:{start:50, typical:100, max:150, per:200}},
+  {id:'tlf-phosban', src:'blank', brand:'Two Little Fishies', name:'PhosBan (GFO)', form:'ml', method:'reactor', kind:'media',
+   effects:{}, targets:['po4'], dose:{start:50, typical:100, max:150, per:200}},
+  {id:'bw-phosphatr', src:'blank', brand:'Brightwell', name:'Phosphat-R (ferric GFO)', form:'ml', method:'reactor', kind:'media',
+   effects:{}, targets:['po4'], dose:{start:50, typical:100, max:150, per:200}},
+  {id:'sc-phosguard', src:'label', brand:'Seachem', name:'PhosGuard (aluminium oxide)', form:'ml', method:'reactor', kind:'media',
+   effects:{}, targets:['po4'], dose:{start:50, typical:85, max:120, per:200},
+   note:'Aluminium oxide rather than iron. It works, and it is cheap, but it can leach aluminium into the water — which is one of the contaminants an ICP report flags, and a known cause of unexplained aluminium readings. Rinse it thoroughly before use, run it in a bag rather than a tumbling reactor, and if you test with ICP, watch the aluminium figure after you start.'},
+  {id:'bw-phosphate', src:'blank', brand:'Brightwell', name:'Phosphat-E (lanthanum liquid)', form:'ml', method:'direct', kind:'media',
+   effects:{}, targets:['po4'], dose:{start:1, typical:2, max:4, per:100},
+   note:'Lanthanum chloride binds phosphate into a fine precipitate, which then has to be caught — always dose it into a filter sock or a fine mechanical filter, never straight into the display. It strips phosphate faster than anything else on this list, which is exactly why it is the easiest to overdo. The precipitate irritates gills; fish first, corals second.'},
+  {id:'bl-phosrx',  src:'blank', brand:'Blue Life', name:'Phosphate Rx (lanthanum liquid)', form:'ml', method:'direct', kind:'media',
+   effects:{}, targets:['po4'], dose:{start:1, typical:2, max:4, per:100}},
+  {id:'tm-elimiphos', src:'blank', brand:'Tropic Marin', name:'Elimi-Phos Rapid', form:'ml', method:'direct', kind:'media',
+   effects:{}, targets:['po4'], dose:{start:1, typical:2, max:4, per:100}},
+  {id:'af-phosminus', src:'blank', brand:'Aquaforest', name:'Phosphate Minus', form:'ml', method:'reactor', kind:'media',
+   effects:{}, targets:['po4'], dose:{start:50, typical:100, max:150, per:200}},
+
   {id:'kh2po4', src:'calc', brand:'Raw salts and DIY', name:'Monopotassium phosphate (KH2PO4)', form:'g', method:'dissolve',
    effects:{po4:6.98},
    note:'Follows from the formula weight. It is very strong for the range you are working in — a tenth of a gram in 100 litres moves phosphate by about 0.007 ppm, so make up a dilute stock solution rather than weighing tiny amounts each time.'},
@@ -1376,7 +1412,11 @@ var SALTS = [
   {id:'tm-classic',  name:'Tropic Marin Classic',  gl:37.5, elements:{alk:9.5,  ca:420, mg:1350}},
   {id:'io',          name:'Instant Ocean',         gl:36.8, elements:{alk:11.0, ca:400, mg:1350}},
   {id:'af',          name:'Aquaforest Reef Salt',  gl:38,   elements:{alk:8.1,  ca:430, mg:1380}},
-  {id:'other',       name:'Another brand',         gl:37,   elements:{alk:8.5,  ca:420, mg:1300}},
+  /* No figure here on purpose. Mixing strength varies from about 33 to 40 g/l
+     between brands, and over a 25 litre change that spread is roughly 175 g of
+     salt — enough to miss the target salinity outright. A guessed default
+     would be wrong for nearly everyone, and wrong invisibly. */
+  {id:'other',       name:'Another brand',         gl:null, elements:{alk:8.5,  ca:420, mg:1300}},
   /* Not a salt at all: water bought ready mixed from a shop. There is nothing
      to weigh out, and its salinity is whatever the refractometer says rather
      than something the app can work out — so the strength field goes away and
@@ -1657,6 +1697,7 @@ function renderRows(){
     }
     el.addEventListener('input', function(){
       state.readings[p.key] = round3(p.key, toInternal(p.key, num(el.value)));
+      state.predicted = false;
       updateStrip(p.key);
     });
     updateStrip(p.key);
@@ -1950,19 +1991,43 @@ function buildCorrections(){
       ['Anything above zero means the biological filter is not keeping up. Do a 25–30% water change with matched temperature and salinity, check for a dead animal or an overfeed, and hold off on the corrections below until both read zero.'],'crit');
   }
 
-  /* 2. salinity */
+  /* 2. salinity
+     Salinity is corrected before anything else, because every other reading
+     is a concentration and moves with it. The volume is quoted here so the
+     size of the job is visible, but the work belongs in the salinity fix
+     calculator further down the Test screen, which stages it, shows what the
+     correction does to alkalinity, calcium and magnesium on the way, and logs
+     it when it is done. So this card sends the keeper there rather than
+     leaving them to work out the stages themselves. */
+  function salinityRoute_steps(spgFrom, spgTo){
+    var stages = Math.max(1, Math.ceil(Math.abs(spgFrom - spgTo) / 1.33));
+    return stages;
+  }
+  function fixPointer(stages, dir){
+    return ['Do this in the salinity fix calculator rather than by eye. Scroll down this screen to "Salt & water changes" ' +
+            'and switch the card to "Salinity fix only". It works the exact amount from your net volume, ' +
+            (dir === 'down' ? 'as tank water swapped for plain RO/DI so the level does not rise, '
+                            : 'as salt dissolved in tank water so nothing else is diluted, ') +
+            'and shows what the correction does to alkalinity, calcium, magnesium, nitrate and phosphate before you start.',
+            (stages > 1
+              ? 'Expect it to be staged over about ' + stages + ' days — roughly 0.001 SPG a day is as fast as a stocked tank should be moved, and the calculator paces it for you.'
+              : 'This one is small enough to do in a single go, but still add it slowly into high flow.'),
+            'Press "Log this water change" when it is done, then re-test before acting on anything else — ' +
+            'calcium, magnesium and the nutrients are all concentrations, and every one of them moves as the salinity does.'];
+  }
   if(have('salinity')){
     var t = T('salinity'), sal = r.salinity;
     if(sal < t.low){
       var grams = L * (t.target - sal) * 1.05;
-      push('Then','Salinity is low', amt(grams,'g') + ' of salt mix',
-        ['Dissolve in RO/DI in a separate container and add over 24–48 hours — no more than about 0.001 SPG every couple of days. You are reading SPG ' + (1 + sal/1327).toFixed(3) + ' at 25 °C; the target is SPG ' + (1 + t.target/1327).toFixed(3) + '.',
-         'Correct salinity before you act on any calcium, magnesium or nutrient result: those readings all shift with it.']);
+      push('First','Salinity is low — fix this first', amt(grams,'g') + ' of salt, roughly',
+        ['You are reading SPG ' + (1 + sal/1327).toFixed(3) + ' against a target of SPG ' + (1 + t.target/1327).toFixed(3) + '.']
+          .concat(fixPointer(salinityRoute_steps(sal, t.target), 'up')), 'warn');
     } else if(sal > t.high){
       var ro = L * (sal - t.target) / sal;
-      push('Then','Salinity is high', ro.toFixed(1) + ' litres RO/DI',
-        ['Replace tank water with RO/DI in stages — no more than about 0.001 SPG every couple of days. Check the auto top-up is keeping pace with evaporation.',
-         'Correct salinity before you act on any calcium, magnesium or nutrient result: those readings all shift with it.']);
+      push('First','Salinity is high — fix this first', ro.toFixed(1) + ' litres RO/DI, roughly',
+        ['You are reading SPG ' + (1 + sal/1327).toFixed(3) + ' against a target of SPG ' + (1 + t.target/1327).toFixed(3) + '. ' +
+         'Salinity climbs because water evaporates and the salt stays behind, so check the auto top-up is keeping pace before you correct it — otherwise it will simply climb again.']
+          .concat(fixPointer(salinityRoute_steps(sal, t.target), 'down')), 'warn');
     } else ok.push('Salinity SPG ' + (1 + sal/1327).toFixed(3));
   }
 
@@ -2177,7 +2242,18 @@ function buildCorrections(){
     var tp = T('po4');
     if(r.po4 > tp.high){
       var pctp = Math.min(30, ((r.po4 - tp.target) / r.po4) * 100);
-      var pb = ['Bring it down gradually over weeks — corals adjust their uptake slowly, and a fast drop causes more stress than the phosphate did. Pair the water change with GFO run gently, or lanthanum through a filter sock, and re-test every other day.'];
+      var pb = ['Bring it down gradually over weeks — corals adjust their uptake slowly, and a fast drop causes more stress than the phosphate did. Re-test every other day while it moves.'];
+      var med = mediaOnShelf('po4');
+      if(med){
+        var mq = med.dose.start * L / med.dose.per;
+        pb.push('You have ' + med.name + ' on the shelf. For ' + Math.round(L) + ' litres, start at about ' +
+          fmt(mq, 0) + ' ml' + (med.method === 'reactor' ? ' of media and work up' : ' and work up') +
+          ' — roughly half what the label allows. Media capacity is not a dose: how fast it pulls depends on flow and how loaded the resin already is, so the only safe way is small and measured.');
+        if(med.note) pb.push(med.note);
+      } else {
+        pb.push('Nothing on your shelf removes phosphate. The options are ferric hydroxide media (GFO) run in a reactor or a bag, aluminium-based media, or lanthanum chloride dosed through a filter sock. Tick whichever you buy under Setup and the app will size it for your volume — and note that a water change removes phosphate too, without any media at all.');
+        shopping.push({key:'po4-media', why:'Phosphate is above target and there is nothing on your shelf to take it out — media gives you a lever between water changes.'});
+      }
       if(wc){
         pb.unshift('The ' + Math.round(wc.pct) + '% change above takes phosphate to about ' + fmt(after.po4, 3) +
                    ' ppm. That single change is sized for both nutrients at once — doing a separate one for phosphate would move the calcification elements twice over.');
@@ -2368,7 +2444,9 @@ function buildCorrections(){
   if(have('po4') && status('po4', r.po4) === 'good'){
     var tp2 = T('po4'), devP = r.po4 - tp2.target;
     if(devP > 0.02){
-      push('Fine-tune', 'Phosphate is in range — above optimum', 'Run GFO a little harder, or a small water change',
+      var medF = mediaOnShelf('po4');
+      push('Fine-tune', 'Phosphate is in range — above optimum',
+        medF ? 'A little more ' + medF.name + ', or a small water change' : 'A small water change, or add removal media',
         ['At ' + fmt(r.po4, 3) + ' ppm against an optimum of ' + fmt(tp2.target, 3) + '. Optional polish only.',
          'Never strip phosphate below ' + fmt(tp2.low, 2) + ' ppm — it is an essential nutrient, and driving it to zero starves corals faster than a high reading harms them.'], 'ok');
     } else if(devP < -0.02 && r.po4 >= tp2.low){
@@ -2377,6 +2455,36 @@ function buildCorrections(){
     }
   }
 
+  /* The cards are pushed in whatever order the checks happen to run, which is
+     why the page could read Then, First, First, Then. Sort them into the order
+     they should actually be carried out, then number the ones that are jobs.
+     Everything else — the reasoning, the warnings, the optional nudges — keeps
+     a word instead of a number, because numbering explanations makes a
+     four-step job look like an eight-step one. */
+  var STEP_ORDER = {
+    'First':1,           /* safety and salinity: everything else depends on them */
+    'Then':2,            /* the doses and the water change */
+    'While dosing':3,
+    'Still short':4,
+    'Not this time':5,
+    'Why':6,             /* reasoning, once the doing is laid out */
+    'Watch':7,
+    'Livestock':8,
+    'Note':9,
+    'Worth knowing':10,
+    'Overall':11,
+    'Fine-tune':12       /* optional polish, last by definition */
+  };
+  var DOING = {'First':1, 'Then':1, 'While dosing':1};
+  out = out.map(function(a, i){ a._i = i; return a; }).sort(function(a, b){
+    var wa = STEP_ORDER[a.step] || 50, wb = STEP_ORDER[b.step] || 50;
+    return wa === wb ? a._i - b._i : wa - wb;
+  });
+  var n = 0;
+  out.forEach(function(a){
+    if(DOING[a.step]){ n++; a.num = n; }
+  });
+  out.forEach(function(a){ delete a._i; });
   return {actions:out, ok:ok, shopping:shopping};
 }
 
@@ -2393,7 +2501,10 @@ function renderResults(quiet){
     html += '<div class="fix ok"><h3>Everything is inside your targets</h3><p>No corrections needed. Keep the dosing routine as it is and test again on schedule — stability is worth more than any single number.</p></div>';
   } else {
     res.actions.forEach(function(a){
-      html += '<div class="fix '+a.cls+'"><div class="step">'+esc(a.step)+'</div><h3>'+esc(a.title)+'</h3>'+
+      var label = a.num
+        ? 'Step ' + a.num + (a.step === 'While dosing' ? ' · while dosing' : '')
+        : a.step;
+      html += '<div class="fix '+a.cls+'"><div class="step">'+esc(label)+'</div><h3>'+esc(a.title)+'</h3>'+
         '<div class="dose">'+esc(a.dose)+'</div>';
       a.body.forEach(function(b){ if(b) html += '<p>'+esc(b)+'</p>'; });
       if(a.imgs && a.imgs.length){
@@ -2418,7 +2529,10 @@ function renderResults(quiet){
     'Real tanks do not land exactly where arithmetic says they will — test kits have error, products vary between batches, and the '+
     'tank goes on consuming while you dose. Carry out the steps, give it time to mix, then <b>test again and log what you actually '+
     'measure</b>. That measured figure is what the next calculation should be built on, never this one.</div></div>';
-  html += '<div class="btn-row"><button class="primary" id="btnSave">Save today\'s readings to log</button></div>';
+  html += '<div class="btn-row" style="flex-direction:column;align-items:stretch;gap:4px">'+
+    '<button class="primary" id="btnSave">Save today\'s readings to log</button>'+
+    '<div class="hint" style="text-align:center">Files the numbers you entered above — the test you did today, before any of this. '+
+    'The doses and predictions are not saved; come back and log the re-test once it has all mixed.</div></div>';
   el.innerHTML = html;
   var sv = document.getElementById('btnSave');
   if(sv) sv.addEventListener('click', saveEntry);
@@ -2883,8 +2997,74 @@ function renderIcp(rep){
    Driven by what today's calculation actually needed and could not do with
    the shelf as it stands. Images are drawn in-app, so nothing depends on a
    shop's website. */
-var SHOP_PREF = {alk:['rs-b','rs-khp','soda'], ca:['rs-a','cacl-di'], mg:['rs-c','mgcl'], no3:['nano3'], po4:['bw-neophos','af-phos','kh2po4']};
-var SHOP_LABEL = {alk:'KH', ca:'Ca', mg:'Mg', no3:'NO3', po4:'PO4'};
+/* The old list named Red Sea first for everything, which is a recommendation
+   the app has no business making. What it can honestly do is follow the
+   keeper: if there is already NYOS on the shelf, another NYOS bottle is one
+   fewer supplier and one fewer set of instructions. With an empty shelf it
+   should name no brand at all — just the kind of product, a few examples
+   drawn from across the library, and the raw chemistry for anyone happy to
+   weigh it out. */
+var DIY_BRAND = 'Raw salts and DIY';
+var UNBRANDED = 'Other or unbranded';
+/* Brands the keeper already buys, commonest first. */
+function shelfBrands(){
+  var counts = {};
+  (state.settings.shelf || []).forEach(function(e){
+    var base = libProduct(e.id);
+    if(!base || !base.brand) return;
+    if(base.brand === DIY_BRAND || base.brand === UNBRANDED) return;
+    counts[base.brand] = (counts[base.brand] || 0) + 1;
+  });
+  return Object.keys(counts).sort(function(a, b){ return counts[b] - counts[a]; });
+}
+/* Every library product that could raise this parameter, whether or not its
+   strength has been filled in — a blank figure is a two-minute job, not a
+   reason to leave a whole brand out of the answer. */
+function productsRaising(key){
+  /* 'po4-media' is a request for something that takes phosphate out rather
+     than puts it in, so it is matched on targets instead of effects. */
+  if(key === 'po4-media'){
+    return PRODUCTS.filter(function(p){
+      return p.kind === 'media' && p.targets && p.targets.indexOf('po4') !== -1 && !onShelf(p.id);
+    });
+  }
+  return PRODUCTS.filter(function(p){
+    return p.effects && (key in p.effects) && p.kind !== 'reduce' && p.kind !== 'media' && !onShelf(p.id);
+  });
+}
+function suggestFor(key){
+  var pool = productsRaising(key);
+  if(!pool.length) return null;
+  var mine = shelfBrands();
+  var match = null;
+  /* Within a brand, prefer a product that moves this one element. Suggesting
+     a three-in-one to fix a single shortfall is how the other two get pushed
+     past target — which is the same argument the correction engine makes. */
+  function single(p){ return Object.keys(p.effects).filter(function(k){ return p.effects[k] !== undefined; }).length === 1; }
+  mine.forEach(function(b){
+    if(match) return;
+    var ofBrand = pool.filter(function(p){ return p.brand === b; });
+    match = ofBrand.filter(single)[0] || ofBrand[0] || null;
+  });
+  var diy = pool.filter(function(p){ return p.brand === DIY_BRAND; })[0];
+  if(match) return {product:match, diy:diy, matched:true, examples:[]};
+
+  /* Nothing on the shelf to follow, so name no brand as the answer. Pull a
+     few examples from different makers instead, rotating the starting point
+     so the same three are not always in front. */
+  var brands = [];
+  pool.forEach(function(p){
+    if(p.brand === DIY_BRAND || p.brand === UNBRANDED) return;
+    if(brands.indexOf(p.brand) === -1) brands.push(p.brand);
+  });
+  var start = brands.length ? (new Date().getDate() % brands.length) : 0;
+  var picked = [];
+  for(var i = 0; i < brands.length && picked.length < 3; i++){
+    picked.push(brands[(start + i) % brands.length]);
+  }
+  return {product:null, diy:diy, matched:false, examples:picked};
+}
+var SHOP_LABEL = {alk:'KH', ca:'Ca', mg:'Mg', no3:'NO3', po4:'PO4', 'po4-media':'PO4'};
 var SHOP_PO4 = ['bw-neophos','af-phos','kh2po4'];
 /* No remote imagery: every product tile is drawn in the app, so nothing
    depends on a manufacturer's CDN staying put — and nothing carries a
@@ -2914,30 +3094,32 @@ function shoppingCard(items){
   items.forEach(function(sug){
     if(seen[sug.key]) return;
     seen[sug.key] = true;
-    var prod = null, alt = null;
-    (SHOP_PREF[sug.key] || []).forEach(function(id){
-      if(onShelf(id)) return;
-      var p = libProduct(id);
-      if(!p) return;
-      if(!prod) prod = p;
-      else if(!alt) alt = p;
-    });
-    if(sug.key === 'po4') prod = {name:'Phosphate supplement — any reef brand', form:'ml'};
-    if(!prod) return;
-    var photo = prod.id && PRODUCT_IMG[prod.id];
-    var imgHtml = photo
-      ? '<img class="shop-photo" src="'+photo+'" alt="" loading="lazy" '+
-        'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'">'+
-        '<span style="display:none">'+productSVG(prod.form, SHOP_LABEL[sug.key] || '', true)+'</span>'
-      : productSVG(prod.form, SHOP_LABEL[sug.key] || '', prod.name.indexOf('Red Sea') === 0);
-    rows += '<div class="shop-row">'+imgHtml+
-      '<div><b>'+esc(prod.name)+'</b>'+
-      (alt ? '<div class="hint" style="margin-top:2px">Dry-goods alternative: '+esc(alt.name)+'</div>' : '')+
-      '<p class="hint" style="margin-top:4px">'+esc(sug.why)+'</p></div></div>';
+    var sg = suggestFor(sug.key);
+    if(!sg) return;
+    var pname = sug.key === 'po4-media' ? 'phosphate removal' : paramName(sug.key);
+    var title, note;
+    if(sg.matched){
+      title = sg.product.brand + ' ' + sg.product.name;
+      note = 'Suggested only because you already keep ' + sg.product.brand + ' on the shelf — one supplier, one set of instructions. ' +
+             'Any brand of ' + pname + ' supplement does the same job; tick whatever you buy and the app works the dose from its own figures.';
+    } else {
+      title = sug.key === 'po4-media' ? 'Phosphate removal media — any brand' : 'A ' + pname + ' supplement — any brand';
+      note = (sug.key === 'po4-media'
+              ? 'No brand recommended. Ferric hydroxide media are the usual choice and the gentlest; aluminium-based media are cheaper but can leach aluminium, which shows up on an ICP report; lanthanum is the fastest and the easiest to overdo. '
+              : 'No brand recommended, and none needed: ' + pname + ' is ' + pname + ' whoever bottles it. ') +
+             (sg.examples.length ? 'Examples in the app: ' + sg.examples.join(', ') + ', among others. ' : '') +
+             'Buy whatever your shop stocks, tick it under Setup, enter the strength from the label, and every dose is worked out for you.';
+    }
+    var form = sg.product ? sg.product.form : (sug.key === 'po4-media' ? 'g' : 'ml');
+    rows += '<div class="shop-row">'+productSVG(form, SHOP_LABEL[sug.key] || '', false)+
+      '<div><b>'+esc(title)+'</b>'+
+      (sg.diy ? '<div class="hint" style="margin-top:2px">Cheaper by weight: '+esc(sg.diy.name)+'</div>' : '')+
+      '<p class="hint" style="margin-top:4px">'+esc(sug.why)+'</p>'+
+      '<p class="hint" style="margin-top:4px">'+esc(note)+'</p></div></div>';
   });
   if(!rows) return '';
   return '<div class="card"><div class="card-title">Suggested purchases</div>'+
-    '<div class="sub">Based on what today’s numbers needed and what your shelf could not do. Once bought, tick it in Setup → What’s on your shelf and every dose is worked out for you.</div>'+
+    '<div class="sub">Based on what today’s numbers needed and what your shelf could not do. These are categories of product, not endorsements — where a brand is named it is one you already buy. Once bought, tick it in Setup → What’s on your shelf and every dose is worked out for you.</div>'+
     '<div style="margin-top:6px">'+rows+'</div></div>';
 }
 
@@ -2977,7 +3159,12 @@ function saveEntry(){
     if(v !== null && v !== undefined){ vals[p.key] = v; any = true; }
   });
   if(!any){ toast('Nothing to save'); return; }
+  if(state.predicted && !confirm(
+      'These readings came from the water change planner, not from a test kit.\n\n' +
+      'Saving them puts predicted numbers in your log, and every later calculation — uptake, dosing, trends — is built on what is in the log.\n\n' +
+      'Save them anyway?')) return;
   state.log.unshift({date:new Date().toISOString(), values:vals});
+  state.predicted = false;
   save();
   renderLog();
   toast('Saved to log');
@@ -3011,12 +3198,59 @@ function renderLog(){
   }
   $('#trendCard').innerHTML = chartCard() + consumptionCard();
   bindTrendCard();
+  /* The log runs newest first, so counting forward from a water change walks
+     backwards in time to the previous one. That gap — how many tests were done
+     on a body of water before it was replaced — is most of what a keeper reads
+     a log for, and it is invisible unless the app says it out loud. */
+  var testsSince = {}, run = 0, newestWc = null;
+  state.log.forEach(function(e, i){
+    if(e.type === 'wc'){
+      testsSince[i] = run;
+      if(newestWc === null) newestWc = i;
+      run = 0;
+    } else if(Object.keys(e.values || {}).length){
+      run++;
+    }
+  });
+  var sinceNewest = 0;
+  for(var q = 0; q < state.log.length; q++){
+    if(state.log[q].type === 'wc') break;
+    if(Object.keys(state.log[q].values || {}).length) sinceNewest++;
+  }
+
   var html = '';
+  if(newestWc !== null){
+    var lw = state.log[newestWc], lwd = new Date(lw.date);
+    var days = Math.round((Date.now() - lwd.getTime()) / 86400000);
+    html += '<div class="wc-since"><span><b>Last water change</b> ' +
+      lwd.toLocaleDateString('en-GB', {day:'2-digit', month:'short'}) +
+      (days <= 0 ? ' · today' : days === 1 ? ' · yesterday' : ' · ' + days + ' days ago') +
+      ((lw.wc && lw.wc.litres) ? ' · ' + fmt(lw.wc.litres, 0) + ' L' : '') + '</span>' +
+      '<span class="mono">' + sinceNewest + ' test' + (sinceNewest === 1 ? '' : 's') + ' since</span></div>';
+  } else if(state.log.length){
+    html += '<div class="wc-since"><span>No water change logged yet</span>' +
+      '<span class="mono">' + sinceNewest + ' test' + (sinceNewest === 1 ? '' : 's') + ' on record</span></div>';
+  }
+
   state.log.forEach(function(e, i){
     var d = new Date(e.date);
+    var when = d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) +
+               ' · ' + d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    if(e.type === 'wc'){
+      var w = e.wc || {}, gap = testsSince[i] || 0;
+      html += '<div class="entry wc-entry"><div class="entry-top">'+
+        '<span class="entry-date"><b>'+(w.mode === 'fix' ? 'Salinity fix' : 'Water change')+'</b> · '+when+'</span>'+
+        '<button class="small ghost" data-del="'+i+'">Delete</button></div>'+
+        '<div class="entry-vals">'+
+          (w.litres ? '<span><i>Vol</i> '+fmt(w.litres,0)+' L'+(w.pct ? ' ('+Math.round(w.pct)+'%)' : '')+'</span>' : '')+
+          '<span><i>Salt</i> '+esc(w.brandName || 'not recorded')+'</span>'+
+          (w.mixSal ? '<span><i>New</i> '+spg(w.mixSal)+' SPG</span>' : '')+
+          '<span class="wc-gap">'+gap+' test'+(gap === 1 ? '' : 's')+' on the water before it</span>'+
+        '</div></div>';
+      return;
+    }
     html += '<div class="entry"><div class="entry-top">'+
-      '<span class="entry-date">'+d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})+
-      ' · '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})+'</span>'+
+      '<span class="entry-date">'+when+'</span>'+
       '<button class="small ghost" data-del="'+i+'">Delete</button></div><div class="entry-vals">';
     PARAMS.forEach(function(p){
       if((e.values||{})[p.key] === undefined) return;
@@ -3270,7 +3504,7 @@ function shelfEntry(id){
   for(var i=0;i<list.length;i++){ if(list[i].id === id) return list[i]; }
   return null;
 }
-var BRAND_ORDER = ['Red Sea', 'Tropic Marin', 'Aquaforest', 'Modern Reef', 'Reef Zlements', 'NYOS', 'ATI', 'Fauna Marin', 'Korallen-Zucht', 'Brightwell', 'ESV', 'Seachem', 'Two Little Fishies', 'Kent Marine', 'Raw salts and DIY', 'Other or unbranded', 'Your own products'];
+var BRAND_ORDER = ['Red Sea', 'Tropic Marin', 'Aquaforest', 'Modern Reef', 'Reef Zlements', 'NYOS', 'ATI', 'Fauna Marin', 'Korallen-Zucht', 'Brightwell', 'ESV', 'Seachem', 'Two Little Fishies', 'Kent Marine', 'Rowa', 'Bulk Reef Supply', 'Blue Life', 'Raw salts and DIY', 'Other or unbranded', 'Your own products'];
 /* Where each figure came from, and whether it is the app's place to defend it.
    `fixed` decides the default: a number that follows from a formula weight or
    a published label is shown rather than typed, because a stray keystroke
@@ -3320,11 +3554,17 @@ function renderShelf(){
       var info = SRC_INFO[base.src] || null;
       var fromLabel = !prod.custom && !!info;
       var edit = !fromLabel || !info.fixed || entry.override === true;
-      if(base.kind === 'reduce'){
+      if(base.kind === 'reduce' || base.kind === 'media'){
         var d = base.dose, L = state.settings.netLitres || 0;
+        var per = base.kind === 'media'
+          ? (base.method === 'reactor' ? ' of media' : ' a dose')
+          : ' a day';
         html += '<div class="prod-dose">For your ' + Math.round(L) + ' L: start at <b>' +
-                fmt(d.start * L / d.per, 1) + ' ml a day</b>, typical <b>' + fmt(d.typical * L / d.per, 1) +
-                ' ml</b>, ceiling <b>' + fmt(d.max * L / d.per, 1) + ' ml</b>. Test weekly and move in small steps.</div>';
+                fmt(d.start * L / d.per, 0) + ' ml' + per + '</b>, typical <b>' + fmt(d.typical * L / d.per, 0) +
+                ' ml</b>, ceiling <b>' + fmt(d.max * L / d.per, 0) + ' ml</b>. ' +
+                (base.kind === 'media'
+                  ? 'Capacity, not strength — how fast it works depends on flow and how loaded it already is. Re-test every other day while it settles.'
+                  : 'Test weekly and move in small steps.') + '</div>';
         if(base.note) html += '<p class="prod-note">' + esc(base.note) + '</p>';
         html += '</div>';
         return;
@@ -3367,6 +3607,13 @@ function renderShelf(){
     html += '</div>';
   });
   $('#shelfFields').innerHTML = html;
+  var cnt = (state.settings.shelf || []).length;
+  var cntEl = $('#shelfCount');
+  if(cntEl) cntEl.textContent = cnt
+    ? cnt + ' product' + (cnt === 1 ? '' : 's') + ' ticked'
+    : 'nothing ticked yet';
+  var clr = $('#btnClearShelf');
+  if(clr) clr.disabled = !cnt;
 
   $('#shelfFields').querySelectorAll('[data-toggle]').forEach(function(b){
     b.addEventListener('click', function(){
@@ -3600,9 +3847,15 @@ function currentSaltElements(){
 function volLitres(v){ return state.settings.volUnit === 'gal' ? v * 3.78541 : v; }
 function volSuffix(){ return state.settings.volUnit === 'gal' ? ' US gal' : ' L'; }
 function spg(ppt){ return (1 + ppt/1327).toFixed(3); }
+function saltStrength(){
+  var sm = smSettings();
+  return num($('#smStrength').value) || sm.strengths[sm.brand] || saltById(sm.brand).gl || null;
+}
 function fillBrandFields(){
   var sm = smSettings();
-  $('#smStrength').value = sm.strengths[sm.brand] || saltById(sm.brand).gl;
+  var gl0 = sm.strengths[sm.brand] || saltById(sm.brand).gl;
+  $('#smStrength').value = (gl0 === null || gl0 === undefined) ? '' : gl0;
+  $('#smStrength').placeholder = gl0 ? '' : 'from the tub';
   var el = saltElements(sm.brand);
   $('#smElAlk').value = el.alk;
   $('#smElCa').value = el.ca;
@@ -3661,6 +3914,19 @@ function applyPremixedUI(){
   if(mix) mix.style.display = pre ? '' : 'none';
   var lab = $('#wcVolLabel');
   if(lab) lab.textContent = pre ? 'Volume of new water (litres)' : 'RO/DI volume (litres)';
+  var glHint = $('#smGlHint');
+  if(glHint){
+    var sm0 = smSettings();
+    if(pre){
+      glHint.textContent = 'Not needed — the water is already mixed.';
+    } else if(!saltById(sm0.brand).gl && !sm0.strengths[sm0.brand]){
+      glHint.innerHTML = '<b>Enter this before the app can work out a mix.</b> It is the grams of salt per litre of RO/DI that reach SPG 1.026 — '+
+        'on the tub, or the maker\'s website, usually between 33 and 40 g/L. If the label quotes a different salinity, or none at all, weigh out a '+
+        'litre and read it with a refractometer. Guessing costs about 175 g over a 25 litre change, which is enough to miss your target salinity.';
+    } else {
+      glHint.textContent = "Grams per litre of RO/DI to reach SPG 1.026, from the tub's label — edit if yours says otherwise. Remembered per brand.";
+    }
+  }
   var hint = $('#smElHint');
   if(hint) hint.textContent = pre
     ? 'Test a sample of the water you bought and enter what you find. Shop-mixed water varies a lot between suppliers, and these three decide what the change does to your tank.'
@@ -3731,7 +3997,7 @@ function calcFix(){
   var sm = smSettings(), out = $('#wcOut');
   $('#wcPct').textContent = '';
   var net = state.settings.netLitres;
-  var gl = num($('#smStrength').value) || saltById(sm.brand).gl;
+  var gl = saltStrength() || 37;
   var tgt = toInternal('salinity', num($('#wcTgt').value));
   if(tgt === null || tgt <= 0) tgt = T('salinity').target;
   var cur = toInternal('salinity', num($('#wcCur').value));
@@ -3801,6 +4067,15 @@ function calcFix(){
     '<p>Re-test alkalinity, calcium and magnesium once salinity settles, before any supplement dosing.</p></div>';
 }
 /* A nutrient reducer sitting on the shelf that targets this parameter. */
+/* A removal medium on the shelf that targets this parameter. */
+function mediaOnShelf(key){
+  var found = null;
+  shelfList().forEach(function(p){
+    var base = libProduct(p.id) || p;
+    if(base.kind === 'media' && base.targets && base.targets.indexOf(key) !== -1 && !found) found = base;
+  });
+  return found;
+}
 function reducerOnShelf(key){
   var found = null;
   shelfList().forEach(function(p){
@@ -3839,7 +4114,19 @@ function calcWC(driver){
   var sm = smSettings(), out = $('#wcOut');
   if(sm.mode === 'fix'){ calcFix(); return; }
   var net = state.settings.netLitres;
-  var gl = num($('#smStrength').value) || saltById(sm.brand).gl;
+  var gl = saltStrength();
+  if(!gl && !isPremixed()){
+    $('#wcOut').innerHTML = '<div class="fix warn"><div class="step">First</div><h3>This salt needs its mixing strength</h3>'+
+      '<div class="dose">g/L at SPG 1.026</div>'+
+      '<p>You have picked <b>'+esc(saltById(sm.brand).name)+'</b>, so there is no published figure to work from. Enter the grams of salt per litre '+
+      'of RO/DI that reach SPG 1.026 in the box above — it is on the tub or the maker\'s website, and sits between about 33 and 40 g/L for most brands.</p>'+
+      '<p>The app will not guess it. That spread is roughly 7 g/L, which over a 25 litre change is about 175 g of salt — enough to land the new water '+
+      'at the wrong salinity and take the tank with it. Enter it once and it is remembered for this brand.</p>'+
+      '<p>No figure anywhere? Weigh 37 g into a litre of RO/DI, mix it fully and read it with a refractometer, then adjust until a litre lands on 1.026 '+
+      'and use that weight.</p></div>';
+    $('#wcPct').textContent = '';
+    return;
+  }
   var tgtSal = toInternal('salinity', num($('#wcTgt').value));
   if(tgtSal === null || tgtSal <= 0) tgtSal = T('salinity').target;
   var cur = toInternal('salinity', num($('#wcCur').value));
@@ -3973,6 +4260,10 @@ function calcWC(driver){
     '<button class="small primary" id="wcApply">Calculate adjustments</button></div></div>';
   function applyPreds(){
     preds.forEach(function(p){ state.readings[p.key] = round3(p.key, p.after); });
+    /* These are the planner's numbers, not a test. Flagged so that saving
+       them to the log asks first — a predicted figure filed as a measurement
+       is the one mistake that quietly corrupts every calculation after it. */
+    state.predicted = true;
     renderRows();
   }
   $('#wcLog').addEventListener('click', saveWaterChange);
@@ -4547,6 +4838,22 @@ $('#btnIcs').addEventListener('click', function(){
     var k = id.replace('cap','').toLowerCase(), v = num(this.value);
     if(v && v > 0){ state.settings.caps[k] = v; save(); if($('#results').innerHTML) renderResults(true); }
   });
+});
+if($('#btnClearShelf')) $('#btnClearShelf').addEventListener('click', function(){
+  var shelf = state.settings.shelf || [];
+  if(!shelf.length){ toast('The shelf is already empty'); return; }
+  var custom = shelf.filter(function(e){ return !libProduct(e.id); }).length;
+  var edited = shelf.filter(function(e){ return e.effects && Object.keys(e.effects).length; }).length;
+  var warn = 'Remove all ' + shelf.length + ' product' + (shelf.length === 1 ? '' : 's') + ' from your shelf?\n\n';
+  if(custom) warn += custom + ' of them ' + (custom === 1 ? 'is one you added yourself and will be deleted' : 'are ones you added yourself and will be deleted') + '.\n';
+  if(edited) warn += (edited === 1 ? 'One product has' : edited + ' products have') + ' a strength you entered by hand, which will be lost.\n';
+  warn += '\nCorrections cannot be worked out until you tick something again. This cannot be undone.';
+  if(!confirm(warn)) return;
+  state.settings.shelf = [];
+  save();
+  renderShelf(); renderSetup();
+  if($('#results').innerHTML) renderResults(true);
+  toast('Shelf cleared');
 });
 if($('#btnAddProduct')) $('#btnAddProduct').addEventListener('click', function(){
   var box = $('#customForm');
