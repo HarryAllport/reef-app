@@ -59,9 +59,32 @@ body{
   font-family:var(--f-body);
   font-size:16px;
   line-height:1.5;
-  padding-bottom:calc(84px + env(safe-area-inset-bottom));
   -webkit-font-smoothing:antialiased;
+  /* App-shell layout. The document itself does not scroll — the header and
+     the tab bar are fixed panes and only the middle scrolls. Letting the page
+     scroll is what makes a `position:fixed` bar drift on iOS: Safari resizes
+     the visual viewport as its own chrome slides in and out, and a bar pinned
+     to the bottom of the *page* follows that instead of the screen. 100dvh
+     tracks the live viewport height on every browser that supports it. */
+  height:100vh;
+  height:100dvh;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  overscroll-behavior-y:none;
 }
+main{
+  flex:1 1 auto;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-y:contain;
+  padding-bottom:26px;
+}
+/* No scrollbar track anywhere. A visible bar down the edge is a desktop
+   convention; a native app just scrolls. Content still scrolls normally —
+   only the indicator goes. */
+*{scrollbar-width:none;-ms-overflow-style:none}
+*::-webkit-scrollbar{width:0;height:0;display:none}
 .wrap{max-width:1100px;margin:0 auto;padding:0 18px}
 h1,h2,h3{font-family:var(--f-display);font-weight:800;margin:0;letter-spacing:0.01em;text-transform:uppercase}
 .mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
@@ -69,7 +92,7 @@ h1,h2,h3{font-family:var(--f-display);font-weight:800;margin:0;letter-spacing:0.
 
 /* header */
 header{
-  position:sticky;top:0;z-index:20;
+  flex:0 0 auto;z-index:20;
   background:linear-gradient(180deg,var(--ink) 72%,rgba(6,11,16,0));
   padding:calc(14px + env(safe-area-inset-top)) 0 14px;
 }
@@ -90,18 +113,18 @@ header{
    the first thing a cold start actually needs to hide is the blank frame. */
 #splash{position:fixed;inset:0;z-index:900;background:var(--ink);
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
-  animation:sp-lift .5s cubic-bezier(.4,0,.2,1) 1.55s forwards}
+  animation:sp-lift .6s cubic-bezier(.4,0,.2,1) 2.35s forwards}
 #splash svg{width:132px;height:132px;overflow:visible}
 .sp-key{transform-origin:100px 92px;
-  animation:sp-drop .78s cubic-bezier(.34,1.4,.5,1) .12s both}
+  animation:sp-drop 1.05s cubic-bezier(.34,1.4,.5,1) .22s both}
 .sp-splash-ring{transform-origin:100px 150px;opacity:0;
-  animation:sp-ring .7s ease-out .85s both}
+  animation:sp-ring .95s ease-out 1.22s both}
 .sp-wave{stroke-dasharray:260;stroke-dashoffset:260;
-  animation:sp-draw .85s ease-out both, sp-drift 4s ease-in-out 1s infinite alternate}
-.sp-wave.b{animation-delay:.18s, 1.2s}
+  animation:sp-draw 1.15s ease-out both, sp-drift 5s ease-in-out 1.4s infinite alternate}
+.sp-wave.b{animation-delay:.26s, 1.7s}
 .sp-word{font-family:var(--f-display);font-weight:800;font-size:13px;letter-spacing:.42em;
   text-indent:.42em;color:var(--foam);opacity:0;
-  animation:sp-word .6s ease-out .95s both}
+  animation:sp-word .8s ease-out 1.35s both}
 .sp-word span{color:var(--titrant)}
 @keyframes sp-drop{
   0%  {transform:translateY(-130px) scale(.9);opacity:0}
@@ -120,7 +143,7 @@ header{
 @keyframes sp-lift{to{opacity:0;transform:scale(1.04);visibility:hidden}}
 /* Someone who has asked for less movement gets the mark, not the performance. */
 @media (prefers-reduced-motion:reduce){
-  #splash{animation:sp-lift .3s linear .5s forwards}
+  #splash{animation:sp-lift .35s linear .7s forwards}
   .sp-key,.sp-splash-ring,.sp-wave,.sp-word{animation:none;opacity:1;stroke-dashoffset:0}
 }
 /* tank switcher: pills sit under the masthead, only when there is more than one */
@@ -366,11 +389,14 @@ button.small{padding:8px 11px;font-size:13px}
 
 /* nav */
 nav{
-  position:fixed;left:0;right:0;bottom:0;z-index:30;
+  flex:0 0 auto;z-index:30;
   background:rgba(13,21,28,0.96);backdrop-filter:blur(12px);
   border-top:1px solid var(--line);
   padding:8px 0 calc(8px + env(safe-area-inset-bottom));
   display:flex;
+  /* Its own compositing layer: without this iOS repaints it a frame late
+     during momentum scrolling and it appears to shiver. */
+  transform:translateZ(0);
 }
 nav button{flex:1;background:none;border:0;color:var(--muted);font-size:12px;font-family:var(--f-display);font-weight:700;
   letter-spacing:0.08em;text-transform:uppercase;padding:8px 0;border-radius:0}
@@ -2627,7 +2653,9 @@ document.querySelectorAll('nav button').forEach(function(b){
     document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('on'); });
     b.classList.add('on');
     $('#view-'+b.getAttribute('data-view')).classList.add('on');
-    window.scrollTo({top:0});
+    /* The document no longer scrolls — the middle pane does. */
+    var pane = document.querySelector('main');
+    if(pane) pane.scrollTo({top:0}); else window.scrollTo({top:0});
     if(b.getAttribute('data-view') === 'log') renderLog();
     if(b.getAttribute('data-view') === 'setup') renderSetup();
     if(b.getAttribute('data-view') === 'icp'){ renderIcpChart(); renderIcpTrend(); renderIcpHistory(); }
@@ -3163,8 +3191,8 @@ $('#btnWipe').addEventListener('click', function(){
 (function(){
   var sp = document.getElementById('splash');
   if(!sp) return;
-  setTimeout(function(){ sp.style.pointerEvents = 'none'; }, 1500);
-  setTimeout(function(){ if(sp.parentNode) sp.parentNode.removeChild(sp); }, 2400);
+  setTimeout(function(){ sp.style.pointerEvents = 'none'; }, 2300);
+  setTimeout(function(){ if(sp.parentNode) sp.parentNode.removeChild(sp); }, 3200);
 })();
 
 load(function(){
