@@ -86,6 +86,13 @@ body{
 }
 main{
   flex:1 1 auto;
+  /* `main` carries .wrap, which sets `margin:0 auto` to centre it. Inside a
+     column flex container an auto cross-axis margin cancels the default
+     stretch, so the element sized itself to its content instead of the
+     screen — which is why the log, with only a narrow card in it, came out
+     half the width of the test screen. An explicit full width restores the
+     stretch while `max-width` still caps it on a desktop. */
+  width:100%;
   overflow-y:auto;
   -webkit-overflow-scrolling:touch;
   overscroll-behavior-y:contain;
@@ -103,7 +110,7 @@ h1,h2,h3{font-family:var(--f-display);font-weight:800;margin:0;letter-spacing:0.
 
 /* header */
 header{
-  flex:0 0 auto;z-index:20;
+  flex:0 0 auto;width:100%;z-index:20;
   background:linear-gradient(180deg,var(--ink) 72%,rgba(6,11,16,0));
   padding:calc(14px + env(safe-area-inset-top)) 0 14px;
 }
@@ -400,7 +407,7 @@ button.small{padding:8px 11px;font-size:13px}
 
 /* nav */
 nav{
-  flex:0 0 auto;z-index:30;
+  flex:0 0 auto;width:100%;z-index:30;
   background:rgba(13,21,28,0.96);backdrop-filter:blur(12px);
   border-top:1px solid var(--line);
   padding:8px 0 calc(8px + env(safe-area-inset-bottom));
@@ -409,8 +416,13 @@ nav{
      during momentum scrolling and it appears to shiver. */
   transform:translateZ(0);
 }
-nav button{flex:1;background:none;border:0;color:var(--muted);font-size:12px;font-family:var(--f-display);font-weight:700;
-  letter-spacing:0.08em;text-transform:uppercase;padding:8px 0;border-radius:0}
+nav button{flex:1 1 0;min-width:0;background:none;border:0;color:var(--muted);font-size:12px;font-family:var(--f-display);font-weight:700;
+  letter-spacing:0.08em;text-transform:uppercase;padding:8px 2px;border-radius:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Five labels on a small phone: tighten rather than clip. */
+@media(max-width:400px){
+  nav button{font-size:11px;letter-spacing:0.04em}
+}
 nav button.on{color:var(--titrant)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(94px + env(safe-area-inset-bottom));
   background:var(--foam);border:1px solid var(--foam);color:var(--ink);padding:10px 16px;border-radius:22px;
