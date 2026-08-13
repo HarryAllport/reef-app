@@ -56,6 +56,10 @@ html,body{margin:0;padding:0}
 /* The page behind the shell, so nothing shows through at the edges on a
    device with rounded corners or a home indicator. */
 html{height:100%;background:var(--ink);overscroll-behavior:none}
+/* Safari on iPhone reports the home-indicator inset only when the page has
+   asked to draw under it, which the viewport meta already does. The tab bar
+   pads itself by that amount so its labels clear the indicator while its
+   background still runs to the very bottom edge. */
 body{
   background:var(--ink);
   color:var(--foam);
@@ -71,14 +75,14 @@ body{
      that the page is free to scroll within. */
   position:fixed;
   inset:0;
-  /* App-shell layout. The document itself does not scroll — the header and
-     the tab bar are fixed panes and only the middle scrolls. Letting the page
-     scroll is what makes a `position:fixed` bar drift on iOS: Safari resizes
-     the visual viewport as its own chrome slides in and out, and a bar pinned
-     to the bottom of the *page* follows that instead of the screen. 100dvh
-     tracks the live viewport height on every browser that supports it. */
-  height:100vh;
-  height:100dvh;
+  /* No height here on purpose. `inset:0` already pins all four edges to the
+     viewport, and adding `height:100dvh` overrode the bottom inset — on an
+     iPhone that unit stops short of the browser's own bottom bar, so the
+     shell ended a strip above the real bottom of the screen and the tab bar
+     sat in mid-air. Two instructions, and the shorter one won.
+
+     App-shell layout: the document never scrolls. The header and the tab bar
+     are panes at fixed size and only the middle scrolls. */
   overflow:hidden;
   display:flex;
   flex-direction:column;
@@ -396,6 +400,7 @@ button.small{padding:8px 11px;font-size:13px}
 .wc-row .mono{font-size:13px}
 .wc-row b{font-weight:600}
 .entry{border:1px solid var(--line);background:var(--deep);border-radius:10px;padding:13px;margin-bottom:9px}
+.wc-entry{border-left:3px solid var(--titrant)}
 .entry-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .entry-date{font-family:var(--f-mono);font-size:13px}
 .entry-vals{display:flex;flex-wrap:wrap;gap:10px;margin-top:9px;font-family:var(--f-mono);font-size:12px;color:#8fa6b3}
@@ -482,7 +487,7 @@ nav button.on{color:var(--titrant)}
 <div class="modal" id="icpModal">
   <div class="card">
     <div class="card-title">Triton ICP report</div>
-    <div class="sub">Copy each figure from your results page. Your report prints a setpoint beside every element — if it differs from the one shown here, overtype it and the app will follow your lab rather than its own defaults.</div>
+    <div class="sub"><b>Your report prints a setpoint beside every element. Use those.</b> The figures pre-filled here are examples only — natural seawater at 35 ppt for the trace elements, and the usual aquarium targets for calcium, magnesium and alkalinity, which reef keepers deliberately run above the sea. They are a starting point, not a recommendation, and they are not your lab's. Overtype any that differ and the app follows your report.</div>
     <div class="grid2" style="margin-top:12px">
       <div class="field">
         <label for="icpSampled">Date the sample was taken</label>
@@ -720,11 +725,12 @@ nav button.on{color:var(--titrant)}
     <!--PRO-ONLY:start-->
     <div class="card">
       <div class="card-title">Daily limits</div>
-      <div class="sub">Corrections larger than these get split across several days.</div>
+      <div class="sub">Corrections larger than these get split across several days. The water change ceiling decides the order of the plan: a change up to that size is done first and the doses worked out from the water afterwards, while anything larger means supplementing first to close the gap and a smaller change after.</div>
       <div class="grid3" style="margin-top:12px">
         <div class="field"><label>Alkalinity (dKH)</label><input type="number" id="capAlk" step="0.1" inputmode="decimal"></div>
         <div class="field"><label>Calcium (ppm)</label><input type="number" id="capCa" step="5" inputmode="decimal"></div>
         <div class="field"><label>Magnesium (ppm)</label><input type="number" id="capMg" step="10" inputmode="decimal"></div>
+        <div class="field"><label>Largest water change (%)</label><input type="number" id="capWc" step="5" min="5" max="80" inputmode="decimal"></div>
       </div>
     </div>
 
@@ -800,31 +806,31 @@ var COMMON_T = {
 function tt(extra){ var o = clone(COMMON_T); for(var k in extra) o[k] = extra[k]; return o; }
 var TANK_TYPES = {
   fowlr:{name:'FOWLR — fish only with live rock', short:'FOWLR',
-    caps:{alk:1.0, ca:25, mg:100},
+    caps:{alk:1.0, ca:25, mg:100, wc:30},
     targets:tt({temp:{low:24,target:25.5,high:27.5}, alk:{low:7,target:8.5,high:11},
       ca:{low:380,target:400,high:450}, mg:{low:1200,target:1280,high:1400},
       no3:{low:2,target:20,high:50}, po4:{low:0.02,target:0.1,high:0.5}}),
     blurb:'<p>Fish do not calcify the way corals do, so the bands here are wide. Alkalinity is kept mainly for pH stability, calcium and magnesium just need to sit in seawater range, and nitrate up to about 50 ppm is fine for most fish.</p><p>Watch ammonia, nitrite, salinity and temperature — those are what actually hurt fish.</p>'},
   soft:{name:'Soft coral', short:'Soft',
-    caps:{alk:0.5, ca:20, mg:75},
+    caps:{alk:0.5, ca:20, mg:75, wc:30},
     targets:tt({temp:{low:24.5,target:25,high:26}, alk:{low:7.5,target:8.5,high:10},
       ca:{low:400,target:420,high:450}, mg:{low:1250,target:1300,high:1400},
       no3:{low:10,target:15,high:40}, po4:{low:0.05,target:0.1,high:0.3}}),
     blurb:'<p>Soft corals have no stony skeleton, so alkalinity and calcium demand is modest and the bands are relaxed. They positively want nutrients — nitrate 10–40 ppm keeps leathers and zoas full and coloured — and they sulk above roughly 10 dKH.</p>'},
   lps:{name:'LPS dominant', short:'LPS',
-    caps:{alk:0.4, ca:20, mg:50},
+    caps:{alk:0.4, ca:20, mg:50, wc:30},
     targets:tt({temp:{low:24.5,target:25,high:26}, alk:{low:7.5,target:8.3,high:9},
       ca:{low:400,target:425,high:450}, mg:{low:1250,target:1300,high:1400},
       no3:{low:5,target:10,high:30}, po4:{low:0.05,target:0.08,high:0.2}}),
     blurb:'<p>Euphyllia, Trachyphyllia and Scolymia sit best around 7.5–8.5 dKH; Micromussa and Favia take 8.0–9.0. LPS respond to the <em>rate</em> of alkalinity change more than the number, so the daily limit stays tight.</p><p>Nutrients are deliberately not near zero — starved LPS pale and shut down.</p>'},
   mixed:{name:'Mixed reef — LPS & soft', short:'Mixed',
-    caps:{alk:0.4, ca:20, mg:50},
+    caps:{alk:0.4, ca:20, mg:50, wc:30},
     targets:tt({temp:{low:24.5,target:25,high:26}, alk:{low:7.5,target:8.5,high:9},
       ca:{low:400,target:425,high:450}, mg:{low:1250,target:1300,high:1400},
       no3:{low:5,target:10,high:30}, po4:{low:0.05,target:0.08,high:0.2}}),
     blurb:'<p>Tuned for LPS and soft corals together: alkalinity 7.5–9.0 dKH — narrower and lower than the broad 7–11 reef range — calcium 400–450 ppm around the natural 420, magnesium 1250–1400.</p><p>Nutrients stay measurable. Randy Holmes-Farley’s guidance for a mature mixed reef is to let nitrate float 5–50 ppm and phosphate 0.06–0.3, acting only outside that; LPS and softies pale and shut down when starved.</p>'},
   sps:{name:'SPS dominant', short:'SPS',
-    caps:{alk:0.25, ca:20, mg:50},
+    caps:{alk:0.25, ca:20, mg:50, wc:30},
     targets:tt({temp:{low:25,target:25.8,high:26.5}, alk:{low:7.8,target:8.2,high:8.5},
       ca:{low:420,target:440,high:450}, mg:{low:1300,target:1350,high:1400},
       no3:{low:2,target:5,high:10}, po4:{low:0.03,target:0.05,high:0.1}}),
@@ -1302,10 +1308,12 @@ var PRODUCTS = [
 ];
 /* ---------- ICP elements ----------
    Setpoints are Triton's own published reference values for natural sea water,
-   filled in only where they are sourced. Everything else is left blank on
-   purpose: a Triton report prints its setpoint beside every element, so the
-   keeper copies it in and the app never contradicts the lab. `unit` is what
-   the report uses. `kind` decides how a deviation is read — 'need' elements
+   filled in from natural seawater at 35 ppt where a lab figure could not be
+   sourced. Every one is a worked example rather than a recommendation: an ICP
+   report prints its own setpoint beside each element, the entry form asks for
+   it, and what the keeper types always wins. Calcium, magnesium and
+   alkalinity keep aquarium targets rather than seawater ones, because reef
+   keepers run those deliberately high. `unit` is what the report uses. `kind` decides how a deviation is read — 'need' elements
    are consumed and can be topped up, 'toxic' ones only ever want removing. */
 var ICP_ELEMENTS = [
   /* major ions, mg/l */
@@ -1321,17 +1329,17 @@ var ICP_ELEMENTS = [
   {k:'Li', n:'Lithium',     grp:'trace', u:'µg/l', sp:200,   kind:'need'},
   {k:'Mo', n:'Molybdenum',  grp:'trace', u:'µg/l', sp:12,    kind:'need'},
   {k:'Ni', n:'Nickel',      grp:'trace', u:'µg/l', sp:5,     kind:'need'},
-  {k:'I',  n:'Iodine',      grp:'trace', u:'µg/l', sp:null,  kind:'need'},
-  {k:'Fe', n:'Iron',        grp:'trace', u:'µg/l', sp:null,  kind:'need'},
-  {k:'Mn', n:'Manganese',   grp:'trace', u:'µg/l', sp:null,  kind:'need'},
-  {k:'Zn', n:'Zinc',        grp:'trace', u:'µg/l', sp:null,  kind:'need'},
-  {k:'Ba', n:'Barium',      grp:'trace', u:'µg/l', sp:null,  kind:'need'},
-  {k:'V',  n:'Vanadium',    grp:'trace', u:'µg/l', sp:null,  kind:'need'},
-  {k:'Cr', n:'Chromium',    grp:'trace', u:'µg/l', sp:null,  kind:'need'},
-  {k:'Co', n:'Cobalt',      grp:'trace', u:'µg/l', sp:null,  kind:'need'},
-  {k:'Si', n:'Silicon',     grp:'trace', u:'µg/l', sp:null,  kind:'need'},
-  {k:'P',  n:'Phosphorus',  grp:'trace', u:'µg/l', sp:null,  kind:'need'},
-  {k:'Be', n:'Beryllium',   grp:'trace', u:'µg/l', sp:null,  kind:'need'},
+  {k:'I',  n:'Iodine',      grp:'trace', u:'µg/l', sp:60,  kind:'need'},
+  {k:'Fe', n:'Iron',        grp:'trace', u:'µg/l', sp:2,  kind:'need'},
+  {k:'Mn', n:'Manganese',   grp:'trace', u:'µg/l', sp:0.4,  kind:'need'},
+  {k:'Zn', n:'Zinc',        grp:'trace', u:'µg/l', sp:5,  kind:'need'},
+  {k:'Ba', n:'Barium',      grp:'trace', u:'µg/l', sp:21,  kind:'need'},
+  {k:'V',  n:'Vanadium',    grp:'trace', u:'µg/l', sp:1.9,  kind:'need'},
+  {k:'Cr', n:'Chromium',    grp:'trace', u:'µg/l', sp:0.2,  kind:'need'},
+  {k:'Co', n:'Cobalt',      grp:'trace', u:'µg/l', sp:0.4,  kind:'need'},
+  {k:'Si', n:'Silicon',     grp:'trace', u:'µg/l', sp:2900,  kind:'need'},
+  {k:'P',  n:'Phosphorus',  grp:'trace', u:'µg/l', sp:60,  kind:'need'},
+  {k:'Be', n:'Beryllium',   grp:'trace', u:'µg/l', sp:0.006,  kind:'need'},
   /* contaminants, µg/l — every one of these reads low-is-better */
   {k:'Cu', n:'Copper',      grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic', note:'Copper is lethal to shrimp, snails and other inverts long before corals show it. Common sources are metal impellers, some medications and tap water.'},
   {k:'Al', n:'Aluminium',   grp:'toxic', u:'µg/l', sp:2,   kind:'toxic', note:'Usually traced to aluminium-based phosphate media.'},
@@ -1385,7 +1393,7 @@ var DEFAULTS = {
   salinityUnit:'sg',
   targets:JSON.parse(JSON.stringify(DEFAULT_TARGETS)),
   shelf:[{id:'rs-abcplus'}],
-  caps:{alk:0.4, ca:20, mg:50},
+  caps:{alk:0.4, ca:20, mg:50, wc:30},
   saltMix:{brand:'rs-salt', strengths:{}, elements:{}},
   reminders:{email:'', wc:7, test:7, dose:'1'},
   doser:{alk:'rs-b', ca:'rs-a', mg:'rs-c'},
@@ -1565,7 +1573,7 @@ function apply(data){
     state.settings.netLitres = num(s.netLitres) || DEFAULTS.netLitres;
     state.settings.volUnit = s.volUnit || 'L';
     state.settings.salinityUnit = s.salinityUnit || 'sg';
-    if(s.caps) state.settings.caps = {alk:num(s.caps.alk)||0.4, ca:num(s.caps.ca)||20, mg:num(s.caps.mg)||50};
+    if(s.caps) state.settings.caps = {alk:num(s.caps.alk)||0.4, ca:num(s.caps.ca)||20, mg:num(s.caps.mg)||50, wc:num(s.caps.wc)||30};
     if(s.targets){ for(var k in DEFAULT_TARGETS){ if(s.targets[k]) state.settings.targets[k] = s.targets[k]; } }
     if(Array.isArray(s.shelf)) state.settings.shelf = s.shelf;
     if(s.saltMix) state.settings.saltMix = {brand:s.saltMix.brand || 'rs-salt', strengths:s.saltMix.strengths || {}, elements:s.saltMix.elements || {}, mode:s.saltMix.mode === 'fix' ? 'fix' : 'change'};
@@ -1764,6 +1772,12 @@ function wcAfter(frac){
   });
   return out;
 }
+/* The largest single water change the keeper is willing to do. Above this the
+   plan flips: supplement first to close the gap, then a smaller change. */
+function wcCeiling(){
+  var v = (state.settings.caps || {}).wc;
+  return (v > 0 && v <= 90) ? v : 30;
+}
 /* Is this volume safe for the elements the keeper is not trying to change? */
 function wcBreaks(frac){
   var r = state.readings, after = wcAfter(frac), caps = state.settings.caps || {};
@@ -1799,8 +1813,8 @@ function recommendWaterChange(){
     if(r[k] !== null && r[k] !== undefined && r[k] > T(k).high) wants = true;
   });
   if(!wants) return null;
-  var best = null, blocked = null;
-  for(var pct = 5; pct <= 50; pct += 5){
+  var best = null, blocked = null, ceiling = wcCeiling();
+  for(var pct = 5; pct <= Math.min(60, ceiling); pct += 5){
     var frac = pct / 100, why = wcBreaks(frac);
     if(why.length){ if(!blocked) blocked = {pct:pct, why:why}; break; }
     var after = wcAfter(frac), enough = true;
@@ -1815,6 +1829,16 @@ function recommendWaterChange(){
   if(!best) return null;
   best.litres = L * best.frac;
   best.blocked = blocked;
+  best.ceiling = ceiling;
+  /* Would a change beyond the ceiling have finished the job? If so the plan
+     reverses: dose first to close the gap, then a smaller change. */
+  best.needsMore = false;
+  if(!blocked && best.pct >= ceiling){
+    var bigger = wcAfter(Math.min(0.9, (ceiling + 20) / 100));
+    best.needsMore = ['no3','po4'].some(function(k){
+      return best.after[k] !== undefined && best.after[k] > T(k).high;
+    });
+  }
   best.done = ['no3','po4'].every(function(k){
     return best.after[k] === undefined || best.after[k] <= T(k).high;
   });
@@ -1985,11 +2009,25 @@ function buildCorrections(){
     if(wc.blocked){
       body.push('Not more than this today: ' + wc.blocked.pct + '% was the next step up, and ' + wc.blocked.why[0] + '.');
     }
+    if(wc.needsMore){
+      body.push('This is capped at your ' + wc.ceiling + '% ceiling, and a change that size will not finish the job on its own. ' +
+        'That is the right way round: a change big enough to fix the nutrients would drag alkalinity, calcium and magnesium a long way with it, ' +
+        'and you would spend the rest of the week putting those back. Do this change, top up what is still short with the doses below, ' +
+        'then re-test before deciding whether another change is needed.');
+    }
     if(!wc.done){
       body.push('This will not finish the job in one go. Repeat weekly and re-test rather than doing one enormous change — a fast drop in nutrients stresses corals more than the nutrients did.');
     }
     push('First', 'Water change', Math.round(wc.pct) + '% — about ' + Math.round(wc.litres) + ' litres',
       body, wc.done ? '' : 'warn');
+    if(wc.needsMore){
+      push('Why', 'Why this order', 'Change first, then supplement',
+        ['A water change moves every parameter at once and in fixed proportion, so it is the blunt tool: it is used first, up to the ' +
+         wc.ceiling + '% you allow, because it fixes several things in one action and costs nothing but salt.',
+         'What it cannot finish is then closed with single-element doses, which move one thing at a time and can be aimed. ' +
+         'Doing it the other way round — dosing to target and then changing water — undoes half of what you just paid for.',
+         'You can change the ' + wc.ceiling + '% ceiling under Setup, in Daily limits.']);
+    }
   }
 
   if(lows.length){
@@ -2374,12 +2412,24 @@ function renderResults(quiet){
     html += '</div></div>';
   }
   html += shoppingCard(res.shopping || []);
-  html += '<div class="btn-row"><button class="primary" id="btnSave">Save to log</button></div>';
+  html += '<div class="card" style="border-left:3px solid var(--near)">'+
+    '<div class="card-title">These are predictions, not results</div>'+
+    '<div class="sub">Everything above is worked out from the readings you entered and the strengths of the products on your shelf. '+
+    'Real tanks do not land exactly where arithmetic says they will — test kits have error, products vary between batches, and the '+
+    'tank goes on consuming while you dose. Carry out the steps, give it time to mix, then <b>test again and log what you actually '+
+    'measure</b>. That measured figure is what the next calculation should be built on, never this one.</div></div>';
+  html += '<div class="btn-row"><button class="primary" id="btnSave">Save today\'s readings to log</button></div>';
   el.innerHTML = html;
   var sv = document.getElementById('btnSave');
   if(sv) sv.addEventListener('click', saveEntry);
   hydrateSpeciesImages(el);
-  if(quiet !== true) el.scrollIntoView({behavior:'smooth', block:'start'});
+  if(quiet !== true){
+    /* The plan is read top-down and the first step matters most, so put its
+       start at the top of the pane rather than wherever the button was. */
+    var pane = document.querySelector('main');
+    if(pane && el.offsetTop !== undefined) pane.scrollTo({top: Math.max(0, el.offsetTop - 8), behavior:'smooth'});
+    else el.scrollIntoView({behavior:'smooth', block:'start'});
+  }
 }
 /* Fill .lv-img placeholders with a photo of the species. Corals search
    Wikimedia Commons for an aquarium photograph first (wild reef-scape lead
@@ -2891,6 +2941,35 @@ function shoppingCard(items){
     '<div style="margin-top:6px">'+rows+'</div></div>';
 }
 
+/* A water change is an event, not a set of readings. Logging the predicted
+   figures as though they had been measured is how a log quietly fills with
+   numbers nobody ever tested — and it is the predictions, not the tank, that
+   the next dose would then be calculated from. So this records what was
+   actually done, and the keeper re-tests when the water has mixed. */
+function saveWaterChange(){
+  var sm = smSettings(), brand = saltById(sm.brand);
+  var net = state.settings.netLitres || 0;
+  var L = num($('#wcVol').value);
+  if(!L){ toast('Choose a volume first'); return; }
+  var mode = sm.mode === 'fix' ? 'fix' : 'change';
+  var mix = isPremixed() ? toInternal('salinity', num($('#wcMix').value)) : null;
+  state.log.unshift({
+    date: new Date().toISOString(),
+    type: 'wc',
+    wc: {
+      mode: mode,
+      brand: brand.id,
+      brandName: brand.name,
+      litres: L,
+      pct: net ? (L / net) * 100 : null,
+      mixSal: mix,
+      before: latestReading('salinity') ? latestReading('salinity').v : null
+    }
+  });
+  save();
+  renderLog(); renderHeader();
+  toast('Water change logged — re-test once it has mixed');
+}
 function saveEntry(){
   var vals = {}, any = false;
   PARAMS.forEach(function(p){
@@ -2940,9 +3019,9 @@ function renderLog(){
       ' · '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})+'</span>'+
       '<button class="small ghost" data-del="'+i+'">Delete</button></div><div class="entry-vals">';
     PARAMS.forEach(function(p){
-      if(e.values[p.key] === undefined) return;
+      if((e.values||{})[p.key] === undefined) return;
       var m = meta(p.key);
-      html += '<span><i>'+p.name.slice(0,4)+'</i> '+fmt(toDisp(p.key,e.values[p.key]),m.dp)+'</span>';
+      html += '<span><i>'+p.name.slice(0,4)+'</i> '+fmt(toDisp(p.key,(e.values||{})[p.key]),m.dp)+'</span>';
     });
     html += '</div></div>';
   });
@@ -2951,8 +3030,9 @@ function renderLog(){
     b.addEventListener('click', function(){
       var i = parseInt(b.getAttribute('data-del'), 10);
       var e = state.log[i];
-      var when = e ? new Date(e.date).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}) : 'this test';
-      if(!confirm('Delete the test from ' + when + '? This cannot be undone.')) return;
+      var when = e ? new Date(e.date).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}) : 'this entry';
+      var what = (e && e.type === 'wc') ? 'the water change' : 'the test';
+      if(!confirm('Delete ' + what + ' from ' + when + '? This cannot be undone.')) return;
       state.log.splice(i, 1);
       save(); renderLog(); renderHeader();
     });
@@ -2962,7 +3042,7 @@ function renderLog(){
 var chartKey = null;
 function chartCard(){
   var avail = PARAMS.filter(function(p){
-    return state.log.some(function(e){ return e.values[p.key] !== undefined; });
+    return state.log.some(function(e){ return (e.values||{})[p.key] !== undefined; });
   });
   if(!avail.length) return '';
   var keys = avail.map(function(p){ return p.key; });
@@ -2980,7 +3060,7 @@ function chartSVG(key){
   var entries = [];
   for(var i = state.log.length - 1; i >= 0; i--){
     var e = state.log[i];
-    if(e.values[key] !== undefined) entries.push({d:new Date(e.date), v:e.values[key]});
+    if((e.values||{})[key] !== undefined) entries.push({d:new Date(e.date), v:(e.values||{})[key]});
   }
   if(!entries.length) return '';
   var vals = entries.map(function(x){ return x.v; });
@@ -3013,7 +3093,7 @@ function uptakeStats(key){
   var es = [];
   for(var i = state.log.length - 1; i >= 0; i--){
     var e = state.log[i];
-    if(e.values[key] !== undefined) es.push({t:new Date(e.date).getTime(), v:e.values[key]});
+    if((e.values||{})[key] !== undefined) es.push({t:new Date(e.date).getTime(), v:(e.values||{})[key]});
   }
   var totDrop = 0, totDays = 0, used = 0, skipped = 0;
   for(var j = 1; j < es.length; j++){
@@ -3031,16 +3111,16 @@ function uptakeWhy(key){
   var n = 0, gaps = 0, rises = 0, prev = null;
   for(var i = state.log.length - 1; i >= 0; i--){
     var e = state.log[i];
-    if(e.values[key] === undefined) continue;
+    if((e.values||{})[key] === undefined) continue;
     n++;
     if(prev){
       var days = (new Date(e.date).getTime() - prev.t) / 86400000;
       if(days >= 0.5){
         gaps++;
-        if(e.values[key] >= prev.v) rises++;
+        if((e.values||{})[key] >= prev.v) rises++;
       }
     }
-    prev = {t:new Date(e.date).getTime(), v:e.values[key]};
+    prev = {t:new Date(e.date).getTime(), v:(e.values||{})[key]};
   }
   if(n < 2) return 'needs two logged tests a few days apart';
   if(gaps === 0) return 'tests too close together — leave at least half a day';
@@ -3389,6 +3469,7 @@ function renderSetup(){
     $('#capAlk').value = state.settings.caps.alk;
     $('#capCa').value = state.settings.caps.ca;
     $('#capMg').value = state.settings.caps.mg;
+    if($('#capWc')) $('#capWc').value = wcCeiling();
   }
 
   var prof = TANK_TYPES[state.settings.tankType || 'mixed'];
@@ -3888,16 +3969,13 @@ function calcWC(driver){
         : '';
     })()+
     '<div class="btn-row" style="margin-bottom:0">'+
-    '<button class="small" id="wcLog">Save to log</button>'+
+    '<button class="small" id="wcLog">Log this water change</button>'+
     '<button class="small primary" id="wcApply">Calculate adjustments</button></div></div>';
   function applyPreds(){
     preds.forEach(function(p){ state.readings[p.key] = round3(p.key, p.after); });
     renderRows();
   }
-  $('#wcLog').addEventListener('click', function(){
-    applyPreds();
-    saveEntry();
-  });
+  $('#wcLog').addEventListener('click', saveWaterChange);
   $('#wcApply').addEventListener('click', function(){
     applyPreds();
     renderResults();
@@ -3911,19 +3989,48 @@ function toast(msg){
   var t = $('#toast'); t.textContent = msg; t.classList.add('on');
   clearTimeout(toastTimer); toastTimer = setTimeout(function(){ t.classList.remove('on'); }, 1900);
 }
+/* One sheet covering every tank. A Tank column rather than separate files,
+   because that is what a spreadsheet is good at: sort it, filter it, or drop
+   a pivot on it. Water changes come through as their own rows so the record
+   reads as a history of the tank rather than a list of numbers. */
+function cell(v){
+  if(v === null || v === undefined) return '';
+  var t = String(v);
+  return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+}
 function csv(){
-  var head = ['date'].concat(PARAMS.map(function(p){ var m = meta(p.key); return m.name + (m.unit ? ' ('+m.unit+')' : ''); }));
+  var head = ['Tank','Date','Time','Entry','Salt / notes','Volume (L)','Change (%)']
+    .concat(PARAMS.map(function(p){ var m = meta(p.key); return m.name + (m.unit ? ' ('+m.unit+')' : ''); }));
   var rows = [head.join(',')];
-  state.log.slice().reverse().forEach(function(e){
-    var line = [new Date(e.date).toISOString()];
-    PARAMS.forEach(function(p){
-      if(e.values[p.key] === undefined){ line.push(''); return; }
-      var m = meta(p.key);
-      line.push(Number(toDisp(p.key, e.values[p.key]).toFixed(m.dp)));
+  syncActive();
+  var tanks = (vault && vault.tanks && vault.tanks.length) ? vault.tanks : [{settings:state.settings, log:state.log}];
+  tanks.forEach(function(tk){
+    var name = (tk.settings && tk.settings.tankName) || 'Tank';
+    (tk.log || []).slice().reverse().forEach(function(e){
+      var d = new Date(e.date);
+      var line = [cell(name),
+                  cell(d.toLocaleDateString('en-GB')),
+                  cell(d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'}))];
+      if(e.type === 'wc'){
+        var w = e.wc || {};
+        line.push(cell(w.mode === 'fix' ? 'Salinity fix' : 'Water change'));
+        line.push(cell(w.brandName || ''));
+        line.push(cell(w.litres !== undefined && w.litres !== null ? Number(w.litres.toFixed(1)) : ''));
+        line.push(cell(w.pct ? Math.round(w.pct) : ''));
+        PARAMS.forEach(function(){ line.push(''); });
+      } else {
+        line.push(cell('Test')); line.push(''); line.push(''); line.push('');
+        PARAMS.forEach(function(p){
+          var v = (e.values || {})[p.key];
+          if(v === undefined){ line.push(''); return; }
+          var m = meta(p.key);
+          line.push(cell(Number(toDisp(p.key, v).toFixed(m.dp))));
+        });
+      }
+      rows.push(line.join(','));
     });
-    rows.push(line.join(','));
   });
-  return rows.join('\n');
+  return rows.join('\r\n');
 }
 
 /* Move to a tab as though the keeper had tapped it, so the nav highlight and
@@ -4434,7 +4541,7 @@ $('#btnIcs').addEventListener('click', function(){
     toast('Calendar file saved — open it to add the reminders');
   }catch(e){ toast('This browser blocked the download'); }
 });
-['capAlk','capCa','capMg'].forEach(function(id){
+['capAlk','capCa','capMg','capWc'].forEach(function(id){
   if(!$('#'+id)) return;
   $('#'+id).addEventListener('change', function(){
     var k = id.replace('cap','').toLowerCase(), v = num(this.value);
@@ -4456,7 +4563,9 @@ $('#btnResetTargets').addEventListener('click', function(){
 });
 $('#btnExport').addEventListener('click', function(){
   if(!FEATURES.csv){ toast('Exporting the log is a Pro feature — Save backup file keeps everything'); return; }
-  if(!state.log.length){ toast('Log is empty'); return; }
+  syncActive();
+  var anyRows = (vault && vault.tanks || []).some(function(t){ return (t.log || []).length; });
+  if(!anyRows && !state.log.length){ toast('Log is empty'); return; }
   var text = csv();
   /* A .csv file rather than the clipboard: double-clicking it opens straight
      into Excel or Numbers, which is what people actually want this for. The
@@ -4466,11 +4575,15 @@ $('#btnExport').addEventListener('click', function(){
     var blob = new Blob(['\ufeff' + text], {type:'text/csv;charset=utf-8'});
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = (state.settings.tankName || 'reef') .replace(/[^a-z0-9]+/gi, '-').toLowerCase() +
-                 '-log-' + new Date().toISOString().slice(0,10) + '.csv';
+    var many = vault && vault.tanks && vault.tanks.length > 1;
+    a.download = (many ? 'reef-key-all-tanks' :
+                  (state.settings.tankName || 'reef').replace(/[^a-z0-9]+/gi, '-').toLowerCase() + '-log') +
+                 '-' + new Date().toISOString().slice(0,10) + '.csv';
     document.body.appendChild(a); a.click();
     setTimeout(function(){ URL.revokeObjectURL(a.href); document.body.removeChild(a); }, 500);
-    toast('Log exported — opens in Excel');
+    toast(vault && vault.tanks && vault.tanks.length > 1
+      ? 'Exported — every tank, one sheet, with a Tank column'
+      : 'Log exported — opens in Excel');
   }catch(e){
     if(navigator.clipboard && navigator.clipboard.writeText){
       navigator.clipboard.writeText(text).then(function(){ toast('Download blocked — copied to the clipboard instead'); }, function(){ fallbackCopy(text); });
