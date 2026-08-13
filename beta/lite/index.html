@@ -600,7 +600,7 @@ nav button.on{color:var(--titrant)}
         <button class="small" id="btnRestore">Load backup</button>
       </div>
       <div class="btn-row" style="margin-bottom:0">
-        <button class="small ghost" id="btnExport">Copy log as CSV</button>
+        <button class="small ghost" id="btnExport">Export log for Excel</button>
         <button class="small ghost" id="btnWipe">Erase log</button>
       </div>
       <input type="file" id="restoreFile" accept="application/json,.json" style="display:none">
@@ -971,12 +971,9 @@ function renderFeeding(){
       '<div class="btn-row" style="margin-top:0"><button class="primary" id="btnFeedSetup">Add your livestock</button></div>';
     var b = document.getElementById('btnFeedSetup');
     if(b) b.addEventListener('click', function(){
-      /* The stocking list is a paid feature, so say so here rather than
-         dropping a free user onto a settings screen to find that out. */
-      if(!FEATURES.livestock){
-        el.innerHTML = upsell('Your tank\'s feeding guide', 'Available in Reef Key Pro.');
-        return;
-      }
+      /* The stocking list is a paid feature. Same treatment as the ICP
+         button: a toast, not a panel, and no trip to a settings screen. */
+      if(!FEATURES.livestock){ toast('Feeding analysis is a Pro feature'); return; }
       $('#btnCog').click();
       setTimeout(function(){
         var sp = document.getElementById('coralSp');
@@ -2153,6 +2150,45 @@ function fillBrandFields(){
   $('#smElCa').value = el.ca;
   $('#smElMg').value = el.mg;
 }
+/* ---------- getting salinity back to target ----------
+   A single water change moves salinity only as far as the new water can pull
+   it, and the mix has a floor and a ceiling: below about SPG 1.020 the water
+   is too lean to be swapped into a reef safely, above 1.030 too rich. So a
+   large salinity error is a route, not one action, and the keeper deserves to
+   see the whole route rather than being told "0.001 this time" seven times
+   over without ever being told there are seven.
+
+   With a fixed change fraction f and a fixed mix salinity m, after k changes
+   the tank sits at  m + (cur - m)(1 - f)^k  — so k falls out of a logarithm,
+   and the single-change volume that lands on target falls out of solving for
+   f directly. Both are worth stating. */
+var MIX_MIN = 26.6, MIX_MAX = 39.8;      /* ppt, roughly SPG 1.020 and 1.030 */
+function salinityRoute(cur, tgt, f, net){
+  if(cur === null || tgt === null || !net || !f) return null;
+  var gap = tgt - cur;
+  if(Math.abs(gap) < 0.4) return null;               /* already there */
+  var lean = gap < 0 ? MIX_MIN : MIX_MAX;            /* hardest pull available */
+  var r = {down: gap < 0, cur:cur, tgt:tgt};
+
+  /* how far one change at this volume, mixed as hard as is safe, actually gets */
+  r.oneChangeTo = cur + f * (lean - cur);
+  r.reachable = (gap < 0) ? (r.oneChangeTo <= tgt) : (r.oneChangeTo >= tgt);
+
+  /* the volume that would land exactly on target in a single change */
+  var fNeeded = gap / (lean - cur);
+  r.onePct = fNeeded * 100;
+  r.oneLitres = fNeeded * net;
+  r.onePossible = fNeeded > 0 && fNeeded <= 1;
+
+  /* and how many changes of the chosen size it takes instead */
+  var ratio = (tgt - lean) / (cur - lean);
+  r.changes = (ratio > 0 && f < 1) ? Math.ceil(Math.log(ratio) / Math.log(1 - f)) : null;
+
+  /* topping up with RO is the other lever when salinity is high: it adds
+     volume rather than swapping it, and dilutes everything by the same share */
+  if(gap < 0) r.roLitres = net * (cur / tgt - 1);
+  return r;
+}
 function renderSaltCalc(){
   var sm = smSettings();
   var opts = '';
@@ -2361,7 +2397,43 @@ function calcWC(driver){
   });
   var walkNote = '';
   if(Math.abs(afterSal - tgtSal) > 0.15){
-    walkNote = '<p>Salinity lands at SPG '+spg(afterSal)+' this time — deliberately not all the way to '+spg(tgtSal)+', because one change should not swing the tank more than about 0.001 SPG. Repeat at your next water change and the app keeps walking it in until you hit target.</p>';
+    var rt = salinityRoute(cur, tgtSal, f, net);
+    walkNote = '<p><b>This water change will not fix your salinity.</b> It moves it from SPG '+spg(cur)+
+      ' to '+spg(afterSal)+' — one change is held to about 0.001 SPG, because that is as fast as a stocked '+
+      'tank should be moved. Fixing '+spg(cur)+' to '+spg(tgtSal)+' is a separate job, below.</p>';
+    if(rt){
+      var dir = rt.down ? 'down' : 'up';
+      walkNote += '<p><b>The whole route to '+spg(rt.tgt)+'.</b> ';
+      if(rt.onePossible){
+        walkNote += 'Doing it in a single change would mean swapping about <b>'+Math.round(rt.oneLitres)+
+          ' L</b> ('+Math.round(rt.onePct)+'% of the system) against water mixed to SPG '+spg(rt.down ? MIX_MIN : MIX_MAX)+
+          ' — the leanest '+(rt.down ? '' : 'richest ')+'mix worth swapping into a reef. ';
+        if(rt.onePct > 25){
+          walkNote += 'That is far too much water at once for a stocked tank: everything else in the system moves with it, and a swing that size does more harm than the salinity was doing. ';
+        }
+      } else {
+        walkNote += 'It cannot be done in one change at all — even swapping the entire volume against water at SPG '+
+          spg(rt.down ? MIX_MIN : MIX_MAX)+' would not reach '+spg(rt.tgt)+'. ';
+      }
+      if(rt.changes){
+        walkNote += 'At '+L+' L a time it takes about <b>'+rt.changes+' change'+(rt.changes === 1 ? '' : 's')+
+          '</b>. Two or three a week apart is the usual pace; there is no prize for arriving early.</p>';
+      } else {
+        walkNote += '</p>';
+      }
+      /* Point at the salinity fix rather than inventing a second method
+         here — one job, one set of numbers, worked out in one place. */
+      var stages = Math.max(1, Math.ceil(Math.abs(rt.cur - rt.tgt) / 1.33));
+      walkNote += '<p><b>Do the salinity fix first, then this water change.</b> Switch this card to '+
+        '<em>Salinity fix only</em> and the app works out the exact correction — '+
+        (rt.down
+          ? 'tank water swapped for plain RO/DI, which brings salinity down without adding volume'
+          : 'salt dissolved in tank water, which brings it up without touching anything else') +
+        '. It is '+(stages > 1 ? 'staged over about '+stages+' days at roughly 0.001 SPG a day' : 'small enough to do in one go')+
+        ', and it leaves the rest of the chemistry where it is rather than dragging every parameter along with it.</p>'+
+        '<p>Once salinity is on target, come back and do the water change as normal — with the tank already at '+
+        spg(rt.tgt)+', the new water can be mixed to target too and the change stops fighting itself.</p>';
+    }
   }
   out.innerHTML = '<div class="fix ok"><div class="step">Water change</div><h3>'+esc(saltById(sm.brand).name)+'</h3>'+
     '<div class="dose">'+amt(grams,'g')+' into '+L+' L of RO/DI</div>'+
@@ -2897,12 +2969,27 @@ $('#btnResetTargets').addEventListener('click', function(){
   save(); refreshAll(); toast(prof.name + ' targets restored' + ((state.settings.corals || []).length ? ', refined to your stocking' : ''));
 });
 $('#btnExport').addEventListener('click', function(){
-  if(!FEATURES.csv){ toast('Copy log as CSV is a Pro feature — Save backup file keeps everything'); return; }
+  if(!FEATURES.csv){ toast('Exporting the log is a Pro feature — Save backup file keeps everything'); return; }
   if(!state.log.length){ toast('Log is empty'); return; }
   var text = csv();
-  if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(text).then(function(){ toast('CSV copied'); }, function(){ fallbackCopy(text); });
-  } else fallbackCopy(text);
+  /* A .csv file rather than the clipboard: double-clicking it opens straight
+     into Excel or Numbers, which is what people actually want this for. The
+     BOM is there so Excel reads the degree signs and micro symbols properly
+     instead of mangling them. */
+  try{
+    var blob = new Blob(['\ufeff' + text], {type:'text/csv;charset=utf-8'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (state.settings.tankName || 'reef') .replace(/[^a-z0-9]+/gi, '-').toLowerCase() +
+                 '-log-' + new Date().toISOString().slice(0,10) + '.csv';
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); document.body.removeChild(a); }, 500);
+    toast('Log exported — opens in Excel');
+  }catch(e){
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){ toast('Download blocked — copied to the clipboard instead'); }, function(){ fallbackCopy(text); });
+    } else fallbackCopy(text);
+  }
 });
 function fallbackCopy(text){
   var ta = document.createElement('textarea');
