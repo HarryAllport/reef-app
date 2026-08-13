@@ -83,6 +83,46 @@ header{
 /* settings modal */
 .modal{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:50;display:none;align-items:flex-start;justify-content:center;padding:70px 18px 18px;overflow-y:auto}
 .modal.on{display:flex}
+/* ---------- launch screen ----------
+   Roughly 1.6 seconds: the water settles, the key falls into it, the name
+   surfaces, then the whole thing lifts away. It runs on CSS alone so it starts
+   painting before any script has run — which is the point of a splash, since
+   the first thing a cold start actually needs to hide is the blank frame. */
+#splash{position:fixed;inset:0;z-index:900;background:var(--ink);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
+  animation:sp-lift .5s cubic-bezier(.4,0,.2,1) 1.55s forwards}
+#splash svg{width:132px;height:132px;overflow:visible}
+.sp-key{transform-origin:100px 92px;
+  animation:sp-drop .78s cubic-bezier(.34,1.4,.5,1) .12s both}
+.sp-splash-ring{transform-origin:100px 150px;opacity:0;
+  animation:sp-ring .7s ease-out .85s both}
+.sp-wave{stroke-dasharray:260;stroke-dashoffset:260;
+  animation:sp-draw .85s ease-out both, sp-drift 4s ease-in-out 1s infinite alternate}
+.sp-wave.b{animation-delay:.18s, 1.2s}
+.sp-word{font-family:var(--f-display);font-weight:800;font-size:13px;letter-spacing:.42em;
+  text-indent:.42em;color:var(--foam);opacity:0;
+  animation:sp-word .6s ease-out .95s both}
+.sp-word span{color:var(--titrant)}
+@keyframes sp-drop{
+  0%  {transform:translateY(-130px) scale(.9);opacity:0}
+  60% {opacity:1}
+  100%{transform:translateY(0) scale(1);opacity:1}}
+@keyframes sp-ring{
+  0%  {transform:scale(.2);opacity:.85}
+  100%{transform:scale(1.9);opacity:0}}
+@keyframes sp-draw{to{stroke-dashoffset:0}}
+@keyframes sp-drift{
+  0%  {transform:translateX(-3px)}
+  100%{transform:translateX(3px)}}
+@keyframes sp-word{
+  0%  {opacity:0;letter-spacing:.9em}
+  100%{opacity:1;letter-spacing:.42em}}
+@keyframes sp-lift{to{opacity:0;transform:scale(1.04);visibility:hidden}}
+/* Someone who has asked for less movement gets the mark, not the performance. */
+@media (prefers-reduced-motion:reduce){
+  #splash{animation:sp-lift .3s linear .5s forwards}
+  .sp-key,.sp-splash-ring,.sp-wave,.sp-word{animation:none;opacity:1;stroke-dashoffset:0}
+}
 /* tank switcher: pills sit under the masthead, only when there is more than one */
 .tankbar{display:flex;gap:6px;overflow-x:auto;padding:10px 0 0;scrollbar-width:none}
 .tankbar::-webkit-scrollbar{display:none}
@@ -343,6 +383,24 @@ nav button.on{color:var(--titrant)}
 </style>
 </head>
 <body>
+<div id="splash" role="presentation" aria-hidden="true">
+  <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <!-- the ripple the key makes as it lands -->
+    <circle class="sp-splash-ring" cx="100" cy="150" r="18" fill="none"
+            stroke="var(--titrant)" stroke-width="2.5"/>
+    <g class="sp-key" fill="none" stroke="var(--titrant)" stroke-width="9" stroke-linecap="round">
+      <circle cx="100" cy="62" r="30"/>
+      <path d="M100 92V150"/>
+      <path d="M100 116h20M100 133h15"/>
+    </g>
+    <!-- water, drawn in from the left as the key settles -->
+    <path class="sp-wave" d="M4 152c24 0 24-13 48-13s24 13 48 13 24-13 48-13 24 13 48 13"
+          fill="none" stroke="var(--titrant)" stroke-width="5" stroke-linecap="round" opacity=".85"/>
+    <path class="sp-wave b" d="M4 172c24 0 24-11 48-11s24 11 48 11 24-11 48-11 24 11 48 11"
+          fill="none" stroke="var(--titrant)" stroke-width="4" stroke-linecap="round" opacity=".4"/>
+  </svg>
+  <div class="sp-word">REEF <span>KEY</span></div>
+</div>
 
 <header>
   <div class="wrap head-row">
@@ -536,7 +594,7 @@ nav button.on{color:var(--titrant)}
         <div class="field"><label>Calcium (ppm)</label><input type="number" id="smElCa" step="5" inputmode="decimal"></div>
         <div class="field"><label>Magnesium (ppm)</label><input type="number" id="smElMg" step="10" inputmode="decimal"></div>
       </div>
-      <div class="hint" style="margin-top:-6px;margin-bottom:14px">The brand's published levels for freshly mixed water at SPG 1.026. Edit them if your own test of new salt water disagrees — remembered per brand.</div>
+      <div class="hint" style="margin-top:-6px;margin-bottom:14px" id="smElHint">The brand's published levels for freshly mixed water at SPG 1.026. Edit them if your own test of new salt water disagrees — remembered per brand.</div>
 
       <div class="mode-tabs">
         <button class="mode-tab" data-mode="change">Water change</button>
@@ -546,7 +604,12 @@ nav button.on{color:var(--titrant)}
       <div class="grid3" style="margin-top:10px">
         <div class="field"><label for="wcTgt">Target SPG</label><input type="number" id="wcTgt" inputmode="decimal" step="0.001"></div>
         <div class="field"><label for="wcCur">Current tank SPG</label><input type="number" id="wcCur" inputmode="decimal" step="0.001"></div>
-        <div class="field" id="wcVolField"><label for="wcVol">RO/DI volume (litres)</label><select id="wcVol"><option value="">Choose…</option></select></div>
+        <div class="field" id="wcVolField"><label for="wcVol" id="wcVolLabel">RO/DI volume (litres)</label><select id="wcVol"><option value="">Choose…</option></select></div>
+      </div>
+      <div class="field" id="wcMixField" style="display:none;margin-top:-4px;margin-bottom:10px">
+        <label for="wcMix">Salinity of the new water (SPG)</label>
+        <input type="number" id="wcMix" inputmode="decimal" step="0.001">
+        <div class="hint">Test the container with your refractometer before you use it. Shop-mixed water is often not where the label says.</div>
       </div>
       <div class="hint" style="margin-top:-4px;margin-bottom:10px" id="wcPct"></div>
       <div id="wcOut"></div>
@@ -1118,7 +1181,13 @@ var SALTS = [
   {id:'tm-classic',  name:'Tropic Marin Classic',  gl:37.5, elements:{alk:9.5,  ca:420, mg:1350}},
   {id:'io',          name:'Instant Ocean',         gl:36.8, elements:{alk:11.0, ca:400, mg:1350}},
   {id:'af',          name:'Aquaforest Reef Salt',  gl:38,   elements:{alk:8.1,  ca:430, mg:1380}},
-  {id:'other',       name:'Another brand',         gl:37,   elements:{alk:8.5,  ca:420, mg:1300}}
+  {id:'other',       name:'Another brand',         gl:37,   elements:{alk:8.5,  ca:420, mg:1300}},
+  /* Not a salt at all: water bought ready mixed from a shop. There is nothing
+     to weigh out, and its salinity is whatever the refractometer says rather
+     than something the app can work out — so the strength field goes away and
+     the measured figure is asked for instead. */
+  {id:'premixed',    name:'Ready-made saltwater (shop bought)', premixed:true, gl:37,
+   elements:{alk:8.0, ca:420, mg:1300}}
 ];
 
 var DEFAULTS = {
@@ -2189,6 +2258,26 @@ function salinityRoute(cur, tgt, f, net){
   if(gap < 0) r.roLitres = net * (cur / tgt - 1);
   return r;
 }
+function isPremixed(){ return !!saltById(smSettings().brand).premixed; }
+/* Show or hide the parts of the card that only make sense when you are mixing
+   the water yourself. */
+function applyPremixedUI(){
+  var pre = isPremixed();
+  /* The strength input sits inside an .input-cluster wrapper; guard for it
+     being missing so the app still boots where the markup differs. */
+  var strength = $('#smStrength');
+  var wrap = strength && strength.parentNode;
+  if(wrap && wrap.style) wrap.style.display = pre ? 'none' : '';
+  var mix = $('#wcMixField');
+  if(mix) mix.style.display = pre ? '' : 'none';
+  var lab = $('#wcVolLabel');
+  if(lab) lab.textContent = pre ? 'Volume of new water (litres)' : 'RO/DI volume (litres)';
+  var hint = $('#smElHint');
+  if(hint) hint.textContent = pre
+    ? 'Test a sample of the water you bought and enter what you find. Shop-mixed water varies a lot between suppliers, and these three decide what the change does to your tank.'
+    : "The brand's published levels for freshly mixed water at SPG 1.026. Edit them if your own test of new salt water disagrees — remembered per brand.";
+  return pre;
+}
 function renderSaltCalc(){
   var sm = smSettings();
   var opts = '';
@@ -2202,6 +2291,8 @@ function renderSaltCalc(){
   $('#wcTgt').value = Number(toDisp('salinity', T('salinity').target).toFixed(3));
   var curR = latestReading('salinity');
   $('#wcCur').value = Number(toDisp('salinity', curR ? curR.v : T('salinity').target).toFixed(3));
+  if(!$('#wcMix').value) $('#wcMix').value = Number(toDisp('salinity', T('salinity').target).toFixed(3));
+  applyPremixedUI();
   setMode(sm.mode || 'change');
 }
 /* One card, one decision: a water change (salinity correction folded into the
@@ -2222,13 +2313,23 @@ function setMode(m){
 }
 /* Rows for a plain-RO dilution: every element falls by the same factor as
    the salt. Shows now → after when a reading exists, else the percentage. */
-function dilutionRows(factor){
+/* Rows for a correction that thins (or enriches) everything by one factor.
+   Same treatment as the water change table: the resulting figure is coloured
+   by where it lands against target, because "1300 → 1083" means nothing until
+   you know 1083 is below the floor. */
+function dilutionRows(factor, lift){
   var rows = '';
   [['alk','Alkalinity'],['ca','Calcium'],['mg','Magnesium'],['no3','Nitrate'],['po4','Phosphate']].forEach(function(p){
     var c = latestReading(p[0]);
     var m = meta(p[0]);
-    var txt = '−' + Math.round((1 - factor) * 100) + '%';
-    if(c) txt = fmt(c.v, m.dp) + ' → ' + fmt(c.v * factor, m.dp) + ' ' + m.unit;
+    var txt;
+    if(c){
+      var after = c.v * factor + ((lift && lift[p[0]]) || 0);
+      var vt = verdictText(p[0], after);
+      txt = fmt(c.v, m.dp) + ' → <b class="'+vt[1]+'">' + fmt(after, m.dp) + '</b> ' + m.unit;
+    } else {
+      txt = '−' + Math.round((1 - factor) * 100) + '%';
+    }
     rows += '<div class="wc-row"><span>'+p[1]+'</span><span class="mono">'+txt+'</span></div>';
   });
   return rows;
@@ -2282,12 +2383,21 @@ function calcFix(){
      water spread across the tank — the elements rise by that share. */
   var eqL = grams / gl;
   var rows = '';
-  [['alk','Alkalinity'],['ca','Calcium'],['mg','Magnesium']].forEach(function(p){
-    var d = el[p[0]] * eqL / net;
+  /* Nitrate and phosphate come along too: adding salt without adding water
+     concentrates nothing, but the tank volume is unchanged so they hold — 
+     worth showing so the table covers the same five parameters either way. */
+  [['alk','Alkalinity'],['ca','Calcium'],['mg','Magnesium'],['no3','Nitrate'],['po4','Phosphate']].forEach(function(p){
+    var d = (el[p[0]] || 0) * eqL / net;
     var c = latestReading(p[0]);
-    var dp = p[0] === 'alk' ? 2 : 0;
-    var txt = '+' + fmt(d, p[0] === 'alk' ? 2 : 1) + ' ' + UNITS[p[0]];
-    if(c) txt = fmt(c.v, dp) + ' → ' + fmt(c.v + d, dp) + ' ' + UNITS[p[0]];
+    var m = meta(p[0]);
+    var txt;
+    if(c){
+      var after = c.v + d;
+      var vt = verdictText(p[0], after);
+      txt = fmt(c.v, m.dp) + ' → <b class="'+vt[1]+'">' + fmt(after, m.dp) + '</b> ' + m.unit;
+    } else {
+      txt = d ? '+' + fmt(d, p[0] === 'alk' ? 2 : 1) + ' ' + m.unit : 'unchanged';
+    }
     rows += '<div class="wc-row"><span>'+p[1]+'</span><span class="mono">'+txt+'</span></div>';
   });
   out.innerHTML = '<div class="fix"><div class="step">Salinity is low</div><h3>'+esc(saltById(sm.brand).name)+'</h3>'+
@@ -2297,7 +2407,7 @@ function calcFix(){
     '<p>Tank water, not fresh RO/DI. The salt figure above assumes the volume does not change; a jug of RO would add '+brineIn.toFixed(1)+volSuffix()+' to the system and dilute against you, so you would need more salt to land in the same place. Borrowing the water from the tank and giving it back leaves the volume exactly as it was.</p>'+
     '<p>Stir until the water runs completely clear before it goes anywhere near the tank. If it stays cloudy, add more water and keep stirring — cloudiness is carbonate coming out of solution, and anything that settles in the bucket is alkalinity and calcium the tank never receives.</p>'+
     '<p>Never add dry salt to a stocked tank, and give each stage an hour of circulation before you re-test.</p>'+
-    '<p>Because reef salt is not just sodium chloride, it also lifts the major elements by roughly its published amounts:</p>'+
+    '<p>Because reef salt is not just sodium chloride, it also lifts the major elements by roughly its published amounts. Nitrate and phosphate are unchanged — nothing is being diluted, only salt added:</p>'+
     '<div class="wc-rows">'+rows+'</div>'+
     '<p>Re-test alkalinity, calcium and magnesium once salinity settles, before any supplement dosing.</p></div>';
 }
@@ -2358,9 +2468,15 @@ function calcWC(driver){
     return;
   }
   var f = Math.min(0.9, L / net);
-  var mixSal = mixFor(f);
+  var pre = isPremixed();
+  /* Bought-in water is whatever it is — the app cannot tune it, so it takes
+     the measured figure and works forward from there. */
+  var mixSal = pre ? toInternal('salinity', num($('#wcMix').value)) : mixFor(f);
+  if(pre && (mixSal === null || mixSal <= 0)) mixSal = tgtSal;
   var afterSal = cur + f * (mixSal - cur);
-  $('#wcPct').textContent = 'That is ' + Math.round(f*100) + '% of your ' + net.toFixed(0) + ' L system. Mix the new water to SPG ' + spg(mixSal) + '.';
+  $('#wcPct').textContent = pre
+    ? 'That is ' + Math.round(f*100) + '% of your ' + net.toFixed(0) + ' L system, at the SPG ' + spg(mixSal) + ' you measured.'
+    : 'That is ' + Math.round(f*100) + '% of your ' + net.toFixed(0) + ' L system. Mix the new water to SPG ' + spg(mixSal) + '.';
   var grams = L * gl * mixSal / 35;
   var preds = wcPrediction(f, cur, mixSal);
   if(!preds.length){
@@ -2436,11 +2552,16 @@ function calcWC(driver){
     }
   }
   out.innerHTML = '<div class="fix ok"><div class="step">Water change</div><h3>'+esc(saltById(sm.brand).name)+'</h3>'+
-    '<div class="dose">'+amt(grams,'g')+' into '+L+' L of RO/DI</div>'+
-    '<p>That weight brings the new water to exactly SPG '+spg(mixSal)+(Math.abs(mixSal - tgtSal) > 0.15 ? ' — tuned off-target on purpose, to pull the tank back to '+spg(tgtSal) : '')+'. Mix until fully clear, heat, aerate and match the tank’s temperature, then swap it for the same volume of tank water. Predicted readings afterwards:</p>'+
+    (pre
+      ? '<div class="dose">'+L+' L at SPG '+spg(mixSal)+'</div>'+
+        '<p>Nothing to weigh out — the water is already mixed. Bring it up to the tank’s temperature and aerate it for an hour before it goes in; shop-bought water is often cold and flat, and both of those matter more than people expect. Then swap it for the same volume of tank water. Predicted readings afterwards:</p>'
+      : '<div class="dose">'+amt(grams,'g')+' into '+L+' L of RO/DI</div>'+
+        '<p>That weight brings the new water to exactly SPG '+spg(mixSal)+(Math.abs(mixSal - tgtSal) > 0.15 ? ' — tuned off-target on purpose, to pull the tank back to '+spg(tgtSal) : '')+'. Mix until fully clear, heat, aerate and match the tank’s temperature, then swap it for the same volume of tank water. Predicted readings afterwards:</p>')+
     '<div class="wc-rows">'+rows+'</div>'+
     walkNote+
-    '<p>New salt water carries no nitrate or phosphate, so those waste products dilute down. The rest are pulled toward the salt’s published levels'+(usesLog ? '. Starting figures marked from your latest log — re-test before dosing if they are old.' : '.')+
+    '<p>New salt water carries no nitrate or phosphate, so those waste products dilute down. The rest are pulled toward '+
+    (pre ? 'the alkalinity, calcium and magnesium figures set above — test a sample of the water you bought and enter what you find, because those three vary a great deal between shops'
+         : 'the salt’s published levels')+(usesLog ? '. Starting figures marked from your latest log — re-test before dosing if they are old.' : '.')+
     (anyAssumed ? ' Rows marked ≈ assume the tank is sitting at its target — enter or log a reading for the true figure.' : '')+'</p>'+
     (function(){
       var co = costSettings(), bits = [], tot = 0;
@@ -2542,8 +2663,9 @@ $('#setVolUnit').addEventListener('change', function(){
 $('#smBrand').addEventListener('change', function(){
   var sm = smSettings();
   sm.brand = this.value;
-  save(); fillBrandFields(); calcWC();
+  save(); fillBrandFields(); applyPremixedUI(); calcWC();
 });
+if($('#wcMix')) $('#wcMix').addEventListener('input', function(){ calcWC(); });
 $('#smStrength').addEventListener('change', function(){
   var v = num(this.value), sm = smSettings();
   if(v && v > 0){ sm.strengths[sm.brand] = v; save(); }
@@ -3035,6 +3157,15 @@ $('#btnWipe').addEventListener('click', function(){
     state.log = []; save(); renderLog(); renderHeader(); toast('Log erased');
   }
 });
+
+/* Take the splash out of the document once it has lifted, so it can never
+   swallow a tap on a slow device. */
+(function(){
+  var sp = document.getElementById('splash');
+  if(!sp) return;
+  setTimeout(function(){ sp.style.pointerEvents = 'none'; }, 1500);
+  setTimeout(function(){ if(sp.parentNode) sp.parentNode.removeChild(sp); }, 2400);
+})();
 
 load(function(){
   applyTier();
