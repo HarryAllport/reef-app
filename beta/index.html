@@ -53,6 +53,9 @@
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
+/* The page behind the shell, so nothing shows through at the edges on a
+   device with rounded corners or a home indicator. */
+html{height:100%;background:var(--ink);overscroll-behavior:none}
 body{
   background:var(--ink);
   color:var(--foam);
@@ -60,6 +63,14 @@ body{
   font-size:16px;
   line-height:1.5;
   -webkit-font-smoothing:antialiased;
+  /* Pinned to the screen rather than sized against it. `position:fixed` with
+     all four insets is the one approach iOS honours in every case — browser
+     chrome sliding, the keyboard opening, rubber-band overscroll — because the
+     element leaves the document flow entirely and cannot be pushed by any of
+     them. A height alone is not enough: a viewport unit still describes a box
+     that the page is free to scroll within. */
+  position:fixed;
+  inset:0;
   /* App-shell layout. The document itself does not scroll — the header and
      the tab bar are fixed panes and only the middle scrolls. Letting the page
      scroll is what makes a `position:fixed` bar drift on iOS: Safari resizes
@@ -113,7 +124,7 @@ header{
    the first thing a cold start actually needs to hide is the blank frame. */
 #splash{position:fixed;inset:0;z-index:900;background:var(--ink);
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
-  animation:sp-lift .6s cubic-bezier(.4,0,.2,1) 2.35s forwards}
+  animation:sp-lift .65s cubic-bezier(.4,0,.2,1) 3.35s forwards}
 #splash svg{width:132px;height:132px;overflow:visible}
 .sp-key{transform-origin:100px 92px;
   animation:sp-drop 1.05s cubic-bezier(.34,1.4,.5,1) .22s both}
@@ -143,7 +154,7 @@ header{
 @keyframes sp-lift{to{opacity:0;transform:scale(1.04);visibility:hidden}}
 /* Someone who has asked for less movement gets the mark, not the performance. */
 @media (prefers-reduced-motion:reduce){
-  #splash{animation:sp-lift .35s linear .7s forwards}
+  #splash{animation:sp-lift .35s linear 1.1s forwards}
   .sp-key,.sp-splash-ring,.sp-wave,.sp-word{animation:none;opacity:1;stroke-dashoffset:0}
 }
 /* tank switcher: pills sit under the masthead, only when there is more than one */
@@ -4504,8 +4515,8 @@ $('#btnWipe').addEventListener('click', function(){
 (function(){
   var sp = document.getElementById('splash');
   if(!sp) return;
-  setTimeout(function(){ sp.style.pointerEvents = 'none'; }, 2300);
-  setTimeout(function(){ if(sp.parentNode) sp.parentNode.removeChild(sp); }, 3200);
+  setTimeout(function(){ sp.style.pointerEvents = 'none'; }, 3300);
+  setTimeout(function(){ if(sp.parentNode) sp.parentNode.removeChild(sp); }, 4200);
 })();
 
 load(function(){
