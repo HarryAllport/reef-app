@@ -213,6 +213,10 @@ header{
 .icp-after{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
 .icp-after td{padding:5px 0;border-top:1px solid var(--line);font-family:var(--f-mono)}
 .icp-after td:last-child{text-align:right}
+.icp-head{border:1px solid var(--line);border-radius:var(--radius);background:var(--deep);padding:14px 16px;margin-top:10px}
+.icp-head-nums{display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;font-size:12px;color:var(--muted)}
+.icp-head-nums b{font-family:var(--f-mono);font-size:16px;margin-right:4px}
+.icp-spread{width:100%;height:auto;display:block;margin-top:4px}
 .icp-ch{border:1px solid var(--line);border-radius:var(--radius);background:var(--deep);padding:12px 14px;margin-top:10px}
 .icp-ch .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
 .icp-ch select{flex:1;min-width:150px}
@@ -705,8 +709,10 @@ nav button.on{color:var(--titrant)}
       <div class="btn-row">
         <button class="primary" id="btnIcpOpen2">Enter a report</button>
       </div>
-      <div id="icpPlan"></div>
+      <div id="icpHead"></div>
       <div id="icpChart"></div>
+      <div id="icpPlan"></div>
+      <div id="icpSpread"></div>
       <div id="icpTrend"></div>
       <div id="icpHistory" class="icp-hist"></div>
     </div>
@@ -2852,14 +2858,34 @@ function icpLine(i, showChange){
   if(e.note || e.src) h += '<p>' + esc(e.note || e.src) + '</p>';
   return h + '</div>';
 }
+/* The report's own headline, above the graph — what was measured, when, and
+   how much of it needs attention, before any of the detail. */
+function renderIcpHead(){
+  var el = document.getElementById('icpHead');
+  if(!el) return;
+  var rep = icpLast();
+  if(!rep){ el.innerHTML = ''; return; }
+  var a = assessIcp(rep);
+  var bad = a.findings.filter(function(f){ return f.cls === 'metal'; }).length;
+  var n = Object.keys(rep.values).length;
+  el.innerHTML = '<div class="icp-head"><div class="card-title">' + esc(fmtDay(icpDate(rep))) + '</div>' +
+    '<div class="sub">' + n + ' element' + (n === 1 ? '' : 's') + ' measured' +
+    (rep.t && rep.t !== icpDate(rep) ? ', reported ' + esc(fmtDay(rep.t)) : '') +
+    (rep.lab ? ' · ' + esc(rep.lab) : '') + '</div>' +
+    '<div class="icp-head-nums">' +
+      '<span><b class="v-good">' + a.ok.length + '</b> at setpoint</span>' +
+      '<span><b class="' + (a.findings.length ? 'v-near' : 'v-good') + '">' + a.findings.length + '</b> to act on</span>' +
+      (bad ? '<span><b class="v-bad">' + bad + '</b> contaminant' + (bad === 1 ? '' : 's') + '</span>' : '') +
+    '</div></div>';
+}
 function renderIcpPlan(){
   var el = document.getElementById('icpPlan');
   if(!el) return;
   var rep = icpLast();
   if(!rep){ el.innerHTML = ''; return; }
-  var pl = icpPlan(rep), L = state.settings.netLitres || 0;
+  var pl = icpPlan(rep), L = state.settings.netLitres || 0, wants = [];
   var h = '<div class="icp-plan"><div class="card-title">What to do about this report</div>' +
-    '<div class="sub">Sampled ' + esc(fmtDay(icpDate(rep))) + '. Everything below assumes freshly mixed salt water sits at each ' +
+    '<div class="sub">Everything below assumes freshly mixed salt water sits at each ' +
     'element\'s setpoint — that is what the maker is aiming for, and close enough to plan from. If you have ever had your own ' +
     'salt analysed, enter those figures as the setpoints and this gets sharper.</div>';
 
@@ -2918,9 +2944,22 @@ function renderIcpPlan(){
         line += 'You have ' + esc(ub.brand + ' ' + ub.name) + ' ticked for this, but no strength set against it. ' +
                 'Put the figure from the label in under Setup and the app will work the dose out.';
       } else {
-        line += 'Any single-element ' + esc(i.e.n.toLowerCase()) + ' supplement will do it; there is no brand that matters here — ' +
-                'tick whichever you buy under Setup. Dose a quarter of the shortfall, wait a week, and re-test before adding more, ' +
+        /* Same logic the Test screen uses: follow the brands already on the
+           shelf, and name none at all when there is nothing to follow. A
+           keeper with six tanks and a cupboard of one maker's bottles should
+           be pointed at the seventh bottle of that maker, not sent shopping. */
+        var sg = suggestFor(i.e.k);
+        if(sg && sg.matched){
+          line += 'You already keep ' + esc(sg.product.brand) + ' on the shelf, so ' +
+                  esc(sg.product.brand + ' ' + sg.product.name) + ' would keep it to one supplier. ' +
+                  'Any brand works equally well — tick whichever you buy under Setup and the app will size the dose. ';
+        } else {
+          line += 'Any single-element ' + esc(i.e.n.toLowerCase()) + ' supplement will do it; there is no brand that matters here' +
+                  (sg && sg.examples && sg.examples.length ? ' — ' + esc(sg.examples.join(', ')) + ' all make one' : '') + '. ';
+        }
+        line += 'Dose a quarter of the shortfall, wait a week, and re-test before adding more, ' +
                 'because a trace element is far easier to overshoot than to top up.';
+        wants.push({key:i.e.k, why:esc(i.e.n) + ' is below its setpoint and nothing on your shelf raises it.'});
       }
       h += '<p style="margin-left:0">' + line + '</p>';
     });
@@ -2931,6 +2970,9 @@ function renderIcpPlan(){
     pl.byRemoval.forEach(function(i){ h += icpLine(i, false); });
     h += '<p>A change large enough to fix these would move everything else further than it should go. Find what is adding them — ' +
          'salt brand, an additive, media, or plumbing — stop it, and let routine water changes bring them down over a month or two.</p>';
+    if(pl.byRemoval.some(function(i){ return i.e.k === 'P'; }) && !mediaOnShelf('po4')){
+      wants.push({key:'po4-media', why:'Phosphorus is above its setpoint and there is nothing on your shelf to take it out.'});
+    }
   }
 
   if(pl.changeFrac > 0){
@@ -2957,7 +2999,72 @@ function renderIcpPlan(){
 
   h += '<p style="margin-top:14px;color:var(--muted)">Do the water change first, then the supplements, then re-test — ' +
        'ideally with the same lab, since labs calibrate differently and only your own history is comparable.</p></div>';
+  h += shoppingCard(wants);
   el.innerHTML = h;
+}
+/* How far each element sits from its setpoint, as one picture. The time-series
+   chart below needs two reports before it can say anything; this one works
+   from the first, which is when a keeper most wants to see the shape of the
+   thing rather than read forty-five numbers.
+
+   Plotted as percentage deviation, because the units are incomparable — 2 mg/l
+   of strontium and 20 µg/l of iodine are both "a quarter short", and that is
+   the fact worth seeing side by side. Contaminants have no meaningful
+   percentage against a setpoint of nearly zero, so they are pinned to the far
+   right and labelled instead. */
+function renderIcpSpread(){
+  var el = document.getElementById('icpSpread');
+  if(!el) return;
+  var rep = icpLast();
+  if(!rep){ el.innerHTML = ''; return; }
+  var rows = [];
+  ICP_ELEMENTS.forEach(function(e){
+    var v = rep.values[e.k];
+    if(v === undefined || v === null) return;
+    var sp = icpSetpoint(rep, e);
+    if(sp === null || sp === undefined) return;
+    var verdict = icpVerdict(e, v, sp);
+    var dev;
+    if(e.kind === 'toxic') dev = v > sp ? 100 : 0;
+    else dev = sp ? ((v - sp) / sp) * 100 : 0;
+    rows.push({e:e, v:v, sp:sp, verdict:verdict, dev:dev,
+               mag: e.kind === 'toxic' ? (v > sp ? 999 : 0) : Math.abs(dev)});
+  });
+  if(!rows.length){ el.innerHTML = ''; return; }
+  rows.sort(function(a, b){ return b.mag - a.mag; });
+
+  var W = 320, rowH = 17, padT = 16, padB = 16, mid = W * 0.52, half = W * 0.40;
+  var H = padT + padB + rows.length * rowH;
+  var cap = 60;                                  /* beyond ±60% the bar pins */
+  var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="icp-spread" role="img" aria-label="Distance from setpoint">';
+  svg += '<line x1="' + mid + '" x2="' + mid + '" y1="' + (padT - 6) + '" y2="' + (H - padB + 2) +
+         '" stroke="var(--titrant)" stroke-width="1" opacity=".55"/>';
+  rows.forEach(function(r, i){
+    var y = padT + i * rowH;
+    var col = r.verdict === 'metal' ? 'var(--alert)'
+            : r.verdict === 'ok' ? 'var(--good)' : 'var(--near)';
+    var d = Math.max(-cap, Math.min(cap, r.dev));
+    var w = (Math.abs(d) / cap) * half;
+    var x = d < 0 ? mid - w : mid;
+    if(r.e.kind === 'toxic' && r.verdict === 'metal'){ x = mid; w = half; }
+    svg += '<rect x="' + x.toFixed(1) + '" y="' + (y + 3) + '" width="' + Math.max(w, 1.5).toFixed(1) +
+           '" height="' + (rowH - 7) + '" rx="2" fill="' + col + '" opacity="' + (r.verdict === 'ok' ? '.45' : '.85') + '"/>';
+    svg += '<text x="' + (mid - half - 6) + '" y="' + (y + rowH - 5) + '" text-anchor="end" ' +
+           'font-size="9" font-family="ui-monospace,monospace" fill="var(--muted)">' + r.e.k + '</text>';
+    var lab = r.e.kind === 'toxic'
+      ? (r.verdict === 'metal' ? 'present' : 'clear')
+      : (r.dev > 0 ? '+' : '') + Math.round(r.dev) + '%';
+    svg += '<text x="' + (mid + half + 6) + '" y="' + (y + rowH - 5) + '" ' +
+           'font-size="9" font-family="ui-monospace,monospace" fill="' + col + '">' + lab + '</text>';
+  });
+  svg += '</svg>';
+
+  var off = rows.filter(function(r){ return r.verdict !== 'ok'; }).length;
+  el.innerHTML = '<div class="icp-ch"><div class="card-title" style="font-size:12px">Distance from setpoint</div>' +
+    '<div class="hint" style="margin-bottom:6px">' + rows.length + ' elements measured, ' + off + ' outside their band. ' +
+    'Bars run left for short and right for over, as a percentage of the setpoint so the units do not fight each other. ' +
+    'Anything past 60% is pinned at the edge; contaminants show as present rather than as a percentage.</div>' +
+    svg + '</div>';
 }
 function renderIcpChart(){
   var el = document.getElementById('icpChart');
@@ -2990,11 +3097,14 @@ function renderIcpChart(){
     return new Date(icpDate(r)) >= cutoff;
   }).map(function(r){ return {t:new Date(icpDate(r)).getTime(), v:r.values[icpChartKey], sp:icpSetpoint(r, e)}; });
 
-  var head = '<div class="icp-ch"><div class="row"><select id="icpChartSel">' +
+  /* Controls under the plot, not above it. The graph is what the keeper came
+     to look at; the picker is how they change it afterwards. */
+  var head = '<div class="icp-ch"><div class="card-title" style="font-size:12px">' + esc(e.n) + ' over time</div>';
+  var controls = '<div class="row" style="margin-top:10px;margin-bottom:0"><select id="icpChartSel">' +
     able.map(function(x){
       return '<option value="' + x.k + '"' + (x.k === icpChartKey ? ' selected' : '') + '>' +
              esc(x.n) + ' (' + x.k + ')</option>';
-    }).join('') + '</select></div><div class="icp-ranges">' +
+    }).join('') + '</select></div><div class="icp-ranges" style="margin-top:6px;margin-bottom:0">' +
     ICP_RANGES.map(function(r){
       return '<button type="button" data-months="' + r[0] + '"' + (r[0] === icpChartMonths ? ' class="on"' : '') + '>' + r[1] + '</button>';
     }).join('') + '</div>';
@@ -3003,7 +3113,7 @@ function renderIcpChart(){
     el.innerHTML = head + '<div class="hint">' +
       (pts.length ? 'Only one ' + e.n.toLowerCase() + ' reading in this window. Widen the range to see a line.'
                   : 'No ' + e.n.toLowerCase() + ' readings in this window.') +
-      '</div></div>';
+      '</div>' + controls + '</div>';
     wireIcpChart();
     return;
   }
@@ -3055,7 +3165,7 @@ function renderIcpChart(){
       '<span><i style="background:var(--good)"></i>at setpoint</span>' +
       '<span><i style="background:var(--near)"></i>outside its band</span>' +
       '<span><i style="background:var(--alert)"></i>contaminant present</span>' +
-    '</div></div>';
+    '</div>' + controls + '</div>';
   wireIcpChart();
 }
 function wireIcpChart(){
@@ -3123,11 +3233,15 @@ function renderIcpHistory(){
     el.innerHTML = '<div class="hint" style="margin-top:12px">No reports yet. Enter one and the app will read it against its setpoints and keep it here.</div>';
     return;
   }
-  var h = '';
+  var h = '<div class="hint" style="margin-bottom:8px">Every report you have entered, newest first. Tap one to open it — ' +
+          'the newest is already set out in full at the top of this tab.</div>';
   reps.forEach(function(r, i){
     var a = assessIcp(r);
     var bad = a.findings.filter(function(f){ return f.cls === 'metal'; }).length;
-    h += '<details class="icp-rep"' + (i === 0 ? ' open' : '') + '><summary>' +
+    /* Every entry closed, including the newest: its findings are already
+       laid out in full in the plan above, so opening it here would print the
+       same thing twice and bury the older reports below a screen of it. */
+    h += '<details class="icp-rep"><summary>' +
          '<span><span class="rep-d">' + esc(fmtDay(icpDate(r))) + '</span>' +
          (r.t && r.t !== icpDate(r) ? '<span class="rep-s"> · reported ' + esc(fmtDay(r.t)) + '</span>' : '') +
          '<span class="rep-s"><br>' + Object.keys(r.values).length + ' elements</span></span>' +
@@ -4155,7 +4269,7 @@ function switchTank(id){
   useTank(id);
   $('#results').innerHTML = '';
   refreshAll(); renderCorals(); populateTank(); renderTankPicker();
-  renderIcpPlan(); renderIcpChart(); renderIcpTrend(); renderIcpHistory(); renderFeeding();
+  renderIcpHead(); renderIcpChart(); renderIcpPlan(); renderIcpSpread(); renderIcpTrend(); renderIcpHistory(); renderFeeding();
   toast('Now on ' + (state.settings.tankName || 'this tank'));
 }
 function renderTankPicker(){
@@ -4787,7 +4901,7 @@ document.querySelectorAll('nav button').forEach(function(b){
     if(pane) pane.scrollTo({top:0}); else window.scrollTo({top:0});
     if(b.getAttribute('data-view') === 'log') renderLog();
     if(b.getAttribute('data-view') === 'setup') renderSetup();
-    if(b.getAttribute('data-view') === 'icp'){ renderIcpPlan(); renderIcpChart(); renderIcpTrend(); renderIcpHistory(); }
+    if(b.getAttribute('data-view') === 'icp'){ renderIcpHead(); renderIcpChart(); renderIcpPlan(); renderIcpSpread(); renderIcpTrend(); renderIcpHistory(); }
     if(b.getAttribute('data-view') === 'feed') renderFeeding();
   });
 });
@@ -5092,8 +5206,13 @@ $('#btnIcpSave').addEventListener('click', function(){
   $('#icpToLog').checked = false;
   $('#icpOut').innerHTML = '';
   renderLog(); renderHeader();
-  renderIcpPlan();
+  /* Redraw the whole tab, not just the plan: the archive is rebuilt from
+     scratch so anything the keeper had opened closes, and the new report
+     becomes the one on show. Then put them at the top of it. */
+  renderIcpHead(); renderIcpChart(); renderIcpPlan(); renderIcpSpread(); renderIcpTrend(); renderIcpHistory();
   goToView('icp');
+  var pane = document.querySelector('main');
+  if(pane) pane.scrollTo({top:0, behavior:'smooth'});
   toast(copied ? 'Report saved, ' + copied + ' readings added to the log' : 'Report saved');
 });
 $('#btnIcpLast').addEventListener('click', function(){
@@ -5397,8 +5516,10 @@ load(function(){
   renderLog();
   renderSetup();
   renderSaltCalc();
-  renderIcpPlan();
+  renderIcpHead();
   renderIcpChart();
+  renderIcpPlan();
+  renderIcpSpread();
   renderIcpTrend();
   renderIcpHistory();
   renderFeeding();
