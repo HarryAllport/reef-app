@@ -211,12 +211,12 @@ header{
 .icp-el .fig{font-family:var(--f-mono);font-size:12px;color:var(--muted);margin-left:6px}
 .icp-el p{color:var(--muted);margin-top:3px}
 .icp-after{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
-.icp-after td{padding:5px 0;border-top:1px solid var(--line);font-family:var(--f-mono)}
-.icp-after td:last-child{text-align:right}
+.icp-after td{padding:5px 0;border-top:1px solid var(--line);font-family:var(--f-mono);vertical-align:baseline}
+.icp-after td:nth-child(2){text-align:right;white-space:nowrap;padding-left:10px}
+.icp-after td.icp-tgt{text-align:right;white-space:nowrap;padding-left:14px;color:var(--muted);font-size:11px}
 .icp-head{border:1px solid var(--line);border-radius:var(--radius);background:var(--deep);padding:14px 16px;margin-top:10px}
 .icp-head-nums{display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;font-size:12px;color:var(--muted)}
 .icp-head-nums b{font-family:var(--f-mono);font-size:16px;margin-right:4px}
-.icp-spread{width:100%;height:auto;display:block;margin-top:4px}
 .icp-ch{border:1px solid var(--line);border-radius:var(--radius);background:var(--deep);padding:12px 14px;margin-top:10px}
 .icp-ch .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
 .icp-ch select{flex:1;min-width:150px}
@@ -420,6 +420,24 @@ button.small{padding:8px 11px;font-size:13px}
 .wc-row .mono{font-size:13px}
 .wc-row b{font-weight:600}
 .entry{border:1px solid var(--line);background:var(--deep);border-radius:10px;padding:13px;margin-bottom:9px}
+.feed-sched{margin-top:8px}
+.feed-sch-row{display:flex;gap:12px;align-items:baseline;padding:7px 0;border-top:1px solid var(--line)}
+.feed-sch-row .mono{font-family:var(--f-mono);font-size:11px;color:var(--titrant);flex:0 0 108px}
+.feed-sch-row b{font-size:12.5px}
+.food-grp{border:1px solid var(--line);border-radius:10px;margin-bottom:8px;overflow:hidden}
+.food-grp summary{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 13px;cursor:pointer;
+  font-family:var(--f-display);font-weight:700;font-size:13px;list-style:none}
+.food-grp summary::-webkit-details-marker{display:none}
+.food-grp[open] summary{border-bottom:1px solid var(--line)}
+.food-n{font-family:var(--f-mono);font-size:11px;color:var(--muted);font-weight:400}
+.food-blurb{padding:10px 13px 4px;font-size:12px;color:var(--muted);line-height:1.5}
+.food-brand{padding:10px 13px 2px;font-family:var(--f-mono);font-size:10px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--titrant)}
+.food-row{display:flex;gap:10px;align-items:flex-start;padding:6px 13px}
+.food-row input{margin-top:3px;flex:0 0 auto}
+.food-row b{font-size:13px;font-weight:600}
+.food-when{display:block;font-family:var(--f-mono);font-size:11px;color:var(--muted);margin-top:1px}
+.food-note{display:block;font-size:11.5px;color:var(--muted);line-height:1.5;margin-top:3px}
 .wc-entry{border-left:3px solid var(--titrant);background:linear-gradient(90deg,rgba(47,224,198,0.06),var(--deep) 55%)}
 .wc-gap{color:var(--titrant)}
 .wc-since{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;
@@ -621,7 +639,9 @@ nav button.on{color:var(--titrant)}
       <div class="field"><label>Water change (days)</label><input type="number" id="remWC" step="1" min="1" inputmode="numeric"></div>
       <div class="field"><label>Test &amp; log (days)</label><input type="number" id="remTest" step="1" min="1" inputmode="numeric"></div>
       <div class="field"><label>Daily dosing</label><select id="remDose"><option value="1">Remind me</option><option value="0">Off</option></select></div>
+      <div class="field"><label>Feeding</label><select id="remFeed"><option value="1">Remind me</option><option value="0">Off</option></select></div>
     </div>
+    <div id="remFeedList"></div>
     <div class="btn-row"><button class="small" id="btnIcs">Add reminders to my calendar</button></div>
     <div class="hint" style="margin-top:-2px">A saved page can’t send email on its own, so reminders go through your calendar: this downloads repeating water change, testing and dosing events with alerts addressed to the email above. Open the file and Calendar takes over — set your calendar account (iCloud, Outlook, Gmail) to email event alerts and they arrive in your inbox too. Re-download after changing the schedule.</div>
 
@@ -712,7 +732,6 @@ nav button.on{color:var(--titrant)}
       <div id="icpHead"></div>
       <div id="icpChart"></div>
       <div id="icpPlan"></div>
-      <div id="icpSpread"></div>
       <div id="icpTrend"></div>
       <div id="icpHistory" class="icp-hist"></div>
     </div>
@@ -1359,7 +1378,8 @@ var DEFAULTS = {
   shelf:[{id:'rs-abcplus'}],
   caps:{alk:0.4, ca:20, mg:50, wc:30},
   saltMix:{brand:'rs-salt', strengths:{}, elements:{}},
-  reminders:{email:'', wc:7, test:7, dose:'1'},
+  reminders:{email:'', wc:7, test:7, dose:'1', feed:'1'},
+  foods:[],
   doser:{alk:'rs-b', ca:'rs-a', mg:'rs-c'},
   estimator:{total:null, rock:null, sand:null},
   corals:[],
@@ -1546,11 +1566,13 @@ function apply(data){
     if(Array.isArray(s.corals)) state.settings.corals = s.corals.filter(function(c){ return c && c.sp && c.size; });
     if(Array.isArray(s.icp)) state.settings.icp = s.icp;
     if(s.costs) state.settings.costs = {saltPrice:num(s.costs.saltPrice), saltKg:num(s.costs.saltKg), roPerL:num(s.costs.roPerL), products:s.costs.products || {}};
+    if(Array.isArray(s.foods)) state.settings.foods = s.foods.filter(function(id){ return !!foodById(id); });
     if(s.reminders) state.settings.reminders = {
       email:s.reminders.email || '',
       wc:num(s.reminders.wc) || 7,
       test:num(s.reminders.test) || 7,
-      dose:s.reminders.dose === '0' ? '0' : '1'
+      dose:s.reminders.dose === '0' ? '0' : '1',
+      feed:s.reminders.feed === '0' ? '0' : '1'
     };
   }
   if(Array.isArray(data.log)) state.log = data.log;
@@ -1698,6 +1720,18 @@ function keyName(k){
   var e = icpEl(k);
   return e ? e.n : k;
 }
+/* A product whose job is a trace element rather than one of the five a home
+   kit measures. */
+function traceProduct(prod){
+  return Object.keys(prod.effects || {}).some(function(k){ return CORE_KEYS.indexOf(k) === -1; });
+}
+/* The routine printed on a bottle, converted to this tank. */
+function labelRate(id){
+  var e = (state.settings.shelf || []).filter(function(x){ return x.id === id; })[0];
+  if(!e || !e.rate || !(e.rate.ml > 0)) return null;
+  var L = state.settings.netLitres || 0;
+  return {ml: e.rate.ml * L / 100, freq: e.rate.freq === 'week' ? 'week' : 'day', per100: e.rate.ml};
+}
 function onShelf(id){
   return (state.settings.shelf || []).some(function(e){ return e.id === id; });
 }
@@ -1790,6 +1824,14 @@ function fixSuggestion(k){
   return 'a magnesium blend, or any single-element magnesium liquid';
 }
 
+/* "alkalinity, calcium and magnesium" rather than "alkalinity, calcium, magnesium". */
+function cap(t){ return t ? t.charAt(0).toUpperCase() + t.slice(1) : t; }
+function listOf(items){
+  var a = items.filter(Boolean);
+  if(a.length <= 1) return a[0] || '';
+  if(a.length === 2) return a[0] + ' and ' + a[1];
+  return a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1];
+}
 function buildCorrections(){
   /* Removed from the free build. */
   return {actions:[], shopping:[]};
@@ -1993,8 +2035,25 @@ function renderIcpPlan(){
                 '</b>. Add a quarter of that, wait a week and re-test before the rest — a trace element is far easier to overshoot than to top up.';
       } else if(unfilled){
         var ub = libProduct(unfilled.id);
-        line += 'You have ' + esc(ub.brand + ' ' + ub.name) + ' ticked for this, but no strength set against it. ' +
-                'Put the figure from the label in under Setup and the app will work the dose out.';
+        var rate = labelRate(unfilled.id);
+        if(rate){
+          /* No strength, but the bottle's own routine is known — so give the
+             routine, converted to this tank, and be honest that it is a
+             maintenance dose rather than a calculated correction. */
+          line += 'You have ' + esc(ub.brand + ' ' + ub.name) + ' on the shelf. Its label rate of ' +
+                  fmt(rate.per100, 1) + ' ml per 100 L comes out at <b>' + fmt(rate.ml, 1) + ' ml a ' + rate.freq +
+                  '</b> for your ' + Math.round(L) + ' litres. That is the maintenance routine rather than a correction: ' +
+                  'it will close a gap this size over a few weeks rather than today. Keep to it, re-test at the next report, ' +
+                  'and only reach for a stronger single-element bottle if the figure has not moved.';
+          if(traceProduct(ub) && Object.keys(ub.effects).length > 1){
+            line += ' Being a blend, it lifts ' + Object.keys(ub.effects).map(function(k){ return esc(keyName(k)).toLowerCase(); }).join(', ') +
+                    ' together — check the others on your next report rather than only the one you were chasing.';
+          }
+        } else {
+          line += 'You have ' + esc(ub.brand + ' ' + ub.name) + ' ticked for this, but the app does not know how strong it is. ' +
+                  'Under Setup, either put in the strength if the label gives one, or fill in the <b>label dose</b> — the ml per 100 L ' +
+                  'the bottle tells you to use, and how often. Either one is enough for the app to work out your dose.';
+        }
       } else {
         /* Same logic the Test screen uses: follow the brands already on the
            shelf, and name none at all when there is nothing to follow. A
@@ -2028,17 +2087,24 @@ function renderIcpPlan(){
   }
 
   if(pl.changeFrac > 0){
-    h += '<h4>Where you land after the ' + Math.round(pl.changePct) + '% change</h4><table class="icp-after"><tbody>';
+    h += '<h4>Where you land after the ' + Math.round(pl.changePct) + '% change</h4>' +
+         '<div class="hint" style="margin-bottom:4px">Now, then after the change, against what you are aiming for.</div>' +
+         '<table class="icp-after"><tbody>';
     ICP_ELEMENTS.forEach(function(e){
       var v = rep.values[e.k];
       if(v === undefined || v === null) return;
       var af = pl.after[e.k], sp = icpSetpoint(rep, e);
-      if(Math.abs(af - v) < (v * 0.02)) return;          /* barely moved, not worth a row */
+      /* Nothing measured and nothing to move: a row of zeroes teaches nobody
+         anything, and there are two dozen of them on a full report. */
+      if(!v && !af) return;
+      if(v && Math.abs(af - v) < (v * 0.02)) return;     /* barely moved */
       var vt = icpVerdict(e, af, sp);
       var cls = vt === 'ok' ? 'v-good' : vt === 'metal' ? 'v-bad' : 'v-near';
       var dp = v < 10 ? 2 : 0;
       h += '<tr><td>' + e.k + ' <span style="color:var(--muted)">' + esc(e.n) + '</span></td>' +
-           '<td>' + fmt(v, dp) + ' → <b class="' + cls + '">' + fmt(af, dp) + '</b> ' + e.u + '</td></tr>';
+           '<td>' + fmt(v, dp) + ' → <b class="' + cls + '">' + fmt(af, dp) + '</b> ' + e.u + '</td>' +
+           '<td class="icp-tgt">' + (sp === null || sp === undefined ? '—'
+              : (e.kind === 'toxic' ? 'aim for none' : 'target ' + fmt(sp, sp < 10 ? 2 : 0))) + '</td></tr>';
     });
     h += '</tbody></table>';
   }
@@ -2053,70 +2119,6 @@ function renderIcpPlan(){
        'ideally with the same lab, since labs calibrate differently and only your own history is comparable.</p></div>';
   h += shoppingCard(wants);
   el.innerHTML = h;
-}
-/* How far each element sits from its setpoint, as one picture. The time-series
-   chart below needs two reports before it can say anything; this one works
-   from the first, which is when a keeper most wants to see the shape of the
-   thing rather than read forty-five numbers.
-
-   Plotted as percentage deviation, because the units are incomparable — 2 mg/l
-   of strontium and 20 µg/l of iodine are both "a quarter short", and that is
-   the fact worth seeing side by side. Contaminants have no meaningful
-   percentage against a setpoint of nearly zero, so they are pinned to the far
-   right and labelled instead. */
-function renderIcpSpread(){
-  var el = document.getElementById('icpSpread');
-  if(!el) return;
-  var rep = icpLast();
-  if(!rep){ el.innerHTML = ''; return; }
-  var rows = [];
-  ICP_ELEMENTS.forEach(function(e){
-    var v = rep.values[e.k];
-    if(v === undefined || v === null) return;
-    var sp = icpSetpoint(rep, e);
-    if(sp === null || sp === undefined) return;
-    var verdict = icpVerdict(e, v, sp);
-    var dev;
-    if(e.kind === 'toxic') dev = v > sp ? 100 : 0;
-    else dev = sp ? ((v - sp) / sp) * 100 : 0;
-    rows.push({e:e, v:v, sp:sp, verdict:verdict, dev:dev,
-               mag: e.kind === 'toxic' ? (v > sp ? 999 : 0) : Math.abs(dev)});
-  });
-  if(!rows.length){ el.innerHTML = ''; return; }
-  rows.sort(function(a, b){ return b.mag - a.mag; });
-
-  var W = 320, rowH = 17, padT = 16, padB = 16, mid = W * 0.52, half = W * 0.40;
-  var H = padT + padB + rows.length * rowH;
-  var cap = 60;                                  /* beyond ±60% the bar pins */
-  var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="icp-spread" role="img" aria-label="Distance from setpoint">';
-  svg += '<line x1="' + mid + '" x2="' + mid + '" y1="' + (padT - 6) + '" y2="' + (H - padB + 2) +
-         '" stroke="var(--titrant)" stroke-width="1" opacity=".55"/>';
-  rows.forEach(function(r, i){
-    var y = padT + i * rowH;
-    var col = r.verdict === 'metal' ? 'var(--alert)'
-            : r.verdict === 'ok' ? 'var(--good)' : 'var(--near)';
-    var d = Math.max(-cap, Math.min(cap, r.dev));
-    var w = (Math.abs(d) / cap) * half;
-    var x = d < 0 ? mid - w : mid;
-    if(r.e.kind === 'toxic' && r.verdict === 'metal'){ x = mid; w = half; }
-    svg += '<rect x="' + x.toFixed(1) + '" y="' + (y + 3) + '" width="' + Math.max(w, 1.5).toFixed(1) +
-           '" height="' + (rowH - 7) + '" rx="2" fill="' + col + '" opacity="' + (r.verdict === 'ok' ? '.45' : '.85') + '"/>';
-    svg += '<text x="' + (mid - half - 6) + '" y="' + (y + rowH - 5) + '" text-anchor="end" ' +
-           'font-size="9" font-family="ui-monospace,monospace" fill="var(--muted)">' + r.e.k + '</text>';
-    var lab = r.e.kind === 'toxic'
-      ? (r.verdict === 'metal' ? 'present' : 'clear')
-      : (r.dev > 0 ? '+' : '') + Math.round(r.dev) + '%';
-    svg += '<text x="' + (mid + half + 6) + '" y="' + (y + rowH - 5) + '" ' +
-           'font-size="9" font-family="ui-monospace,monospace" fill="' + col + '">' + lab + '</text>';
-  });
-  svg += '</svg>';
-
-  var off = rows.filter(function(r){ return r.verdict !== 'ok'; }).length;
-  el.innerHTML = '<div class="icp-ch"><div class="card-title" style="font-size:12px">Distance from setpoint</div>' +
-    '<div class="hint" style="margin-bottom:6px">' + rows.length + ' elements measured, ' + off + ' outside their band. ' +
-    'Bars run left for short and right for over, as a percentage of the setpoint so the units do not fight each other. ' +
-    'Anything past 60% is pinned at the edge; contaminants show as present rather than as a percentage.</div>' +
-    svg + '</div>';
 }
 function renderIcpChart(){
   /* Removed from the free build. */
@@ -2689,6 +2691,97 @@ function shelfEntry(id){
   for(var i=0;i<list.length;i++){ if(list[i].id === id) return list[i]; }
   return null;
 }
+
+/* ---------- foods ----------
+   Kept out of PRODUCTS on purpose. A supplement has a strength and a dose the
+   app can calculate; a food has a routine. Mixing them would mean either
+   inventing ppm figures for fish flake or teaching the correction engine to
+   ignore half its own shelf. So foods live here, carry a suggested cadence
+   rather than a dose, and feed the reminders rather than the chemistry.
+
+   `every` is in days, `hh` the hour that suits the feeding, and `note` is
+   what actually goes wrong if it is done badly. */
+var FOOD_CATS = [
+  {id:'fish-dry',    name:'Fish — dry',        blurb:'Flake and pellet, the everyday feed. Match the size to the smallest mouth in the tank: a pellet a fish cannot swallow is not food, it is waste.'},
+  {id:'fish-frozen', name:'Fish — frozen',     blurb:'Thaw in tank water and pour off the pack juice — it is mostly phosphate and goes straight into your nutrient numbers.'},
+  {id:'seaweed',     name:'Seaweed and greens',blurb:'Tangs, rabbitfish and angels graze all day and go thin on two feeds a day of anything else. A sheet on a clip is closer to how they actually eat.'},
+  {id:'coral-broad', name:'Coral — broadcast', blurb:'Fine particulate, dosed into the water column with the return off for a few minutes. Little and often beats a big feed: what the corals miss becomes nitrate.'},
+  {id:'coral-liquid',name:'Coral — liquid and amino', blurb:'Amino acids and liquid coral foods. These raise nutrients faster than anything else on the list, so start at a fraction of the label dose and watch the numbers.'},
+  {id:'coral-target',name:'Coral — target feed', blurb:'For LPS with a mouth big enough to take a piece: turn the flow down, place it on the polyp with a pipette or tongs, and give it half an hour.'},
+  {id:'phyto',       name:'Phytoplankton',     blurb:'Feeds filter feeders, clams, sponges and the pods that feed everything else. Refrigerate it, and dose after lights out.'}
+];
+var FOODS = [
+  /* fish — dry */
+  {id:'nls-marine',   cat:'fish-dry', brand:'New Life Spectrum', name:'Marine Formula pellets', every:1, hh:18},
+  {id:'hikari-marine',cat:'fish-dry', brand:'Hikari',            name:'Marine S pellets',       every:1, hh:18},
+  {id:'on-formula1',  cat:'fish-dry', brand:'Ocean Nutrition',   name:'Formula One flake',      every:1, hh:18},
+  {id:'on-formula2',  cat:'fish-dry', brand:'Ocean Nutrition',   name:'Formula Two pellets',    every:1, hh:18,
+   note:'The herbivore formula — worth having if you keep tangs or rabbitfish alongside the meatier feeds.'},
+  {id:'vitalis-flake',cat:'fish-dry', brand:'Vitalis',           name:'Marine Flakes',          every:1, hh:18},
+  {id:'vitalis-pel',  cat:'fish-dry', brand:'Vitalis',           name:'Marine Pellets',         every:1, hh:18},
+  {id:'tdo-chroma',   cat:'fish-dry', brand:'Reef Nutrition',    name:'TDO Chroma Boost',       every:1, hh:18,
+   note:'Sinking, and small enough for juveniles and reticent feeders that lose out at the surface.'},
+  {id:'tetra-marine', cat:'fish-dry', brand:'Tetra',             name:'TetraMarine flakes',     every:1, hh:18},
+
+  /* fish — frozen */
+  {id:'gamma-mysis',  cat:'fish-frozen', brand:'Gamma',          name:'Mysis',                  every:2, hh:18},
+  {id:'gamma-brine',  cat:'fish-frozen', brand:'Gamma',          name:'Brine shrimp',           every:2, hh:18,
+   note:'Little food value on its own — useful for tempting a new fish to eat, poor as a staple.'},
+  {id:'hikari-mysis', cat:'fish-frozen', brand:'Hikari',         name:'Mysis',                  every:2, hh:18},
+  {id:'lrs-frenzy',   cat:'fish-frozen', brand:'LRS',            name:'Reef Frenzy',            every:2, hh:18,
+   note:'A blend of fish, shellfish and algae — most tanks take it, and the coral gets some of it too.'},
+  {id:'on-frozen',    cat:'fish-frozen', brand:'Ocean Nutrition', name:'Frozen Formula One',    every:2, hh:18},
+
+  /* seaweed */
+  {id:'sv-seaveg',    cat:'seaweed', brand:'Julian Sprung',      name:"Sea Veggies (green/red)", every:2, hh:12},
+  {id:'gamma-nori',   cat:'seaweed', brand:'Gamma',              name:'Nori sheets',            every:2, hh:12},
+  {id:'nori-any',     cat:'seaweed', brand:'Other or unbranded', name:'Nori, any brand',        every:2, hh:12,
+   note:'Plain dried nori from a supermarket is the same thing at a fraction of the price — just make sure it is unseasoned.'},
+
+  /* coral — broadcast */
+  {id:'reef-roids',   cat:'coral-broad', brand:'Polyp Lab',      name:'Reef-Roids',             every:3, hh:20,
+   note:'Mix with tank water into a slurry first, then turn the return off for ten minutes. Straight from the tub it mostly ends up in the skimmer.'},
+  {id:'coral-frenzy', cat:'coral-broad', brand:'Coral Frenzy',   name:'Coral Frenzy',           every:3, hh:20},
+  {id:'benereef',     cat:'coral-broad', brand:'Benepets',       name:'BeneReef',               every:3, hh:20},
+  {id:'fm-minS',      cat:'coral-broad', brand:'Fauna Marin',    name:'Ultra Min S',            every:2, hh:20},
+  {id:'tm-zooton',    cat:'coral-broad', brand:'Tropic Marin',   name:'Pro-Coral Zooton',       every:3, hh:20},
+  {id:'bw-reefsnow',  cat:'coral-broad', brand:'Brightwell',     name:'Reef Snow',              every:3, hh:20},
+  {id:'ez-sps',       cat:'coral-broad', brand:'Easy Reefs',     name:'easySPS',                every:2, hh:20},
+  {id:'ez-lps',       cat:'coral-broad', brand:'Easy Reefs',     name:'easyLPS',                every:3, hh:20},
+  {id:'rn-oyster',    cat:'coral-broad', brand:'Reef Nutrition', name:'Oyster-Feast',           every:3, hh:20},
+
+  /* coral — liquid and amino */
+  {id:'rs-energy',    cat:'coral-liquid', brand:'Red Sea',       name:'Reef Energy AB+',        every:1, hh:20,
+   note:'Dosed daily and easy to overdo: it lifts nitrate and phosphate quickly. Start at a quarter of the label dose for a fortnight and watch both numbers.'},
+  {id:'af-amino',     cat:'coral-liquid', brand:'Aquaforest',    name:'Amino Mix',              every:1, hh:20},
+  {id:'fm-amin',      cat:'coral-liquid', brand:'Fauna Marin',   name:'Amin',                   every:1, hh:20},
+  {id:'kz-amino',     cat:'coral-liquid', brand:'Korallen-Zucht',name:'Amino Acid Concentrate LPS', every:1, hh:20},
+  {id:'tm-amino',     cat:'coral-liquid', brand:'Tropic Marin',  name:'Pro-Coral Amino',        every:1, hh:20},
+  {id:'bw-coralamino',cat:'coral-liquid', brand:'Brightwell',    name:'CoralAmino',             every:1, hh:20},
+
+  /* coral — target feed */
+  {id:'rn-arcti',     cat:'coral-target', brand:'Reef Nutrition',name:'Arcti-Pods',             every:7, hh:20},
+  {id:'pl-booster',   cat:'coral-target', brand:'Polyp Lab',     name:'Polyp Booster',          every:7, hh:20},
+  {id:'fm-lps-pellet',cat:'coral-target', brand:'Fauna Marin',   name:'LPS Pellets',            every:7, hh:20,
+   note:'For anything with a mouth — Acanthophyllia, Scolymia, Duncans, big Euphyllia. One or two pellets a head, not a scoop.'},
+  {id:'mysis-target', cat:'coral-target', brand:'Other or unbranded', name:'Frozen mysis, target fed', every:7, hh:20},
+
+  /* phytoplankton */
+  {id:'rn-phyto',     cat:'phyto', brand:'Reef Nutrition',       name:'Phyto-Feast',            every:2, hh:22},
+  {id:'bw-phytogold', cat:'phyto', brand:'Brightwell',           name:'PhytoGold-S',            every:2, hh:22},
+  {id:'ez-phyto',     cat:'phyto', brand:'Easy Reefs',           name:'easyPhyto',              every:2, hh:22}
+];
+function foodById(id){
+  for(var i = 0; i < FOODS.length; i++){ if(FOODS[i].id === id) return FOODS[i]; }
+  return null;
+}
+function foodsOnShelf(){
+  return (state.settings.foods || []).map(foodById).filter(Boolean);
+}
+function foodCat(id){
+  for(var i = 0; i < FOOD_CATS.length; i++){ if(FOOD_CATS[i].id === id) return FOOD_CATS[i]; }
+  return {id:id, name:id, blurb:''};
+}
 var BRAND_ORDER = ['Red Sea', 'Tropic Marin', 'Aquaforest', 'Modern Reef', 'Reef Zlements', 'NYOS', 'ATI', 'Fauna Marin', 'Korallen-Zucht', 'Brightwell', 'ESV', 'Seachem', 'Two Little Fishies', 'Kent Marine', 'Triton', 'Rowa', 'Bulk Reef Supply', 'Blue Life', 'Raw salts and DIY', 'Other or unbranded', 'Your own products'];
 /* Where each figure came from, and whether it is the app's place to defend it.
    `fixed` decides the default: a number that follows from a formula weight or
@@ -2710,6 +2803,55 @@ var SRC_INFO = {
   typical:{fixed:false, label:'A typical value, not your product',
            why:'A placeholder for an unnamed brand. Read the strength off your own bottle and enter it, or the doses will be guesswork.'}
 };
+/* Foods are grouped by what they are for rather than by maker: nobody thinks
+   "what Hikari products do I own", they think "what do I feed the corals".
+   Each group is a <details> so the whole list is three taps rather than a
+   screen and a half of scrolling. */
+function renderFoods(){
+  var el = $('#foodFields');
+  if(!el) return;
+  var mine = state.settings.foods || [];
+  var html = '';
+  FOOD_CATS.forEach(function(cat){
+    var items = FOODS.filter(function(f){ return f.cat === cat.id; });
+    if(!items.length) return;
+    var on = items.filter(function(f){ return mine.indexOf(f.id) !== -1; }).length;
+    html += '<details class="food-grp"' + (on ? ' open' : '') + '><summary>' +
+      '<span>' + esc(cat.name) + '</span>' +
+      '<span class="food-n">' + (on ? on + ' ticked' : items.length + ' options') + '</span></summary>' +
+      '<div class="food-blurb">' + esc(cat.blurb) + '</div>';
+    var byBrand = {};
+    items.forEach(function(f){ (byBrand[f.brand] = byBrand[f.brand] || []).push(f); });
+    Object.keys(byBrand).forEach(function(b){
+      html += '<div class="food-brand">' + esc(b) + '</div>';
+      byBrand[b].forEach(function(f){
+        var ticked = mine.indexOf(f.id) !== -1;
+        html += '<label class="food-row"><input type="checkbox" data-food="' + f.id + '"' + (ticked ? ' checked' : '') + '>' +
+          '<span><b>' + esc(f.name) + '</b>' +
+          '<span class="food-when">' + (f.every === 1 ? 'daily' : f.every === 7 ? 'weekly' : 'every ' + f.every + ' days') + '</span>' +
+          (f.note ? '<span class="food-note">' + esc(f.note) + '</span>' : '') +
+          '</span></label>';
+      });
+    });
+    html += '</details>';
+  });
+  el.innerHTML = html;
+  var cnt = $('#foodCount');
+  if(cnt) cnt.textContent = mine.length ? mine.length + ' food' + (mine.length === 1 ? '' : 's') + ' ticked' : 'nothing ticked yet';
+  var clr = $('#btnClearFoods');
+  if(clr) clr.disabled = !mine.length;
+  el.querySelectorAll('[data-food]').forEach(function(cb){
+    cb.addEventListener('change', function(){
+      var id = cb.getAttribute('data-food');
+      var list = state.settings.foods || (state.settings.foods = []);
+      var i = list.indexOf(id);
+      if(cb.checked && i === -1) list.push(id);
+      if(!cb.checked && i !== -1) list.splice(i, 1);
+      save();
+      renderFoods(); renderFeeding();
+    });
+  });
+}
 function renderShelf(){
   /* Removed from the free build. */
   var el = $('#shelfFields'); if(el) el.innerHTML = '';
@@ -2739,6 +2881,8 @@ function renderSetup(){
   if($('#provBody')) $('#provBody').innerHTML = prof.blurb;
 
   renderShelf();
+  renderFoods();
+  renderFeedReminders();
 
   var trows = '';
   PARAMS.forEach(function(p){
@@ -2791,7 +2935,7 @@ function switchTank(id){
   useTank(id);
   $('#results').innerHTML = '';
   refreshAll(); renderCorals(); populateTank(); renderTankPicker();
-  renderIcpHead(); renderIcpChart(); renderIcpPlan(); renderIcpSpread(); renderIcpTrend(); renderIcpHistory(); renderFeeding();
+  renderIcpHead(); renderIcpChart(); renderIcpPlan(); renderIcpTrend(); renderIcpHistory(); renderFeeding();
   toast('Now on ' + (state.settings.tankName || 'this tank'));
 }
 function renderTankPicker(){
@@ -3419,7 +3563,7 @@ document.querySelectorAll('nav button').forEach(function(b){
     if(pane) pane.scrollTo({top:0}); else window.scrollTo({top:0});
     if(b.getAttribute('data-view') === 'log') renderLog();
     if(b.getAttribute('data-view') === 'setup') renderSetup();
-    if(b.getAttribute('data-view') === 'icp'){ renderIcpHead(); renderIcpChart(); renderIcpPlan(); renderIcpSpread(); renderIcpTrend(); renderIcpHistory(); }
+    if(b.getAttribute('data-view') === 'icp'){ renderIcpHead(); renderIcpChart(); renderIcpPlan(); renderIcpTrend(); renderIcpHistory(); }
     if(b.getAttribute('data-view') === 'feed') renderFeeding();
   });
 });
@@ -3644,6 +3788,8 @@ function populateTank(){
   $('#remWC').value = r.wc;
   $('#remTest').value = r.test;
   $('#remDose').value = r.dose;
+  if($('#remFeed')) $('#remFeed').value = r.feed || '1';
+  renderFeedReminders();
   var co = costSettings();
   $('#costSaltPrice').value = co.saltPrice || '';
   $('#costSaltKg').value = co.saltKg || '';
@@ -3682,7 +3828,7 @@ $('#btnIcpSave').addEventListener('click', function(){
   /* Redraw the whole tab, not just the plan: the archive is rebuilt from
      scratch so anything the keeper had opened closes, and the new report
      becomes the one on show. Then put them at the top of it. */
-  renderIcpHead(); renderIcpChart(); renderIcpPlan(); renderIcpSpread(); renderIcpTrend(); renderIcpHistory();
+  renderIcpHead(); renderIcpChart(); renderIcpPlan(); renderIcpTrend(); renderIcpHistory();
   goToView('icp');
   var pane = document.querySelector('main');
   if(pane) pane.scrollTo({top:0, behavior:'smooth'});
@@ -3810,6 +3956,54 @@ $('#remTest').addEventListener('change', function(){
 $('#remDose').addEventListener('change', function(){
   remSettings().dose = this.value; save();
 });
+if($('#remFeed')) $('#remFeed').addEventListener('change', function(){
+  remSettings().feed = this.value; save(); renderFeedReminders();
+});
+/* One reminder per feeding routine rather than one per tub. Three coral
+   broadcast foods are still one job at the tank, and a phone that buzzes
+   three times for it gets ignored — so foods are collapsed by cadence within
+   their group, and the event names what to reach for. */
+function feedSchedule(){
+  var mine = foodsOnShelf();
+  if(!mine.length) return [];
+  var buckets = {};
+  mine.forEach(function(f){
+    var key = f.cat + '|' + f.every + '|' + f.hh;
+    (buckets[key] = buckets[key] || {cat:f.cat, every:f.every, hh:f.hh, items:[]}).items.push(f);
+  });
+  return Object.keys(buckets).map(function(k){
+    var b = buckets[k], cat = foodCat(b.cat);
+    var names = b.items.map(function(f){ return f.brand === 'Other or unbranded' ? f.name : f.brand + ' ' + f.name; });
+    return {
+      id: 'feed-' + b.cat + '-' + b.every,
+      title: cat.name.replace(' — ', ': '),
+      every: b.every,
+      hh: b.hh,
+      what: listOf(names),
+      why: cat.blurb,
+      items: b.items
+    };
+  }).sort(function(a, b){ return a.every - b.every || a.hh - b.hh; });
+}
+function renderFeedReminders(){
+  var el = document.getElementById('remFeedList');
+  if(!el) return;
+  var sched = feedSchedule();
+  if(!sched.length){
+    el.innerHTML = '<div class="hint" style="margin-top:8px">Tick what you feed under <b>What you feed</b> above and the ' +
+      'reminders build themselves from it — one per routine, at a sensible hour, repeating on its own cadence.</div>';
+    return;
+  }
+  var h = '<div class="hint" style="margin-top:8px">Built from your food list. These go into the calendar file with the rest:</div>' +
+          '<div class="feed-sched">';
+  sched.forEach(function(x){
+    h += '<div class="feed-sch-row"><span class="mono">' +
+         (x.every === 1 ? 'daily' : x.every === 7 ? 'weekly' : 'every ' + x.every + 'd') +
+         ' · ' + (x.hh < 10 ? '0' : '') + x.hh + ':00</span>' +
+         '<span><b>' + esc(x.title) + '</b><span class="food-note">' + esc(x.what) + '</span></span></div>';
+  });
+  el.innerHTML = h + '</div>';
+}
 /* Build a calendar file of repeating maintenance events. Alerts fire on the
    device; the email alarm reaches the inbox where the calendar service
    supports it. */
@@ -3843,6 +4037,12 @@ function buildIcs(){
     return e;
   }
   var lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Reef App//Reminders//EN','CALSCALE:GREGORIAN'];
+  if(r.feed !== '0'){
+    feedSchedule().forEach(function(x){
+      lines = lines.concat(vevent('reef-' + x.id, x.title + ' — ' + name,
+        x.what + '. ' + x.why, x.hh, 0, x.every));
+    });
+  }
   lines = lines.concat(vevent('reef-wc', 'Water change — ' + name,
     'Plan it in the Reef app: salt weight and predicted parameters are worked out for you.', 10, 0, r.wc));
   lines = lines.concat(vevent('reef-test', 'Test & log — ' + name,
@@ -3871,6 +4071,15 @@ $('#btnIcs').addEventListener('click', function(){
     var k = id.replace('cap','').toLowerCase(), v = num(this.value);
     if(v && v > 0){ state.settings.caps[k] = v; save(); if($('#results').innerHTML) renderResults(true); }
   });
+});
+if($('#btnClearFoods')) $('#btnClearFoods').addEventListener('click', function(){
+  var nF = (state.settings.foods || []).length;
+  if(!nF){ toast('Nothing ticked yet'); return; }
+  if(!confirm('Remove all ' + nF + ' food' + (nF === 1 ? '' : 's') + ' from your list?\n\n' +
+              'The feeding reminders are built from these, so they will stop until you tick something again.')) return;
+  state.settings.foods = [];
+  save(); renderFoods(); renderFeeding();
+  toast('Food list cleared');
 });
 if($('#btnClearShelf')) $('#btnClearShelf').addEventListener('click', function(){
   var shelf = state.settings.shelf || [];
@@ -3987,7 +4196,6 @@ load(function(){
   renderIcpHead();
   renderIcpChart();
   renderIcpPlan();
-  renderIcpSpread();
   renderIcpTrend();
   renderIcpHistory();
   renderFeeding();
