@@ -213,6 +213,9 @@ header{
 .icp-after{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
 .icp-after td{padding:5px 0;border-top:1px solid var(--line);font-family:var(--f-mono)}
 .icp-after td:last-child{text-align:right}
+.icp-head{border:1px solid var(--line);border-radius:var(--radius);background:var(--deep);padding:14px 16px;margin-top:10px}
+.icp-head-nums{display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;font-size:12px;color:var(--muted)}
+.icp-head-nums b{font-family:var(--f-mono);font-size:16px;margin-right:4px}
 .icp-spread{width:100%;height:auto;display:block;margin-top:4px}
 .icp-ch{border:1px solid var(--line);border-radius:var(--radius);background:var(--deep);padding:12px 14px;margin-top:10px}
 .icp-ch .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
@@ -706,9 +709,10 @@ nav button.on{color:var(--titrant)}
       <div class="btn-row">
         <button class="primary" id="btnIcpOpen2">Enter a report</button>
       </div>
+      <div id="icpHead"></div>
+      <div id="icpChart"></div>
       <div id="icpPlan"></div>
       <div id="icpSpread"></div>
-      <div id="icpChart"></div>
       <div id="icpTrend"></div>
       <div id="icpHistory" class="icp-hist"></div>
     </div>
@@ -1906,6 +1910,26 @@ function icpLine(i, showChange){
   if(e.note || e.src) h += '<p>' + esc(e.note || e.src) + '</p>';
   return h + '</div>';
 }
+/* The report's own headline, above the graph — what was measured, when, and
+   how much of it needs attention, before any of the detail. */
+function renderIcpHead(){
+  var el = document.getElementById('icpHead');
+  if(!el) return;
+  var rep = icpLast();
+  if(!rep){ el.innerHTML = ''; return; }
+  var a = assessIcp(rep);
+  var bad = a.findings.filter(function(f){ return f.cls === 'metal'; }).length;
+  var n = Object.keys(rep.values).length;
+  el.innerHTML = '<div class="icp-head"><div class="card-title">' + esc(fmtDay(icpDate(rep))) + '</div>' +
+    '<div class="sub">' + n + ' element' + (n === 1 ? '' : 's') + ' measured' +
+    (rep.t && rep.t !== icpDate(rep) ? ', reported ' + esc(fmtDay(rep.t)) : '') +
+    (rep.lab ? ' · ' + esc(rep.lab) : '') + '</div>' +
+    '<div class="icp-head-nums">' +
+      '<span><b class="v-good">' + a.ok.length + '</b> at setpoint</span>' +
+      '<span><b class="' + (a.findings.length ? 'v-near' : 'v-good') + '">' + a.findings.length + '</b> to act on</span>' +
+      (bad ? '<span><b class="v-bad">' + bad + '</b> contaminant' + (bad === 1 ? '' : 's') + '</span>' : '') +
+    '</div></div>';
+}
 function renderIcpPlan(){
   var el = document.getElementById('icpPlan');
   if(!el) return;
@@ -1913,7 +1937,7 @@ function renderIcpPlan(){
   if(!rep){ el.innerHTML = ''; return; }
   var pl = icpPlan(rep), L = state.settings.netLitres || 0, wants = [];
   var h = '<div class="icp-plan"><div class="card-title">What to do about this report</div>' +
-    '<div class="sub">Sampled ' + esc(fmtDay(icpDate(rep))) + '. Everything below assumes freshly mixed salt water sits at each ' +
+    '<div class="sub">Everything below assumes freshly mixed salt water sits at each ' +
     'element\'s setpoint — that is what the maker is aiming for, and close enough to plan from. If you have ever had your own ' +
     'salt analysed, enter those figures as the setpoints and this gets sharper.</div>';
 
@@ -2767,7 +2791,7 @@ function switchTank(id){
   useTank(id);
   $('#results').innerHTML = '';
   refreshAll(); renderCorals(); populateTank(); renderTankPicker();
-  renderIcpPlan(); renderIcpSpread(); renderIcpChart(); renderIcpTrend(); renderIcpHistory(); renderFeeding();
+  renderIcpHead(); renderIcpChart(); renderIcpPlan(); renderIcpSpread(); renderIcpTrend(); renderIcpHistory(); renderFeeding();
   toast('Now on ' + (state.settings.tankName || 'this tank'));
 }
 function renderTankPicker(){
@@ -3395,7 +3419,7 @@ document.querySelectorAll('nav button').forEach(function(b){
     if(pane) pane.scrollTo({top:0}); else window.scrollTo({top:0});
     if(b.getAttribute('data-view') === 'log') renderLog();
     if(b.getAttribute('data-view') === 'setup') renderSetup();
-    if(b.getAttribute('data-view') === 'icp'){ renderIcpPlan(); renderIcpSpread(); renderIcpChart(); renderIcpTrend(); renderIcpHistory(); }
+    if(b.getAttribute('data-view') === 'icp'){ renderIcpHead(); renderIcpChart(); renderIcpPlan(); renderIcpSpread(); renderIcpTrend(); renderIcpHistory(); }
     if(b.getAttribute('data-view') === 'feed') renderFeeding();
   });
 });
@@ -3655,8 +3679,13 @@ $('#btnIcpSave').addEventListener('click', function(){
   $('#icpToLog').checked = false;
   $('#icpOut').innerHTML = '';
   renderLog(); renderHeader();
-  renderIcpPlan(); renderIcpSpread();
+  /* Redraw the whole tab, not just the plan: the archive is rebuilt from
+     scratch so anything the keeper had opened closes, and the new report
+     becomes the one on show. Then put them at the top of it. */
+  renderIcpHead(); renderIcpChart(); renderIcpPlan(); renderIcpSpread(); renderIcpTrend(); renderIcpHistory();
   goToView('icp');
+  var pane = document.querySelector('main');
+  if(pane) pane.scrollTo({top:0, behavior:'smooth'});
   toast(copied ? 'Report saved, ' + copied + ' readings added to the log' : 'Report saved');
 });
 $('#btnIcpLast').addEventListener('click', function(){
@@ -3955,9 +3984,10 @@ load(function(){
   renderLog();
   renderSetup();
   renderSaltCalc();
+  renderIcpHead();
+  renderIcpChart();
   renderIcpPlan();
   renderIcpSpread();
-  renderIcpChart();
   renderIcpTrend();
   renderIcpHistory();
   renderFeeding();
