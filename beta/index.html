@@ -185,6 +185,8 @@ header{
 .feed-sp{border-top:1px solid var(--line);padding:9px 0}
 .feed-sp:last-child{padding-bottom:0}
 .feed-sp .nm{font-family:var(--f-display);font-weight:700;font-size:13px}
+.feed-hd{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap}
+.feed-rm{margin-left:auto;flex:0 0 auto;padding:3px 10px;font-size:11px}
 .feed-sp .qty{font-size:10px;color:var(--muted);font-family:var(--f-mono);margin-left:6px}
 .feed-sp p{margin:3px 0 0;font-size:12px;line-height:1.55;color:var(--foam)}
 .feed-sp p.gen{color:var(--muted)}
@@ -197,6 +199,20 @@ header{
 .icp-rep .rep-c{font-size:11px;font-family:var(--f-mono);color:var(--muted);white-space:nowrap}
 .icp-rep .rep-c b{color:var(--alert)}
 .icp-rep .rep-body{padding:0 14px 12px}
+.icp-plan{border:1px solid var(--line);border-radius:var(--radius);background:var(--deep);padding:14px 16px;margin-top:10px}
+.icp-plan h4{font-family:var(--f-display);font-weight:800;font-size:12px;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--titrant);margin:16px 0 4px}
+.icp-plan h4:first-of-type{margin-top:8px}
+.icp-plan p{margin:4px 0;font-size:12.5px;line-height:1.55}
+.icp-plan .lead{font-family:var(--f-mono);font-size:18px;color:var(--titrant);margin:4px 0 6px}
+.icp-el{border-top:1px solid var(--line);padding:9px 0}
+.icp-el:last-child{padding-bottom:0}
+.icp-el b{font-family:var(--f-display);font-size:13px}
+.icp-el .fig{font-family:var(--f-mono);font-size:12px;color:var(--muted);margin-left:6px}
+.icp-el p{color:var(--muted);margin-top:3px}
+.icp-after{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+.icp-after td{padding:5px 0;border-top:1px solid var(--line);font-family:var(--f-mono)}
+.icp-after td:last-child{text-align:right}
 .icp-ch{border:1px solid var(--line);border-radius:var(--radius);background:var(--deep);padding:12px 14px;margin-top:10px}
 .icp-ch .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
 .icp-ch select{flex:1;min-width:150px}
@@ -689,6 +705,7 @@ nav button.on{color:var(--titrant)}
       <div class="btn-row">
         <button class="primary" id="btnIcpOpen2">Enter a report</button>
       </div>
+      <div id="icpPlan"></div>
       <div id="icpChart"></div>
       <div id="icpTrend"></div>
       <div id="icpHistory" class="icp-hist"></div>
@@ -1019,6 +1036,30 @@ var CORALS = [
 /* Size classes: base alkalinity demand in dKH/day per 100 L for a demand
    factor of 1.0. Calcium and magnesium follow the calcification ratio the
    app already uses (20 ppm Ca and ~1.5 ppm Mg per 2.8 dKH). */
+/* "Tiny / frag" is a coral word. A fish is juvenile, not a frag, and nobody
+   buys an extra-large clownfish — so each group is offered the sizes that
+   actually mean something for it. */
+function sizesFor(group){
+  if(group === 'Fish'){
+    return [{id:'small', name:'Juvenile / small'},
+            {id:'med',   name:'Adult / medium'},
+            {id:'large', name:'Large'},
+            {id:'xl',    name:'Very large'}];
+  }
+  if(group === 'Inverts'){
+    return [{id:'small', name:'Small'}, {id:'med', name:'Medium'}, {id:'large', name:'Large'}];
+  }
+  return CORAL_SIZES;
+}
+function fillSizes(group){
+  var sel = $('#coralSize');
+  if(!sel) return;
+  var keep = sel.value, html = '';
+  sizesFor(group).forEach(function(x){ html += '<option value="'+x.id+'">'+esc(x.name)+'</option>'; });
+  sel.innerHTML = html;
+  /* Hold the chosen size if the new group still offers it. */
+  if(keep && sel.querySelector('option[value="'+keep+'"]')) sel.value = keep;
+}
 var CORAL_SIZES = [
   {id:'frag',  name:'Tiny / frag', f:0.008},
   {id:'small', name:'Small',       f:0.02},
@@ -1031,6 +1072,27 @@ var CORAL_SIZES = [
 /* Group-level husbandry: what this kind of animal lives on, how often, and the
    failure mode when it is fed as though it were something else. Species notes
    below add to this rather than repeat it. */
+/* Size changes how an animal eats, not just how much. A juvenile fish carries
+   almost no reserve and burns what it eats within hours; a big adult can go a
+   day without harm but needs volume and something to work at. The advice is
+   worth splitting on that, because the failure modes are opposite: small fish
+   starve quietly, large fish get overfed and the tank pays for it. */
+var FEED_SIZE = {
+  Fish: {
+    small: 'Small and juvenile fish have almost no fat reserve and a fast metabolism — they need feeding at least twice a day, and three times suits an active shoaling species. ' +
+           'Use a small enough food that it fits the mouth: a juvenile picking at a pellet it cannot swallow is not eating. This is the size at which fish quietly starve in a tank that looks well fed.',
+    med:   'An adult of ordinary size does well on one or two small feeds a day. Watch that it is actually getting some — a mid-sized fish is often the one that loses out to a bolder tankmate.',
+    large: 'A large fish eats less often but needs more per feed, and usually something to tear at rather than flakes: chunks of mysis, whole krill, silversides or a strip of fish. ' +
+           'One good feed a day is plenty, and skipping one day a week does no harm at all.',
+    xl:    'A very large fish is a serious bioload. Feed it once a day, in one substantial meal it has to work at, and expect the nitrate and phosphate to follow — ' +
+           'this is the size at which a tank stops being limited by what corals need and starts being limited by what the export can keep up with.'
+  },
+  Inverts: {
+    small: 'Small snails, hermits and shrimp find most of their own food while a tank is young. In a mature, clean system there is far less than people assume, and they starve slowly and invisibly.',
+    med:   'Worth placing a piece of food for shrimp and crabs rather than trusting them to the leftovers.',
+    large: 'A large shrimp or crab will take a substantial piece of food and defend it. Feed it directly so it is not competing with the fish.'
+  }
+};
 var FEED_GROUPS = {
   Fish:   {name:'Fish',
     note:'Feed small amounts once or twice a day rather than one large meal — reef fish graze continuously in the wild and a big single feed mostly ends up as nitrate. Vary the foods: a frozen mix, a quality pellet and something green covers most community stock. Anything that hides at feeding time needs watching, because a fish that is not competing is losing weight weeks before it looks thin.'},
@@ -1142,7 +1204,7 @@ function renderFeeding(){
   }
   /* One entry per species, keeping the total kept so the advice can speak
      about a shoal differently from a single specimen. */
-  var byGroup = {}, counts = {}, unknown = 0;
+  var byGroup = {}, counts = {}, sizes = {}, unknown = 0;
   cs.forEach(function(c){
     /* coralById falls back to the first coral for an unrecognised id, which
        would quietly file a mystery species under Acropora and give it the
@@ -1151,6 +1213,10 @@ function renderFeeding(){
     if(!sp){ unknown++; return; }
     var g = sp.group;
     counts[c.sp] = (counts[c.sp] || 0) + (c.qty || 1);
+    /* Where the same species is kept at two sizes, the larger one drives the
+       advice: an adult in the tank is the one that sets the feeding routine. */
+    var order = ['frag','small','med','large','xl'];
+    if(!sizes[c.sp] || order.indexOf(c.size) > order.indexOf(sizes[c.sp])) sizes[c.sp] = c.size;
     if(!byGroup[g]) byGroup[g] = [];
     if(!byGroup[g].some(function(x){ return x.id === c.sp; })) byGroup[g].push({id:c.sp, sp:sp});
   });
@@ -1167,12 +1233,18 @@ function renderFeeding(){
       var nm = x.sp.name.replace(/\s*\(.*\)$/, '');
       var latin = (x.sp.name.match(/\(([^)]+)\)/) || [])[1];
       var n = counts[x.id];
-      html += '<div class="feed-sp"><span class="nm">' + esc(nm) + '</span>' +
+      var szId = sizes[x.id];
+      var szName = (sizesFor(g).filter(function(z){ return z.id === szId; })[0] || {}).name;
+      var szNote = (FEED_SIZE[g] || {})[szId];
+      html += '<div class="feed-sp"><div class="feed-hd"><span class="nm">' + esc(nm) + '</span>' +
               (n > 1 ? '<span class="qty">×' + n + '</span>' : '') +
+              (szName ? '<span class="qty">' + esc(szName) + '</span>' : '') +
               (latin ? '<span class="qty">' + esc(latin) + '</span>' : '') +
+              '<button class="small ghost feed-rm" data-rmsp="' + esc(x.id) + '">Remove</button></div>' +
               (FEED_NOTES[x.id]
                 ? '<p>' + esc(FEED_NOTES[x.id].charAt(0).toUpperCase() + FEED_NOTES[x.id].slice(1)) + '.</p>'
                 : '<p class="gen">Nothing beyond the general guidance above — it takes the same foods as the rest of its group.</p>') +
+              (szNote ? '<p>' + esc(szNote) + '</p>' : '') +
               '</div>';
     });
     html += '</div>';
@@ -1190,6 +1262,22 @@ function renderFeeding(){
     '</div>' +
     '<div class="hint" style="margin-top:6px">Feeding and your numbers are the same conversation: nitrate and phosphate come from food. If they are bottoming out, feed more before you dose anything; if they are climbing, look at the feeding before you reach for a water change.</div>';
   el.innerHTML = html;
+  el.querySelectorAll('[data-rmsp]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var id = b.getAttribute('data-rmsp');
+      var sp = coralExact(id);
+      var kept = (state.settings.corals || []).filter(function(c){ return c.sp === id; })
+                   .reduce(function(a, c){ return a + (c.qty || 1); }, 0);
+      var nm = sp ? sp.name.replace(/\s*\(.*\)$/, '') : 'this species';
+      if(!confirm('Remove ' + (kept > 1 ? 'all ' + kept + ' ' + nm : nm) + ' from this tank?\n\n' +
+                  'It comes out of your stocking list, so the target ranges are worked out without it from now on.')) return;
+      state.settings.corals = (state.settings.corals || []).filter(function(c){ return c.sp !== id; });
+      applyStocking();
+      save();
+      refreshAll(); renderCorals(); renderFeeding();
+      toast(nm + ' removed');
+    });
+  });
 }
 function coralExact(id){ for(var i=0;i<CORALS.length;i++){ if(CORALS[i].id===id) return CORALS[i]; } return null; }
 function coralById(id){ for(var i=0;i<CORALS.length;i++){ if(CORALS[i].id===id) return CORALS[i]; } return CORALS[0]; }
@@ -1282,6 +1370,64 @@ var PRODUCTS = [
   {id:'kz-b',      src:'blank', brand:'Korallen-Zucht', name:'Balling B — alkalinity', form:'g', method:'dissolve', effects:{alk:null}},
   {id:'kz-c',      src:'blank', brand:'Korallen-Zucht', name:'Balling C — trace salt', form:'g', method:'dissolve', effects:{mg:null}},
 
+
+  /* ---------- single-element trace supplements ----------
+     These exist for the ICP plan: a report says strontium is 2 mg/l short and
+     the only useful next sentence names something that raises strontium. All
+     ship without a strength, because trace bottles vary enormously between
+     makers and nearly none publish a figure in the form the app needs. Read
+     it off the label once and it is remembered.
+
+     Dosed in the units the lab reports: mg/l for strontium, potassium, boron
+     and iodine at aquarium levels; µg/l for the genuine traces. */
+  {id:'tri-sr',  src:'blank', brand:'Triton', name:'Strontium (single element)', form:'ml', method:'direct', effects:{Sr:null}},
+  {id:'tri-i',   src:'blank', brand:'Triton', name:'Iodine (single element)',    form:'ml', method:'direct', effects:{I:null}},
+  {id:'tri-fe',  src:'blank', brand:'Triton', name:'Iron (single element)',      form:'ml', method:'direct', effects:{Fe:null}},
+  {id:'tri-mn',  src:'blank', brand:'Triton', name:'Manganese (single element)', form:'ml', method:'direct', effects:{Mn:null}},
+  {id:'tri-k',   src:'blank', brand:'Triton', name:'Potassium (single element)', form:'ml', method:'direct', effects:{K:null}},
+  {id:'tri-b',   src:'blank', brand:'Triton', name:'Boron (single element)',     form:'ml', method:'direct', effects:{B:null}},
+  {id:'tri-zn',  src:'blank', brand:'Triton', name:'Zinc (single element)',      form:'ml', method:'direct', effects:{Zn:null}},
+  {id:'tri-mo',  src:'blank', brand:'Triton', name:'Molybdenum (single element)',form:'ml', method:'direct', effects:{Mo:null}},
+  {id:'tri-v',   src:'blank', brand:'Triton', name:'Vanadium (single element)',  form:'ml', method:'direct', effects:{V:null}},
+
+  {id:'bw-strontion', src:'blank', brand:'Brightwell', name:'Strontion (strontium)', form:'ml', method:'direct', effects:{Sr:null}},
+  {id:'bw-iodion',    src:'blank', brand:'Brightwell', name:'Iodion (iodide)',       form:'ml', method:'direct', effects:{I:null}},
+  {id:'bw-ferrion',   src:'blank', brand:'Brightwell', name:'Ferrion (iron)',        form:'ml', method:'direct', effects:{Fe:null}},
+  {id:'bw-kalium',    src:'blank', brand:'Brightwell', name:'Potassion (potassium)', form:'ml', method:'direct', effects:{K:null}},
+
+  {id:'sc-iodide',  src:'blank', brand:'Seachem', name:'Reef Iodide',    form:'ml', method:'direct', effects:{I:null}},
+  {id:'sc-sr',      src:'blank', brand:'Seachem', name:'Reef Strontium', form:'ml', method:'direct', effects:{Sr:null}},
+  {id:'sc-trace',   src:'blank', brand:'Seachem', name:'Reef Trace (blend)', form:'ml', method:'direct', effects:{Fe:null, Mn:null, Zn:null},
+   note:'A blend rather than a single element, so it lifts several traces at once. Useful for general topping up, poor for correcting one figure an ICP report has singled out — for that, a single-element bottle is the controllable choice.'},
+
+  {id:'rs-iodine',  src:'blank', brand:'Red Sea', name:'Trace Colors A — Iodine/Halogen', form:'ml', method:'direct', effects:{I:null}},
+  {id:'rs-potass',  src:'blank', brand:'Red Sea', name:'Trace Colors B — Potassium',      form:'ml', method:'direct', effects:{K:null}},
+  {id:'rs-iron',    src:'blank', brand:'Red Sea', name:'Trace Colors C — Iron/Manganese', form:'ml', method:'direct', effects:{Fe:null, Mn:null}},
+  {id:'rs-trace-d', src:'blank', brand:'Red Sea', name:'Trace Colors D — Trace blend',    form:'ml', method:'direct', effects:{Zn:null, Mo:null, V:null},
+   note:'A blend of the minor traces. Good for routine supplementation, poor for aiming at one element an ICP report has flagged.'},
+
+  {id:'nyos-sr',  src:'blank', brand:'NYOS', name:'Strontium', form:'ml', method:'direct', effects:{Sr:null}},
+  {id:'nyos-i',   src:'blank', brand:'NYOS', name:'Iodine',    form:'ml', method:'direct', effects:{I:null}},
+  {id:'nyos-fe',  src:'blank', brand:'NYOS', name:'Iron',      form:'ml', method:'direct', effects:{Fe:null}},
+  {id:'nyos-k',   src:'blank', brand:'NYOS', name:'Potassium', form:'ml', method:'direct', effects:{K:null}},
+
+  {id:'fm-io',    src:'blank', brand:'Fauna Marin', name:'Ultra Iodine',    form:'ml', method:'direct', effects:{I:null}},
+  {id:'fm-sr',    src:'blank', brand:'Fauna Marin', name:'Ultra Strontium', form:'ml', method:'direct', effects:{Sr:null}},
+  {id:'fm-fe',    src:'blank', brand:'Fauna Marin', name:'Ultra Iron',      form:'ml', method:'direct', effects:{Fe:null}},
+
+  {id:'af-iodine', src:'blank', brand:'Aquaforest', name:'Iodum (iodine)',      form:'ml', method:'direct', effects:{I:null}},
+  {id:'af-sr',     src:'blank', brand:'Aquaforest', name:'Strontium',           form:'ml', method:'direct', effects:{Sr:null}},
+  {id:'af-k',      src:'blank', brand:'Aquaforest', name:'Potassium',           form:'ml', method:'direct', effects:{K:null}},
+
+  {id:'kz-iodine', src:'blank', brand:'Korallen-Zucht', name:'Iodine/Fluorine Concentrate', form:'ml', method:'direct', effects:{I:null}},
+  {id:'kz-k',      src:'blank', brand:'Korallen-Zucht', name:'Potassium Concentrate',       form:'ml', method:'direct', effects:{K:null}},
+
+  {id:'tm-iodide', src:'blank', brand:'Tropic Marin', name:'Iodide concentrate', form:'ml', method:'direct', effects:{I:null}},
+
+  {id:'gen-trace', src:'blank', brand:'Other or unbranded', name:'Single-element trace supplement', form:'ml', method:'direct',
+   effects:{Sr:null, I:null, Fe:null, Mn:null, K:null, B:null, Zn:null, Mo:null, V:null},
+   note:'For a bottle the app does not list. Fill in only the element it actually contains and leave the rest blank.'},
+
   {id:'kalk',   src:'calc',  brand:'Raw salts and DIY', name:'Kalkwasser (calcium hydroxide)', form:'g', method:'dissolve',
    effects:{ca:5.41, alk:0.76},
    note:'Follows from the formula weight, but it is not dosed like the other powders: it must go in as saturated limewater, added slowly to high flow, and it raises pH sharply. Never add the dry powder to the tank, and never dose it faster than the pH will tolerate.'},
@@ -1353,43 +1499,43 @@ var PRODUCTS = [
    are consumed and can be topped up, 'toxic' ones only ever want removing. */
 var ICP_ELEMENTS = [
   /* major ions, mg/l */
-  {k:'Na', n:'Sodium',      grp:'major', u:'mg/l', sp:10700, kind:'need'},
-  {k:'Ca', n:'Calcium',     grp:'major', u:'mg/l', sp:440,   kind:'need', maps:'ca'},
-  {k:'Mg', n:'Magnesium',   grp:'major', u:'mg/l', sp:1370,  kind:'need', maps:'mg'},
-  {k:'K',  n:'Potassium',   grp:'major', u:'mg/l', sp:400,   kind:'need'},
-  {k:'S',  n:'Sulphur',     grp:'major', u:'mg/l', sp:900,   kind:'need'},
-  {k:'Br', n:'Bromine',     grp:'major', u:'mg/l', sp:62,    kind:'need'},
-  {k:'B',  n:'Boron',       grp:'major', u:'mg/l', sp:4.5,   kind:'need'},
-  {k:'Sr', n:'Strontium',   grp:'major', u:'mg/l', sp:8,     kind:'need'},
+  {k:'Na', n:'Sodium',      grp:'major', u:'mg/l', sp:10700, kind:'need', role:'the counter-ion to chloride and the bulk of what makes seawater salty', lo:'almost always a refractometer that has drifted rather than a real deficit — check your calibration fluid before doing anything', hi:'almost always a refractometer that has drifted rather than a real excess — check your calibration fluid before doing anything'},
+  {k:'Ca', n:'Calcium',     grp:'major', u:'mg/l', sp:440,   kind:'need', maps:'ca', role:'the mineral corals build skeleton from, alongside carbonate', lo:'growth slows and new tips stall before anything looks obviously wrong', hi:'little direct harm, but it pushes toward precipitation with alkalinity — you lose both'},
+  {k:'Mg', n:'Magnesium',   grp:'major', u:'mg/l', sp:1370,  kind:'need', maps:'mg', role:'the ion that keeps calcium and carbonate in solution at the levels a reef needs', lo:'alkalinity and calcium become impossible to hold; they precipitate out of solution and both readings fall together', hi:'rarely harmful on its own'},
+  {k:'K',  n:'Potassium',   grp:'major', u:'mg/l', sp:400,   kind:'need', role:'used in coral tissue and pigment; the blues and purples in SPS depend on it', lo:'colour fades toward brown or pale, and Acropora tips lose definition', hi:'not usually a problem, though large excesses have been linked to tissue recession'},
+  {k:'S',  n:'Sulphur',     grp:'major', u:'mg/l', sp:900,   kind:'need', role:'sulphate, a major seawater ion', lo:'unusual, and generally points at the salt mix', hi:'usually from the salt mix or from Epsom salt used to raise magnesium'},
+  {k:'Br', n:'Bromine',     grp:'major', u:'mg/l', sp:62,    kind:'need', role:'a major seawater ion with no known limiting role in a reef', lo:'almost always a salt-mix artefact rather than anything the tank did', hi:'almost always a salt-mix artefact rather than anything the tank did'},
+  {k:'B',  n:'Boron',       grp:'major', u:'mg/l', sp:4.5,   kind:'need', role:'part of the alkalinity you measure, and a significant pH buffer', lo:'pH swings further between day and night, and reds and pinks can fade', hi:'high boron has been associated with suppressed growth; a water change is the usual answer'},
+  {k:'Sr', n:'Strontium',   grp:'major', u:'mg/l', sp:8,     kind:'need', role:'built into the aragonite skeleton alongside calcium', lo:'commonly depleted in fast-growing systems; growth rate rather than colour is what suffers', hi:'not usually harmful'},
   /* trace, µg/l */
-  {k:'Li', n:'Lithium',     grp:'trace', u:'µg/l', sp:200,   kind:'need'},
-  {k:'Mo', n:'Molybdenum',  grp:'trace', u:'µg/l', sp:12,    kind:'need'},
-  {k:'Ni', n:'Nickel',      grp:'trace', u:'µg/l', sp:5,     kind:'need'},
-  {k:'I',  n:'Iodine',      grp:'trace', u:'µg/l', sp:60,  kind:'need'},
-  {k:'Fe', n:'Iron',        grp:'trace', u:'µg/l', sp:2,  kind:'need'},
-  {k:'Mn', n:'Manganese',   grp:'trace', u:'µg/l', sp:0.4,  kind:'need'},
-  {k:'Zn', n:'Zinc',        grp:'trace', u:'µg/l', sp:5,  kind:'need'},
-  {k:'Ba', n:'Barium',      grp:'trace', u:'µg/l', sp:21,  kind:'need'},
-  {k:'V',  n:'Vanadium',    grp:'trace', u:'µg/l', sp:1.9,  kind:'need'},
-  {k:'Cr', n:'Chromium',    grp:'trace', u:'µg/l', sp:0.2,  kind:'need'},
-  {k:'Co', n:'Cobalt',      grp:'trace', u:'µg/l', sp:0.4,  kind:'need'},
-  {k:'Si', n:'Silicon',     grp:'trace', u:'µg/l', sp:2900,  kind:'need'},
-  {k:'P',  n:'Phosphorus',  grp:'trace', u:'µg/l', sp:60,  kind:'need'},
-  {k:'Be', n:'Beryllium',   grp:'trace', u:'µg/l', sp:0.006,  kind:'need'},
+  {k:'Li', n:'Lithium',     grp:'trace', u:'µg/l', sp:200,   kind:'need', role:'no established biological role in a reef; it tracks the salt mix', lo:'not worth acting on by itself', hi:'not worth acting on by itself'},
+  {k:'Mo', n:'Molybdenum',  grp:'trace', u:'µg/l', sp:12,    kind:'need', role:'a cofactor in nitrogen processing', lo:'occasionally implicated in stalled nitrate reduction', hi:'not usually harmful'},
+  {k:'Ni', n:'Nickel',      grp:'trace', u:'µg/l', sp:5,     kind:'need', role:'a cofactor in nitrogen processing', lo:'rarely limiting', hi:'not usually harmful at the levels seen in reef tanks'},
+  {k:'I',  n:'Iodine',      grp:'trace', u:'µg/l', sp:60,  kind:'need', role:'used by soft corals, LPS and macroalgae, and involved in pigmentation', lo:'zoanthids and leathers go pale, and soft corals close up more than they should', hi:'iodine is toxic in excess and the margin is narrow — stop dosing and dilute'},
+  {k:'Fe', n:'Iron',        grp:'trace', u:'µg/l', sp:2,  kind:'need', role:'essential to the zooxanthellae that feed the coral, and to any macroalgae', lo:'tissue pales despite good light and nutrients, and refugium algae stalls', hi:'feeds nuisance algae and dinoflagellates before it feeds anything you want'},
+  {k:'Mn', n:'Manganese',   grp:'trace', u:'µg/l', sp:0.4,  kind:'need', role:'an enzyme cofactor that works alongside iron', lo:'usually depletes quietly in systems running algae scrubbers', hi:'encourages algae, much as iron does'},
+  {k:'Zn', n:'Zinc',        grp:'trace', u:'µg/l', sp:5,  kind:'need', role:'an enzyme cofactor needed in tiny amounts', lo:'rarely limiting on its own', hi:'toxic well before it is useful; find the source rather than diluting repeatedly'},
+  {k:'Ba', n:'Barium',      grp:'trace', u:'µg/l', sp:21,  kind:'need', role:'no established role; it tracks the salt mix', lo:'not worth acting on by itself', hi:'usually a salt-mix artefact'},
+  {k:'V',  n:'Vanadium',    grp:'trace', u:'µg/l', sp:1.9,  kind:'need', role:'a trace cofactor', lo:'rarely limiting', hi:'can suppress coral colouration at elevated levels'},
+  {k:'Cr', n:'Chromium',    grp:'trace', u:'µg/l', sp:0.2,  kind:'need', role:'a trace cofactor', lo:'rarely limiting', hi:'worth watching, as elevated chromium usually means a contamination source'},
+  {k:'Co', n:'Cobalt',      grp:'trace', u:'µg/l', sp:0.4,  kind:'need', role:'a trace cofactor, part of vitamin B12', lo:'rarely limiting', hi:'not usually harmful, but points at a source'},
+  {k:'Si', n:'Silicon',     grp:'trace', u:'µg/l', sp:2900,  kind:'need', role:'silicate — food for diatoms and sponges', lo:'sponges and some filter feeders do less well; not usually a problem', hi:'diatom blooms on sand and glass. The usual source is an RO membrane or DI resin past its life'},
+  {k:'P',  n:'Phosphorus',  grp:'trace', u:'µg/l', sp:60,  kind:'need', role:'phosphorus, which your phosphate test measures as PO4', lo:'corals pale and growth slows; zero nutrients starve the zooxanthellae', hi:'algae, cyanobacteria, and suppressed calcification'},
+  {k:'Be', n:'Beryllium',   grp:'trace', u:'µg/l', sp:0.006,  kind:'need', role:'no established role in a reef', lo:'not worth acting on', hi:'not worth acting on'},
   /* contaminants, µg/l — every one of these reads low-is-better */
-  {k:'Cu', n:'Copper',      grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic', note:'Copper is lethal to shrimp, snails and other inverts long before corals show it. Common sources are metal impellers, some medications and tap water.'},
-  {k:'Al', n:'Aluminium',   grp:'toxic', u:'µg/l', sp:2,   kind:'toxic', note:'Usually traced to aluminium-based phosphate media.'},
-  {k:'Pb', n:'Lead',        grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic'},
-  {k:'Hg', n:'Mercury',     grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic'},
-  {k:'Cd', n:'Cadmium',     grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic'},
-  {k:'Sn', n:'Tin',         grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic'},
-  {k:'Sb', n:'Antimony',    grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic'},
-  {k:'As', n:'Arsenic',     grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic'},
-  {k:'Ti', n:'Titanium',    grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic'},
-  {k:'Se', n:'Selenium',    grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic'},
-  {k:'La', n:'Lanthanum',   grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic', note:'Lanthanum chloride is used to strip phosphate; a reading here means some stayed in the water.'},
-  {k:'Sc', n:'Scandium',    grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic'},
-  {k:'W',  n:'Tungsten',    grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic'}
+  {k:'Cu', n:'Copper',      grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic', note:'Copper is lethal to shrimp, snails and other inverts long before corals show it. Common sources are metal impellers, some medications and tap water.', role:'a contaminant with no place in a reef', src:'Lethal to shrimp, snails, crabs and other invertebrates long before corals show anything. Usual sources are a metal impeller or pump shaft, copper-based medication used in the system or in a shared quarantine, and tap water.'},
+  {k:'Al', n:'Aluminium',   grp:'toxic', u:'µg/l', sp:2,   kind:'toxic', note:'Usually traced to aluminium-based phosphate media.', role:'a contaminant with no place in a reef', src:'Almost always aluminium-based phosphate media, which leaches as it works. Rinse thoroughly, run it in a bag rather than a tumbling reactor, or switch to a ferric medium.'},
+  {k:'Pb', n:'Lead',        grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic', role:'a contaminant with no place in a reef', note:'Usually plumbing, solder, or a weight used as a frag anchor. Find it — dilution alone will not hold.'},
+  {k:'Hg', n:'Mercury',     grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic', role:'a contaminant with no place in a reef', note:'Rare and serious. Check anything that has been in the tank that was not sold for aquarium use.'},
+  {k:'Cd', n:'Cadmium',     grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic', role:'a contaminant with no place in a reef', note:'Usually a contaminated additive or a low-grade salt. Change brand before you change water.'},
+  {k:'Sn', n:'Tin',         grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic', role:'a contaminant with no place in a reef', note:'Often traced to a heater, a pump, or something soldered.'},
+  {k:'Sb', n:'Antimony',    grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic', role:'a contaminant with no place in a reef', note:'Uncommon; usually plastics or a contaminated additive.'},
+  {k:'As', n:'Arsenic',     grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic', role:'a contaminant with no place in a reef', note:'Uncommon; check additives and any rock or sand added recently.'},
+  {k:'Ti', n:'Titanium',    grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic', role:'a contaminant with no place in a reef', note:'Usually harmless in a reef and often from a titanium heater; worth noting, not chasing.'},
+  {k:'Se', n:'Selenium',    grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic', role:'a contaminant with no place in a reef', note:'Needed in traces but toxic in excess; usually from an additive.'},
+  {k:'La', n:'Lanthanum',   grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic', note:'Lanthanum chloride is used to strip phosphate; a reading here means some stayed in the water.', role:'a contaminant with no place in a reef', src:'Lanthanum chloride used to strip phosphate, some of which stayed in the water. Dose it through a filter sock in future.'},
+  {k:'Sc', n:'Scandium',    grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic', role:'a contaminant with no place in a reef', note:'Uncommon; usually a contaminated additive.'},
+  {k:'W',  n:'Tungsten',    grp:'toxic', u:'µg/l', sp:0.1, kind:'toxic', role:'a contaminant with no place in a reef', note:'Uncommon; usually a contaminated additive.'}
 ];
 var ICP_GROUPS = [
   {id:'major', name:'Major ions', sub:'The bulk chemistry of sea water, in mg/l.'},
@@ -1754,7 +1900,7 @@ function shelfList(){
     var base = libProduct(entry.id) || {id:entry.id, name:entry.name || 'Custom product',
       form:entry.form || 'g', method:entry.method || 'dissolve', effects:{}};
     var eff = {};
-    ['alk','ca','mg','no3','po4'].forEach(function(k){
+    effectKeys(base).forEach(function(k){
       var v = (entry.effects && entry.effects[k] !== undefined && entry.effects[k] !== '')
         ? num(entry.effects[k]) : base.effects[k];
       if(v && v > 0) eff[k] = v;
@@ -1765,6 +1911,28 @@ function shelfList(){
       multi:(eff.alk?1:0) + (eff.ca?1:0) + (eff.mg?1:0) > 1});
   });
   return out;
+}
+/* The parameters a home kit measures, plus whichever ICP elements a given
+   product claims to move. Trace supplements are dosed in the units the lab
+   reports, so a strontium bottle is measured in mg/l and an iodine one in
+   µg/l — the same figures the ICP plan is reasoning about. */
+var CORE_KEYS = ['alk','ca','mg','no3','po4'];
+function effectKeys(prod){
+  var keys = CORE_KEYS.slice();
+  Object.keys(prod.effects || {}).forEach(function(k){
+    if(keys.indexOf(k) === -1) keys.push(k);
+  });
+  return keys;
+}
+function keyLabel(k){
+  if(CORE_KEYS.indexOf(k) !== -1) return (k === 'alk' ? 'dKH' : UNITS[k]);
+  var e = icpEl(k);
+  return e ? e.u : k;
+}
+function keyName(k){
+  if(CORE_KEYS.indexOf(k) !== -1) return meta(k).name;
+  var e = icpEl(k);
+  return e ? e.n : k;
 }
 function onShelf(id){
   return (state.settings.shelf || []).some(function(e){ return e.id === id; });
@@ -2669,6 +2837,128 @@ function icpMoveText(e, m){
   if(m.dir === 'flat') return {cls:'flat', txt:'held steady'};
   return {cls:m.dir, txt:(m.d > 0 ? 'up ' : 'down ') + mag + (m.dir === 'better' ? ', toward the setpoint' : ', away from the setpoint')};
 }
+function icpLine(i, showChange){
+  var e = i.e, dp = i.v < 10 ? 2 : 0;
+  var dir = i.verdict === 'low' ? 'low' : i.verdict === 'metal' ? 'present' : 'high';
+  var h = '<div class="icp-el"><b>' + esc(e.n) + '</b>' +
+    '<span class="fig">' + fmt(i.v, dp) + ' ' + e.u + ' · ' + dir +
+    (i.verdict === 'metal' ? '' : ', setpoint ' + i.sp) + '</span>';
+  if(showChange && i.pct !== null){
+    h += '<p><b>' + Math.round(i.pct) + '% change on its own</b> — about ' + Math.round(i.litres) +
+         ' litres — brings this one back inside its band.</p>';
+  }
+  if(e.role) h += '<p>' + esc(e.role.charAt(0).toUpperCase() + e.role.slice(1)) + '. ' +
+    esc(i.verdict === 'low' ? (e.lo || '') : (e.hi || '')) + '</p>';
+  if(e.note || e.src) h += '<p>' + esc(e.note || e.src) + '</p>';
+  return h + '</div>';
+}
+function renderIcpPlan(){
+  var el = document.getElementById('icpPlan');
+  if(!el) return;
+  var rep = icpLast();
+  if(!rep){ el.innerHTML = ''; return; }
+  var pl = icpPlan(rep), L = state.settings.netLitres || 0;
+  var h = '<div class="icp-plan"><div class="card-title">What to do about this report</div>' +
+    '<div class="sub">Sampled ' + esc(fmtDay(icpDate(rep))) + '. Everything below assumes freshly mixed salt water sits at each ' +
+    'element\'s setpoint — that is what the maker is aiming for, and close enough to plan from. If you have ever had your own ' +
+    'salt analysed, enter those figures as the setpoints and this gets sharper.</div>';
+
+  if(pl.contaminants.length){
+    h += '<h4>Deal with this first</h4>';
+    pl.contaminants.forEach(function(i){ h += icpLine(i, true); });
+    h += '<p>Find the source before you dilute. Anything leaching into the tank will simply refill what you take out, ' +
+         'and you will be changing water against a tap that is still running.</p>';
+  }
+
+  if(pl.byChange.length){
+    h += '<h4>One water change fixes ' + pl.byChange.length +
+         (pl.byChange.length === 1 ? ' of these' : ' of these') + '</h4>';
+    h += '<div class="lead">' + Math.round(pl.changePct) + '% — about ' + Math.round(pl.changeL) + ' litres</div>';
+    h += '<p>Sized to the largest of the jobs below, so the rest come along with it' +
+         (pl.cappedByCeiling ? ', and capped at the ' + wcCeiling() + '% ceiling you set under Setup — repeat it rather than exceeding that in one go' : '') +
+         '. Match temperature and salinity, and re-test in a fortnight rather than immediately: trace levels take days to settle.</p>';
+    pl.byChange.forEach(function(i){ h += icpLine(i, true); });
+  }
+
+  if(pl.partly && pl.partly.length){
+    h += '<h4>The change helps these but does not finish them</h4>';
+    pl.partly.forEach(function(i){
+      h += icpLine(i, false);
+      h += '<p style="margin-left:0">Back inside its band would take about <b>' + Math.round(i.pct) + '%</b> — ' +
+           Math.round(i.litres) + ' litres — which is past the ' + wcCeiling() + '% you allow in one go. ' +
+           'The ' + Math.round(pl.changePct) + '% above moves it to ' + fmt(pl.after[i.e.k], i.v < 10 ? 2 : 0) + ' ' + i.e.u +
+           '. Repeat the change in a fortnight, or close the gap with a supplement.</p>';
+    });
+  }
+
+  if(pl.bySupplement.length){
+    h += '<h4>A water change will not reach these</h4>';
+    pl.bySupplement.forEach(function(i){
+      h += icpLine(i, false);
+      var need = Math.max(0, i.sp - i.v);
+      var mg = i.e.u === 'mg/l' ? need * L : need * L / 1000;
+      var mass = mg >= 1000 ? fmt(mg/1000, 1) + ' g' : mg >= 1 ? fmt(mg, 1) + ' mg' : fmt(mg*1000, 0) + ' µg';
+      /* Something on the shelf that moves this exact element — either a core
+         parameter the app already doses, or a single-element trace bottle. */
+      var mineKey = i.e.maps || i.e.k;
+      var own = shelfList().filter(function(p){ return p.effects[mineKey]; })[0];
+      var unfilled = !own && (state.settings.shelf || []).filter(function(en){
+        var b = libProduct(en.id);
+        return b && b.effects && (i.e.k in b.effects);
+      })[0];
+      var line = 'Your ' + Math.round(L) + ' litres are short by about <b>' + mass + '</b> of elemental ' +
+                 esc(i.e.n.toLowerCase()) + '. ';
+      if(own){
+        /* effects are per unit per 100 L, in the element's own units */
+        var ml = need * L / 100 / own.effects[mineKey];
+        line += 'You have ' + esc(own.name) + ' on the shelf, which closes it with about <b>' + amt(ml, own.form) +
+                '</b>. Add a quarter of that, wait a week and re-test before the rest — a trace element is far easier to overshoot than to top up.';
+      } else if(unfilled){
+        var ub = libProduct(unfilled.id);
+        line += 'You have ' + esc(ub.brand + ' ' + ub.name) + ' ticked for this, but no strength set against it. ' +
+                'Put the figure from the label in under Setup and the app will work the dose out.';
+      } else {
+        line += 'Any single-element ' + esc(i.e.n.toLowerCase()) + ' supplement will do it; there is no brand that matters here — ' +
+                'tick whichever you buy under Setup. Dose a quarter of the shortfall, wait a week, and re-test before adding more, ' +
+                'because a trace element is far easier to overshoot than to top up.';
+      }
+      h += '<p style="margin-left:0">' + line + '</p>';
+    });
+  }
+
+  if(pl.byRemoval.length){
+    h += '<h4>Too high to dilute out</h4>';
+    pl.byRemoval.forEach(function(i){ h += icpLine(i, false); });
+    h += '<p>A change large enough to fix these would move everything else further than it should go. Find what is adding them — ' +
+         'salt brand, an additive, media, or plumbing — stop it, and let routine water changes bring them down over a month or two.</p>';
+  }
+
+  if(pl.changeFrac > 0){
+    h += '<h4>Where you land after the ' + Math.round(pl.changePct) + '% change</h4><table class="icp-after"><tbody>';
+    ICP_ELEMENTS.forEach(function(e){
+      var v = rep.values[e.k];
+      if(v === undefined || v === null) return;
+      var af = pl.after[e.k], sp = icpSetpoint(rep, e);
+      if(Math.abs(af - v) < (v * 0.02)) return;          /* barely moved, not worth a row */
+      var vt = icpVerdict(e, af, sp);
+      var cls = vt === 'ok' ? 'v-good' : vt === 'metal' ? 'v-bad' : 'v-near';
+      var dp = v < 10 ? 2 : 0;
+      h += '<tr><td>' + e.k + ' <span style="color:var(--muted)">' + esc(e.n) + '</span></td>' +
+           '<td>' + fmt(v, dp) + ' → <b class="' + cls + '">' + fmt(af, dp) + '</b> ' + e.u + '</td></tr>';
+    });
+    h += '</tbody></table>';
+  }
+
+  if(!pl.contaminants.length && !pl.byChange.length && !pl.bySupplement.length &&
+     !pl.byRemoval.length && !(pl.partly && pl.partly.length)){
+    h += '<h4>Nothing needs correcting</h4><p>Every element you entered sits inside its band. ' +
+         'Keep the routine that produced this and re-test in two to three months.</p>';
+  }
+
+  h += '<p style="margin-top:14px;color:var(--muted)">Do the water change first, then the supplements, then re-test — ' +
+       'ideally with the same lab, since labs calibrate differently and only your own history is comparable.</p></div>';
+  el.innerHTML = h;
+}
 function renderIcpChart(){
   var el = document.getElementById('icpChart');
   if(!el) return;
@@ -2970,6 +3260,94 @@ function assessIcp(rep){
   });
   out.sort(function(a,b){ return a.rank - b.rank; });
   return {findings:out, ok:ok, unset:unset};
+}
+/* ---------- turning a report into a plan ----------
+   A list of findings is what the lab already gave them. What is worth paying
+   for is the next paragraph: which of these one water change fixes, how big
+   that change has to be, what it will not reach, and what to put in the tank
+   for the rest.
+
+   The arithmetic rests on one assumption, stated plainly in the output:
+   freshly mixed salt water sits at each element's setpoint. That is what a
+   salt manufacturer is aiming for and close enough to reason from, but it is
+   an assumption — a keeper who has had their own salt analysed can do better,
+   and the app says so rather than pretending otherwise. */
+function icpChangeFor(e, cur, sp, tol){
+  /* The fraction of the volume to replace to bring this element back inside
+     its band, with new water arriving at the setpoint. Contaminants are the
+     exception: fresh salt water carries none, so they dilute toward zero. */
+  var mix = (e.kind === 'toxic') ? 0 : sp;
+  var target;
+  if(e.kind === 'toxic') target = sp;
+  else if(cur > sp) target = sp * (1 + tol);
+  else target = sp * (1 - tol);
+  if((cur > sp && cur <= target) || (cur < sp && cur >= target)) return 0;
+  var denom = cur - mix;
+  if(Math.abs(denom) < 1e-12) return null;
+  var f = (cur - target) / denom;
+  if(f <= 0) return 0;
+  if(f > 1) return null;             /* not reachable by dilution at all */
+  return f;
+}
+function icpPlan(rep){
+  var L = state.settings.netLitres || 0;
+  var out = {byChange:[], bySupplement:[], byRemoval:[], contaminants:[], fine:[], skipped:[],
+             changePct:0, changeL:0, unreachable:[]};
+  if(!rep) return out;
+  ICP_ELEMENTS.forEach(function(e){
+    var v = rep.values[e.k];
+    if(v === undefined || v === null) return;
+    var sp = icpSetpoint(rep, e);
+    if(sp === null || sp === undefined){ out.skipped.push(e.k); return; }
+    var verdict = icpVerdict(e, v, sp);
+    if(verdict === 'ok'){ out.fine.push(e.k); return; }
+    var tol = (e.kind === 'toxic') ? 0 : (ICP_TOL[e.grp] || 0.25);
+    var f = icpChangeFor(e, v, sp, tol);
+    var item = {e:e, v:v, sp:sp, verdict:verdict, frac:f,
+                pct: f === null ? null : f * 100,
+                litres: f === null ? null : f * L};
+    if(verdict === 'metal'){
+      /* Listed once, at the top. Whether dilution can reach it is said in
+         its own line rather than by repeating it further down the page. */
+      out.contaminants.push(item);
+      if(f !== null && f <= 0.5) out.byChange.push(item);
+    } else if(f === null){
+      /* dilution cannot get there — for a low element that means dosing */
+      (verdict === 'low' ? out.bySupplement : out.byRemoval).push(item);
+      out.unreachable.push(item);
+    } else if(f > 0.5){
+      (verdict === 'low' ? out.bySupplement : out.byRemoval).push(item);
+    } else {
+      out.byChange.push(item);
+    }
+  });
+  /* One change, sized to the largest job it can reasonably do, and capped by
+     the ceiling the keeper set for the rest of the app. */
+  var ceiling = wcCeiling() / 100;
+  var needed = 0;
+  out.byChange.forEach(function(i){ if(i.frac > needed) needed = i.frac; });
+  out.changeFrac = Math.min(needed, ceiling);
+  out.cappedByCeiling = needed > ceiling;
+  out.changePct = out.changeFrac * 100;
+  out.changeL = out.changeFrac * L;
+  /* The change was capped, so some of what it was meant to fix will not
+     land inside its band. Say which, rather than claiming the job is done. */
+  out.partly = [];
+  out.byChange = out.byChange.filter(function(i){
+    if(i.frac <= out.changeFrac + 1e-9) return true;
+    out.partly.push(i);
+    return false;
+  });
+  /* What every entered element reads after that change. */
+  out.after = {};
+  ICP_ELEMENTS.forEach(function(e){
+    var v = rep.values[e.k];
+    if(v === undefined || v === null) return;
+    var sp = icpSetpoint(rep, e);
+    var mix = (e.kind === 'toxic') ? 0 : (sp === null ? v : sp);
+    out.after[e.k] = v * (1 - out.changeFrac) + mix * out.changeFrac;
+  });
+  return out;
 }
 function icpFindingsHtml(a){
   var h = '';
@@ -3504,7 +3882,7 @@ function shelfEntry(id){
   for(var i=0;i<list.length;i++){ if(list[i].id === id) return list[i]; }
   return null;
 }
-var BRAND_ORDER = ['Red Sea', 'Tropic Marin', 'Aquaforest', 'Modern Reef', 'Reef Zlements', 'NYOS', 'ATI', 'Fauna Marin', 'Korallen-Zucht', 'Brightwell', 'ESV', 'Seachem', 'Two Little Fishies', 'Kent Marine', 'Rowa', 'Bulk Reef Supply', 'Blue Life', 'Raw salts and DIY', 'Other or unbranded', 'Your own products'];
+var BRAND_ORDER = ['Red Sea', 'Tropic Marin', 'Aquaforest', 'Modern Reef', 'Reef Zlements', 'NYOS', 'ATI', 'Fauna Marin', 'Korallen-Zucht', 'Brightwell', 'ESV', 'Seachem', 'Two Little Fishies', 'Kent Marine', 'Triton', 'Rowa', 'Bulk Reef Supply', 'Blue Life', 'Raw salts and DIY', 'Other or unbranded', 'Your own products'];
 /* Where each figure came from, and whether it is the app's place to defend it.
    `fixed` decides the default: a number that follows from a formula weight or
    a published label is shown rather than typed, because a stray keystroke
@@ -3570,13 +3948,13 @@ function renderShelf(){
         return;
       }
       html += '<div class="prod-eff">';
-      ['alk','ca','mg','no3','po4'].forEach(function(k){
+      effectKeys(base).forEach(function(k){
         var b = base.effects[k];
         if(b === undefined) return;
         var own = entry.effects && entry.effects[k] !== undefined;
         var v = own ? entry.effects[k] : b;
         if(v === null) v = '';
-        html += '<label>'+(k === 'alk' ? 'dKH' : UNITS[k])+' / '+form+' / 100 L';
+        html += '<label>'+(CORE_KEYS.indexOf(k) === -1 ? esc(keyName(k)) + ' ' : '')+keyLabel(k)+' / '+form+' / 100 L';
         if(edit){
           html += '<input type="number" step="0.01" inputmode="decimal" data-eff="'+prod.id+'|'+k+'" value="'+v+'">';
         } else {
@@ -3590,8 +3968,8 @@ function renderShelf(){
         html += '<div class="prod-src">';
         if(overridden){
           html += '<span><b>Your own figures.</b> ' + esc(info.label) + ': ' +
-                  ['alk','ca','mg'].filter(function(k){ return base.effects[k] !== undefined; })
-                    .map(function(k){ return base.effects[k] + ' ' + (k === 'alk' ? 'dKH' : UNITS[k]); }).join(', ') +
+                  effectKeys(base).filter(function(k){ return base.effects[k] !== undefined && base.effects[k] !== null; })
+                    .map(function(k){ return base.effects[k] + ' ' + keyLabel(k); }).join(', ') +
                   '</span><button class="ghost" data-relock="'+prod.id+'">Put the original back</button>';
         } else if(edit){
           html += '<span><b>' + esc(info.label) + '.</b> ' + esc(info.why) + '</span>';
@@ -3777,7 +4155,7 @@ function switchTank(id){
   useTank(id);
   $('#results').innerHTML = '';
   refreshAll(); renderCorals(); populateTank(); renderTankPicker();
-  renderIcpChart(); renderIcpTrend(); renderIcpHistory(); renderFeeding();
+  renderIcpPlan(); renderIcpChart(); renderIcpTrend(); renderIcpHistory(); renderFeeding();
   toast('Now on ' + (state.settings.tankName || 'this tank'));
 }
 function renderTankPicker(){
@@ -4289,6 +4667,73 @@ function cell(v){
   var t = String(v);
   return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
 }
+/* One place that turns text into a file, so both exports behave the same and
+   the clipboard fallback is not written twice. The byte-order mark is what
+   makes Excel read °C and µg/l properly rather than mangling them. */
+function downloadCsv(text, filename, okMsg){
+  try{
+    var blob = new Blob(['\ufeff' + text], {type:'text/csv;charset=utf-8'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); document.body.removeChild(a); }, 500);
+    toast(okMsg);
+  }catch(e){
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){ toast('Download blocked — copied to the clipboard instead'); },
+                                              function(){ fallbackCopy(text); });
+    } else fallbackCopy(text);
+  }
+}
+/* ICP results go out long rather than wide: one row per element per report,
+   instead of a sheet forty-five columns across. It is the shape a spreadsheet
+   is actually good at — filter to one element and you have its history, drop a
+   pivot on it and you have every element by date — and it stays readable on a
+   phone, which a forty-five-column sheet never is. */
+function icpCsv(){
+  var head = ['Tank','Sampled','Reported','Lab','Element','Symbol','Group',
+              'Result','Unit','Setpoint','Status','Change since previous','What it does'];
+  var rows = [head.join(',')];
+  syncActive();
+  var tanks = (vault && vault.tanks && vault.tanks.length) ? vault.tanks : [{settings:state.settings}];
+  tanks.forEach(function(tk){
+    var name = (tk.settings && tk.settings.tankName) || 'Tank';
+    var reps = ((tk.settings && tk.settings.icp) || []).slice().sort(function(a, b){
+      return ((a.sampled || a.t || '')).localeCompare(b.sampled || b.t || '');
+    });
+    reps.forEach(function(r, ri){
+      var prev = ri > 0 ? reps[ri - 1] : null;
+      ICP_ELEMENTS.forEach(function(e){
+        var v = r.values[e.k];
+        if(v === undefined || v === null) return;
+        var sp = icpSetpoint(r, e);
+        var verdict = icpVerdict(e, v, sp);
+        var status = verdict === 'ok' ? 'In range'
+                   : verdict === 'metal' ? 'Contaminant present'
+                   : verdict === 'low' ? 'Below setpoint'
+                   : verdict === 'high' ? 'Above setpoint' : 'No setpoint';
+        var chg = '';
+        if(prev){
+          var pv = prev.values[e.k];
+          if(pv !== undefined && pv !== null) chg = Number((v - pv).toFixed(4));
+        }
+        rows.push([
+          cell(name),
+          cell(new Date(icpDate(r)).toLocaleDateString('en-GB')),
+          cell(r.t ? new Date(r.t).toLocaleDateString('en-GB') : ''),
+          cell(r.lab || ''),
+          cell(e.n), cell(e.k), cell(e.grp),
+          cell(v), cell(e.u),
+          cell(sp === null || sp === undefined ? '' : sp),
+          cell(status), cell(chg),
+          cell(e.role || '')
+        ].join(','));
+      });
+    });
+  });
+  return rows.join('\r\n');
+}
 function csv(){
   var head = ['Tank','Date','Time','Entry','Salt / notes','Volume (L)','Change (%)']
     .concat(PARAMS.map(function(p){ var m = meta(p.key); return m.name + (m.unit ? ' ('+m.unit+')' : ''); }));
@@ -4342,7 +4787,7 @@ document.querySelectorAll('nav button').forEach(function(b){
     if(pane) pane.scrollTo({top:0}); else window.scrollTo({top:0});
     if(b.getAttribute('data-view') === 'log') renderLog();
     if(b.getAttribute('data-view') === 'setup') renderSetup();
-    if(b.getAttribute('data-view') === 'icp'){ renderIcpChart(); renderIcpTrend(); renderIcpHistory(); }
+    if(b.getAttribute('data-view') === 'icp'){ renderIcpPlan(); renderIcpChart(); renderIcpTrend(); renderIcpHistory(); }
     if(b.getAttribute('data-view') === 'feed') renderFeeding();
   });
 });
@@ -4583,19 +5028,19 @@ function populateTank(){
       spHtml += '</optgroup>';
     });
     $('#coralSp').innerHTML = spHtml;
-    var szHtml = '';
-    CORAL_SIZES.forEach(function(s){ szHtml += '<option value="'+s.id+'">'+s.name+'</option>'; });
-    $('#coralSize').innerHTML = szHtml;
+    fillSizes(coralById($('#coralSp').value).group);
     /* Quantity only applies to fish and inverts — corals and clams go in
        individual by individual. */
     $('#coralSp').addEventListener('change', function(){
       var g = coralById(this.value).group;
       $('#coralQtyField').style.display = (g === 'Fish' || g === 'Inverts') ? '' : 'none';
       $('#coralQty').value = 1;
+      fillSizes(g);
     });
   }
   var g0 = coralById($('#coralSp').value).group;
   $('#coralQtyField').style.display = (g0 === 'Fish' || g0 === 'Inverts') ? '' : 'none';
+  fillSizes(g0);
   renderCorals();
   $('#setVolUnit').value = state.settings.volUnit;
   $('#setVolume').value = state.settings.volUnit === 'gal'
@@ -4647,6 +5092,7 @@ $('#btnIcpSave').addEventListener('click', function(){
   $('#icpToLog').checked = false;
   $('#icpOut').innerHTML = '';
   renderLog(); renderHeader();
+  renderIcpPlan();
   goToView('icp');
   toast(copied ? 'Report saved, ' + copied + ' readings added to the log' : 'Report saved');
 });
@@ -4873,29 +5319,21 @@ $('#btnExport').addEventListener('click', function(){
   syncActive();
   var anyRows = (vault && vault.tanks || []).some(function(t){ return (t.log || []).length; });
   if(!anyRows && !state.log.length){ toast('Log is empty'); return; }
-  var text = csv();
-  /* A .csv file rather than the clipboard: double-clicking it opens straight
-     into Excel or Numbers, which is what people actually want this for. The
-     BOM is there so Excel reads the degree signs and micro symbols properly
-     instead of mangling them. */
-  try{
-    var blob = new Blob(['\ufeff' + text], {type:'text/csv;charset=utf-8'});
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    var many = vault && vault.tanks && vault.tanks.length > 1;
-    a.download = (many ? 'reef-key-all-tanks' :
-                  (state.settings.tankName || 'reef').replace(/[^a-z0-9]+/gi, '-').toLowerCase() + '-log') +
-                 '-' + new Date().toISOString().slice(0,10) + '.csv';
-    document.body.appendChild(a); a.click();
-    setTimeout(function(){ URL.revokeObjectURL(a.href); document.body.removeChild(a); }, 500);
-    toast(vault && vault.tanks && vault.tanks.length > 1
-      ? 'Exported — every tank, one sheet, with a Tank column'
-      : 'Log exported — opens in Excel');
-  }catch(e){
-    if(navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(text).then(function(){ toast('Download blocked — copied to the clipboard instead'); }, function(){ fallbackCopy(text); });
-    } else fallbackCopy(text);
-  }
+  var many = vault && vault.tanks && vault.tanks.length > 1;
+  downloadCsv(csv(),
+    (many ? 'reef-key-all-tanks'
+          : (state.settings.tankName || 'reef').replace(/[^a-z0-9]+/gi, '-').toLowerCase() + '-log') +
+    '-' + new Date().toISOString().slice(0,10) + '.csv',
+    many ? 'Exported — every tank, one sheet, with a Tank column' : 'Log exported — opens in Excel');
+});
+if($('#btnExportIcp')) $('#btnExportIcp').addEventListener('click', function(){
+  if(!FEATURES.corrections){ toast('ICP analysis is a Pro feature'); return; }
+  syncActive();
+  var any = ((vault && vault.tanks) || []).some(function(t){ return ((t.settings || {}).icp || []).length; });
+  if(!any){ toast('No ICP reports saved yet'); return; }
+  downloadCsv(icpCsv(),
+    'reef-key-icp-' + new Date().toISOString().slice(0,10) + '.csv',
+    'ICP reports exported — one row per element');
 });
 function fallbackCopy(text){
   var ta = document.createElement('textarea');
@@ -4959,6 +5397,7 @@ load(function(){
   renderLog();
   renderSetup();
   renderSaltCalc();
+  renderIcpPlan();
   renderIcpChart();
   renderIcpTrend();
   renderIcpHistory();
