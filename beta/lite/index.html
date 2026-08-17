@@ -805,16 +805,6 @@ nav button.on{color:var(--titrant)}
     </div>
     <div id="results"></div>
 
-    <div class="card" id="icpCard" data-pro="ICP analysis" data-why="Available in Reef Key Pro.">
-      <div class="card-title">ICP analysis</div>
-      <div class="sub">A lab report covers the elements no home kit reaches. Every report is kept on the ICP tab, alongside what has changed since the last one.</div>
-      <div class="btn-row" style="margin-bottom:0">
-        <button class="small" id="btnIcpOpen">Enter ICP results</button>
-        <button class="small ghost" id="btnIcpLast">Reports</button>
-      </div>
-      <div id="icpOut"></div>
-    </div>
-
   </section>
 
   <!-- LOG -->
@@ -1576,7 +1566,7 @@ function adopt(data){
     t.settings = state.settings; t.log = state.log;
     if(readings && typeof readings === 'object'){
       PARAMS.forEach(function(pp){
-        var v = num(readings[pp.key]);
+        var v = sane(pp.key, num(readings[pp.key]));
         if(v !== null) t.readings[pp.key] = v;
       });
     }
@@ -1620,6 +1610,14 @@ function toDisp(key,v){
    the same number, and neither carries false precision. Salinity in specific
    gravity is the exception: 1.0253 is a real reading, so it keeps its own
    places. ICP figures are held separately and are not touched by this. */
+/* Nothing this app measures can be negative — not a concentration, not a
+   temperature in a reef, not a specific gravity. A stray minus sign would
+   otherwise be taken at face value and produce confident advice about a tank
+   holding minus seven parts per million of nitrate. */
+function sane(key, v){
+  if(v === null || v === undefined || !isFinite(v)) return null;
+  return v < 0 ? 0 : v;
+}
 function round3(key, v){
   if(v === null || v === undefined || !isFinite(v)) return v;
   if(key === 'salinity') return Math.round(v * 10000) / 10000;
@@ -1830,7 +1828,7 @@ function renderRows(){
       el.value = p.key === 'salinity' ? Number(shown.toFixed(meta(p.key).dp)) : round3(p.key, shown);
     }
     el.addEventListener('input', function(){
-      state.readings[p.key] = round3(p.key, toInternal(p.key, num(el.value)));
+      state.readings[p.key] = round3(p.key, sane(p.key, toInternal(p.key, num(el.value))));
       state.predicted = false;
       updateStrip(p.key);
     });
@@ -2591,12 +2589,6 @@ function icpPlan(rep){
 function icpFindingsHtml(a){
   /* Removed from the free build. */
   return '';
-}
-function renderIcp(rep){
-  if(!rep){ $('#icpOut').innerHTML = ''; return; }
-  var a = assessIcp(rep);
-  $('#icpOut').innerHTML = '<div class="sub" style="margin-top:12px"><b>Sampled ' + esc(fmtDay(icpDate(rep))) + '</b> · ' +
-    Object.keys(rep.values).length + ' elements · ' + a.ok.length + ' at setpoint</div>' + icpFindingsHtml(a);
 }
 
 /* ---------- suggested purchases ----------
@@ -3563,7 +3555,11 @@ function reducerOnShelf(key){
 function latestReading(k){
   if(state.readings[k] !== null && state.readings[k] !== undefined) return {v:state.readings[k], src:'today'};
   for(var i=0;i<state.log.length;i++){
-    if(state.log[i].values[k] !== undefined) return {v:state.log[i].values[k], src:'log'};
+    /* A water change entry carries no readings at all, so `values` may be
+       absent. Reaching into it crashed the salt calculator for anyone who had
+       logged a change — which is everyone the feature was built for. */
+    var vals = state.log[i].values;
+    if(vals && vals[k] !== undefined) return {v:vals[k], src:'log'};
   }
   return null;
 }
@@ -3748,7 +3744,7 @@ function calcWC(driver){
     '<button class="small" id="wcLog">Log this water change</button>'+
     '<button class="small primary" id="wcApply">Use the predicted figures</button></div></div>';
   function applyPreds(){
-    preds.forEach(function(p){ state.readings[p.key] = round3(p.key, p.after); });
+    preds.forEach(function(p){ state.readings[p.key] = round3(p.key, sane(p.key, p.after)); });
     /* These are the planner's numbers, not a test. Flagged so that saving
        them to the log asks first — a predicted figure filed as a measurement
        is the one mistake that quietly corrupts every calculation after it. */
@@ -4363,10 +4359,7 @@ $('#btnCog').addEventListener('click', function(){
   $('#tankModal').classList.add('on');
 });
 $('#btnCogDone').addEventListener('click', function(){ $('#tankModal').classList.remove('on'); });
-$('#btnIcpOpen').addEventListener('click', function(){
-  renderIcpForm();
-  $('#icpModal').classList.add('on');
-});
+
 $('#btnIcpCancel').addEventListener('click', function(){ $('#icpModal').classList.remove('on'); });
 $('#icpModal').addEventListener('click', function(e){ if(e.target === this) this.classList.remove('on'); });
 $('#btnIcpSave').addEventListener('click', function(){
@@ -4385,7 +4378,7 @@ $('#btnIcpSave').addEventListener('click', function(){
   save();
   $('#icpModal').classList.remove('on');
   $('#icpToLog').checked = false;
-  $('#icpOut').innerHTML = '';
+  if($('#icpOut')) $('#icpOut').innerHTML = '';
   renderLog(); renderHeader();
   /* Redraw the whole tab, not just the plan: the archive is rebuilt from
      scratch so anything the keeper had opened closes, and the new report
@@ -4396,10 +4389,7 @@ $('#btnIcpSave').addEventListener('click', function(){
   if(pane) pane.scrollTo({top:0, behavior:'smooth'});
   toast(copied ? 'Report saved, ' + copied + ' readings added to the log' : 'Report saved');
 });
-$('#btnIcpLast').addEventListener('click', function(){
-  if(!icpLast()){ toast('No ICP report saved yet'); return; }
-  goToView('icp');
-});
+
 $('#btnIcpOpen2').addEventListener('click', function(){
   if(!FEATURES.corrections){
     toast('ICP analysis is a Pro feature');
