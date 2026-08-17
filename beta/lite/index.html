@@ -1460,7 +1460,11 @@ var ICP_GROUPS = [
 function icpEl(k){ for(var i=0;i<ICP_ELEMENTS.length;i++){ if(ICP_ELEMENTS[i].k===k) return ICP_ELEMENTS[i]; } return null; }
 
 var BIG3 = ['mg','alk','ca'];
-var UNITS = {alk:'dKH', ca:'ppm', mg:'ppm', no3:'ppm'};
+/* Every parameter, not just the four this started with. A missing entry does
+   not fail loudly — it prints "undefined" in the middle of a sentence about
+   dosing, which is how phosphate came to be reported as "0.350 undefined". */
+var UNITS = {alk:'dKH', ca:'ppm', mg:'ppm', no3:'ppm', po4:'ppm',
+             nh3:'ppm', no2:'ppm', ph:'', temp:'°C', salinity:'SPG'};
 
 /* Salt mixes: gl is grams per litre of RO/DI to reach SPG 1.026, and `elements`
    is the brand's published alkalinity / calcium / magnesium for freshly mixed
@@ -3977,13 +3981,14 @@ var TOUR = [
         'how fast your tank consumes alkalinity, calcium and magnesium — and that is what turns a calculator into something ' +
         'that knows your particular tank.'},
 
+  {view:'test', sel:'#saltCard', title:'Water changes, worked out properly',
+   body:'Doing one today? Plan it here, before anything else. It gives you the exact salt weight, the salinity to mix to, and what ' +
+        'the change does to every other parameter — then you can carry it straight into the corrections below, so the doses are sized ' +
+        'for the water you will be left with rather than the water you have.'},
+
   {view:'test', sel:'#btnCalc', title:'Then ask what to do about it', tier:'pro',
    body:'This reads today\'s numbers against your targets and works out the fix from the products you actually own. ' +
         'It comes back as numbered steps in the order to do them, starting with a summary of the whole job.'},
-
-  {view:'test', sel:'#saltCard', title:'Water changes, worked out properly',
-   body:'Pick your salt and the volume and it gives you the exact weight, the salinity to mix to, and what the change will do ' +
-        'to every other parameter before you start. Bought water ready mixed? Choose that and it asks for the salinity you measured instead.'},
 
   {view:'setup', sel:'#shelfFields', title:'Tell it what is on your shelf', tier:'pro',
    body:'This is the part that matters most. Corrections are worked out from these products and nothing else — so the doses are in ' +
@@ -4048,8 +4053,19 @@ function showTourStep(){
   setTimeout(function(){
     var el = document.querySelector(st.sel);
     if(!el){ tourAt++; showTourStep(); return; }
-    if(el.scrollIntoView) el.scrollIntoView({block:'center', behavior:'smooth'});
-    setTimeout(function(){ placeTour(el, st); }, 260);
+    /* Instant, not smooth. A smooth scroll to something far down the page is
+       still moving when the rectangle is taken, so the spotlight lands on
+       empty space — which is what made the foods step look like it was
+       highlighting nothing at all. */
+    if(el.scrollIntoView) el.scrollIntoView({block:'center'});
+    placeTour(el, st);
+    /* And measure again a few times, in case the browser animated it anyway
+       or an image finished loading and pushed the page around. */
+    [80, 260, 600].forEach(function(ms){
+      setTimeout(function(){
+        if(tourSteps[tourAt] === st && document.querySelector(st.sel)) placeTour(document.querySelector(st.sel), st);
+      }, ms);
+    });
   }, 60);
 }
 /* No spotlight, no target — just the dimmed screen and a card in the middle
@@ -4070,6 +4086,14 @@ function placeTour(el, st){
   document.getElementById('tourHole').classList.remove('none');
   document.getElementById('tourCard').classList.remove('centre');
   var r = el.getBoundingClientRect();
+  /* An element with no height is not something a keeper can be shown. Fall
+     back to the card it lives in, and if that fails too, centre the message
+     rather than drawing a spotlight on nothing. */
+  if(r.height < 8 || r.width < 8){
+    var card = el.closest ? el.closest('.card') : null;
+    if(card){ el = card; r = card.getBoundingClientRect(); }
+  }
+  if(r.height < 8 || r.width < 8){ placeTourCentre(st); return; }
   var pad = 8;
   var hole = document.getElementById('tourHole');
   hole.style.top = Math.max(4, r.top - pad) + 'px';
