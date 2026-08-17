@@ -2275,7 +2275,13 @@ function unfilledFor(k){
   });
   return out;
 }
-function paramName(k){ return k === 'alk' ? 'alkalinity' : k === 'ca' ? 'calcium' : 'magnesium'; }
+/* Named for every parameter, not just the three it was written for: falling
+   through to 'magnesium' meant a low phosphate reading was reported to the
+   keeper as low magnesium. */
+function paramName(k){
+  return {alk:'alkalinity', ca:'calcium', mg:'magnesium', no3:'nitrate', po4:'phosphate',
+          salinity:'salinity', ph:'pH', temp:'temperature', nh3:'ammonia', no2:'nitrite'}[k] || k;
+}
 /* What to reach for, named from the shelf where possible rather than from a
    brand the keeper may not own. */
 function fixSuggestion(k){
@@ -2321,6 +2327,9 @@ function buildCorrections(){
     push('First','Ammonia or nitrite is detectable','Stop dosing anything else',
       ['Anything above zero means the biological filter is not keeping up. Do a 25–30% water change with matched temperature and salinity, check for a dead animal or an overfeed, and hold off on the corrections below until both read zero.'],'crit');
   }
+
+  /* Products the plan commits to, so nothing later can quote them twice. */
+  var dosedAlready = {};
 
   /* 2. salinity
      Salinity is corrected before anything else, because every other reading
@@ -2491,6 +2500,10 @@ function buildCorrections(){
         : 'Fine to add in one go.');
       body.push(methodText(d.p, d.amount));
       if(d.p.note) body.push(d.p.note);
+      /* Remember it, so the fine-tune section below cannot quote the same
+         product again. Two cards reading "5.4 g of Foundation ABC+" is a
+         page that totals 10.8 g to anyone reading top to bottom. */
+      dosedAlready[d.p.id] = {amount:d.amount, delivered:d.delivered, p:d.p};
       push('Then', d.p.name, amt(d.amount, d.p.form), body);
     });
 
@@ -2800,6 +2813,47 @@ function buildCorrections(){
     if(dev > TUNE_TOL[k]) tuneNeeds.push({k:k, dev:dev});
   });
   var tuneDone = {};
+  /* If the plan above already doses a product, whatever it delivers to these
+     in-range parameters has happened before we get here — so the gap is what
+     is left afterwards, and the answer is never more of the same bottle. */
+  var carried = {};
+  Object.keys(dosedAlready).forEach(function(id){
+    var d = dosedAlready[id];
+    ['alk','ca','mg'].forEach(function(k){
+      if(d.delivered && d.delivered[k] > 0) carried[k] = (carried[k] || 0) + d.delivered[k];
+    });
+  });
+  if(Object.keys(dosedAlready).length){
+    var after = [], stillShort = [];
+    tuneNeeds.forEach(function(n){
+      var got = carried[n.k] || 0;
+      var left = n.dev - got;
+      var dpc = n.k === 'alk' ? 2 : 0;
+      var nmc = n.k === 'alk' ? 'Alkalinity' : n.k === 'ca' ? 'Calcium' : 'Magnesium';
+      tuneDone[n.k] = true;
+      if(got > Math.pow(10, -dpc) / 2){
+        after.push(nmc + ' gains about ' + fmt(got, dpc) + ' ' + UNITS[n.k] + ' from it, leaving roughly ' +
+                   fmt(Math.max(0, left), dpc) + ' ' + UNITS[n.k] + ' to the optimum');
+      } else {
+        after.push(nmc + ' gains almost nothing from it and stays about ' + fmt(n.dev, dpc) + ' ' + UNITS[n.k] + ' under');
+      }
+      if(left > TUNE_TOL[n.k]) stillShort.push({k:n.k, left:left, nm:nmc.toLowerCase()});
+    });
+    if(after.length){
+      var b2 = ['The dose in step ' + (out.filter(function(a){ return a.step === 'Then'; })[0] ? '1' : '1') +
+                ' is the only dose of that product today. ' + listOf(after) + '.'];
+      if(stillShort.length){
+        var sg3 = suggestFor(stillShort[0].k);
+        b2.push('Closing the rest means a single-element ' + listOf(stillShort.map(function(x){ return x.nm; })) +
+          ' supplement, not more of the balanced one — more of that would push whatever it is richest in past its optimum. ' +
+          (sg3 && sg3.matched
+            ? 'You already keep ' + sg3.product.brand + ', so ' + sg3.product.brand + ' ' + sg3.product.name + ' fits.'
+            : 'Any brand does the same job.'));
+      }
+      b2.push('None of this is urgent: these readings are already inside their ranges, and the optimum is a target rather than a threshold.');
+      push('Fine-tune', 'After that dose, the last few points', 'Covered by the dose above', b2, 'ok');
+    }
+  }
   tuneNeeds.forEach(function(n){
     if(tuneDone[n.k]) return;
     var ft = fineTuneDose(n.k, n.dev);
@@ -2973,11 +3027,26 @@ function buildCorrections(){
     lines.push('<b>' + esc(a.title) + '.</b> ' + esc(a.dose) + ' — consumption and the water change will bring it back down ' +
                'more gently than chasing it would.');
   });
+  /* The first thing in the plan is the first thing to do — say what it is
+     before saying what follows it. */
+  if(doses.length && !change && !stops.length){
+    var lead = doses[0];
+    lines.push('<b>Start with ' + esc(lead.dose) + ' of ' + esc(lead.title.replace(/ is low.*/, '')) + '.</b> ' +
+      'That is step one, and everything below is worked out from the water as it stands now.');
+  }
   if(doses.length){
-    /* Name what is short, not what is in the bottle: "magnesium is low" is
-       the fact, and which product closes it is detail for the card below. */
-    var shortOf = out.filter(function(a){ return /\bis low\b/.test(a.title); })
-                     .map(function(a){ return a.title.replace(/ is low.*/, '').toLowerCase(); });
+    /* Name what is short, not what is in the bottle. A card titled
+       "Foundation ABC+" is the product; the fact is that calcium is low, and
+       reading the parameters straight off the tank is the only way to get
+       that right — the card titles miss anything dosed by a named product. */
+    var shortOf = [];
+    ['alk','ca','mg','no3','po4'].forEach(function(k){
+      if(have(k) && r[k] < T(k).low) shortOf.push(paramName(k).toLowerCase());
+    });
+    if(!shortOf.length){
+      shortOf = out.filter(function(a){ return /\bis low\b/.test(a.title); })
+                   .map(function(a){ return a.title.replace(/ is low.*/, '').toLowerCase(); });
+    }
     if(!shortOf.length) shortOf = doses.map(function(a){ return a.title.toLowerCase(); });
     var one = doses.length === 1;
     if(change){
