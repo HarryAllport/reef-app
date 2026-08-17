@@ -2783,21 +2783,98 @@ function buildCorrections(){
     var p = prods[0];
     return {p:p, amount:deficit * L / 100 / p.effects[k]};
   }
+  /* A balanced three-in-one raises all three at once, so it cannot be dosed
+     once per parameter. Three cards each saying "n g of Foundation ABC+" read
+     as three doses to add up — 5.4 g plus 38 g plus 300 g is 343 g of a
+     product where 5.4 g was the right answer, and the tank pays for it.
+
+     So the deficits it could cover are collected first, and the product is
+     sized to the SMALLEST of them: that is the most it can deliver before it
+     overshoots something else. Whatever is left over needs a single-element
+     bottle, and the card says which. */
+  var tuneNeeds = [];
+  ['alk','ca','mg'].forEach(function(k){
+    if(!have(k) || status(k, r[k]) !== 'good') return;
+    var dev = T(k).target - r[k];
+    if(dev > TUNE_TOL[k]) tuneNeeds.push({k:k, dev:dev});
+  });
+  var tuneDone = {};
+  tuneNeeds.forEach(function(n){
+    if(tuneDone[n.k]) return;
+    var ft = fineTuneDose(n.k, n.dev);
+    if(!ft) return;
+    var dp3 = n.k === 'alk' ? 2 : 0;
+    var nm = n.k === 'alk' ? 'Alkalinity' : n.k === 'ca' ? 'Calcium' : 'Magnesium';
+
+    if(!ft.p.multi){
+      tuneDone[n.k] = true;
+      var days1 = S.caps[n.k] > 0 ? Math.ceil(n.dev / S.caps[n.k] - 0.0001) : 1;
+      push('Fine-tune', nm + ' is in range — a touch under optimum',
+        amt(ft.amount, ft.p.form) + ' of ' + ft.p.name,
+        ['You are in the green at ' + fmt(r[n.k], dp3) + ' ' + UNITS[n.k] + '. This optional nudge closes the last ' +
+         fmt(n.dev, dp3) + ' ' + UNITS[n.k] + ' to the optimum of ' + fmt(T(n.k).target, dp3) +
+         ' — worth doing for the calcification elements, which reward sitting right on target.',
+         days1 > 1 ? 'Split it over ' + days1 + ' days to stay inside your daily limit.' : 'Small enough to add in one go.'], 'ok');
+      return;
+    }
+
+    /* Balanced product: what dose does each outstanding deficit ask for, and
+       which of them runs out first? */
+    var asks = tuneNeeds.filter(function(x){ return !tuneDone[x.k] && ft.p.effects[x.k]; })
+      .map(function(x){
+        return {k:x.k, dev:x.dev, amount:x.dev * L / 100 / ft.p.effects[x.k]};
+      });
+    if(!asks.length) return;
+    asks.sort(function(a, b){ return a.amount - b.amount; });
+    var limit = asks[0];
+    asks.forEach(function(x){ tuneDone[x.k] = true; });
+
+    var limNm = limit.k === 'alk' ? 'alkalinity' : limit.k === 'ca' ? 'calcium' : 'magnesium';
+    var limDp = limit.k === 'alk' ? 2 : 0;
+    var body = ['One dose, not one per element. ' + ft.p.name + ' raises all three together, so the most it can safely give you ' +
+      'is what ' + limNm + ' asks for — ' + fmt(limit.dev, limDp) + ' ' + UNITS[limit.k] +
+      '. Any more and ' + limNm + ' goes past its optimum while you are still chasing the others.'];
+
+    /* What the limiting dose actually delivers to the rest. */
+    var short = [];
+    asks.slice(1).forEach(function(x){
+      var gets = limit.amount * 100 / L * ft.p.effects[x.k];
+      var left = x.dev - gets;
+      var dpx = x.k === 'alk' ? 2 : 0;
+      var nmx = x.k === 'alk' ? 'Alkalinity' : x.k === 'ca' ? 'Calcium' : 'Magnesium';
+      /* "about 0 ppm" is technically true and useless. Say what it means. */
+      body.push(gets < Math.pow(10, -dpx) / 2
+        ? nmx + ' barely moves: this product carries very little of it next to the ' + limNm +
+          ' it carries, so all ' + fmt(x.dev, dpx) + ' ' + UNITS[x.k] + ' of the gap is still there afterwards.'
+        : nmx + ' comes along for the ride: this lifts it about ' + fmt(gets, dpx) + ' ' + UNITS[x.k] +
+          ' of the ' + fmt(x.dev, dpx) + ' it is under, leaving roughly ' + fmt(Math.max(0, left), dpx) + ' ' + UNITS[x.k] + '.');
+      if(left > TUNE_TOL[x.k]) short.push(nmx.toLowerCase());
+    });
+
+    if(short.length){
+      var sg2 = suggestFor(asks.slice(1).filter(function(x){
+        return (x.dev - limit.amount * 100 / L * ft.p.effects[x.k]) > TUNE_TOL[x.k];
+      })[0].k);
+      body.push('To close the rest you need a single-element product rather than more of the balanced one — ' +
+        (sg2 && sg2.matched
+          ? 'you already keep ' + sg2.product.brand + ', so ' + sg2.product.brand + ' ' + sg2.product.name + ' would keep it to one supplier.'
+          : 'any ' + listOf(short) + ' supplement will do, from whichever brand your shop stocks.') +
+        ' None of this is urgent: every one of these readings is already inside its range.');
+    }
+
+    var daysM = S.caps[limit.k] > 0 ? Math.ceil(limit.dev / S.caps[limit.k] - 0.0001) : 1;
+    if(daysM > 1) body.push('Split it over ' + daysM + ' days to stay inside your daily limit.');
+
+    push('Fine-tune', 'Fine-tuning ' + listOf(asks.map(function(x){
+        return x.k === 'alk' ? 'alkalinity' : x.k === 'ca' ? 'calcium' : 'magnesium';
+      })), amt(limit.amount, ft.p.form) + ' of ' + ft.p.name, body, 'ok');
+  });
   ['alk','ca','mg'].forEach(function(k){
     if(!have(k) || status(k, r[k]) !== 'good') return;
     var t3 = T(k), dev = t3.target - r[k];
     var dp3 = k === 'alk' ? 2 : 0;
     var nm = k === 'alk' ? 'Alkalinity' : k === 'ca' ? 'Calcium' : 'Magnesium';
-    if(dev > TUNE_TOL[k]){
-      var ft = fineTuneDose(k, dev);
-      if(!ft) return;
-      var days3 = S.caps[k] > 0 ? Math.ceil(dev / S.caps[k] - 0.0001) : 1;
-      push('Fine-tune', nm + ' is in range — a touch under optimum', amt(ft.amount, ft.p.form) + ' of ' + ft.p.name,
-        ['You are in the green at ' + fmt(r[k], dp3) + ' ' + UNITS[k] + '. This optional nudge closes the last ' +
-         fmt(dev, dp3) + ' ' + UNITS[k] + ' to the optimum of ' + fmt(t3.target, dp3) + ' — worth doing for the calcification elements, which reward sitting right on target.',
-         days3 > 1 ? 'Split it over ' + days3 + ' days to stay inside your daily limit.' : 'Small enough to add in one go.',
-         ft.p.multi ? 'A balanced product, so the other two elements rise in proportion — fine while they also sit at or under their optimums.' : ''], 'ok');
-    } else if(dev < -TUNE_TOL[k]){
+    if(dev < -TUNE_TOL[k]){
       push('Fine-tune', nm + ' is in range — a touch over optimum', 'Trim the daily dose slightly',
         ['You are at ' + fmt(r[k], dp3) + ' ' + UNITS[k] + ' against an optimum of ' + fmt(t3.target, dp3) +
          '. Nothing to correct — let consumption drift it down, and if you dose daily, cut the rate by roughly 10% and re-test in a week.'], 'ok');
