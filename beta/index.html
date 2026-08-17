@@ -724,29 +724,17 @@ nav button.on{color:var(--titrant)}
   <section class="view on" id="view-test">
     <div class="card">
       <div class="card-title">Today's readings</div>
-      <div class="sub">Leave anything you haven't tested blank. The flow: <b>enter readings → save to log → calculate</b> to see what's off and how to fix it. Doing a water change today? Plan it below first — it updates the readings for you (re-test and overtype if you prefer) — then calculate for the remaining amendments, listed in the order to do them.</div>
+      <div class="sub">Leave anything you haven't tested blank — the app never assumes a reading it has not been given.
+        <b>Enter your readings, then work down the page:</b> a water change comes first if you are doing one, because it moves
+        every parameter at once, and the doses are only worth working out from the water you will actually be left with.</div>
       <div id="rows"></div>
     </div>
-    <div class="btn-row">
-      <button class="small" id="btnLogNow" style="flex:0 0 auto">Save to log</button>
-      <button class="primary" id="btnCalc">Work out corrections</button>
-      <button class="ghost" id="btnClear" style="flex:0 0 auto">Clear</button>
-    </div>
-    <div id="results"></div>
-
-    <div class="card" id="icpCard" data-pro="ICP analysis" data-why="Type in a Triton report and the app reads all 45 figures against their setpoints, works out which water change would correct what, and says plainly which elements it cannot fix from your shelf.">
-      <div class="card-title">ICP analysis</div>
-      <div class="sub">A lab report covers the elements no home kit reaches. Every report is kept on the ICP tab, alongside what has changed since the last one.</div>
-      <div class="btn-row" style="margin-bottom:0">
-        <button class="small" id="btnIcpOpen">Enter ICP results</button>
-        <button class="small ghost" id="btnIcpLast">Reports</button>
-      </div>
-      <div id="icpOut"></div>
-    </div>
-
     <div class="card" id="saltCard">
       <div class="card-title">Salt &amp; water changes</div>
-      <div class="sub">Pick your salt and the app uses its published levels when working out mixes, water changes, and what still needs supplementing afterwards.</div>
+      <div class="sub"><b>Doing a water change today?</b> Plan it here first. It shows the salt weight, the salinity to mix to, and what
+        the change does to every parameter — then <em>Apply to readings</em> updates the boxes above so the corrections below are
+        worked out from the water you will end up with, not the water you started with.
+        Changed the water recently? Skip this card and go straight to <em>Work out corrections</em>.</div>
       <div class="field" style="margin-top:12px">
         <label for="smBrand">Salt brand</label>
         <div class="grid2">
@@ -780,6 +768,24 @@ nav button.on{color:var(--titrant)}
       <div class="hint" style="margin-top:-4px;margin-bottom:10px" id="wcPct"></div>
       <div id="wcOut"></div>
     </div>
+
+    <div class="btn-row">
+      <button class="small" id="btnLogNow" style="flex:0 0 auto">Save to log</button>
+      <button class="primary" id="btnCalc">Work out corrections</button>
+      <button class="ghost" id="btnClear" style="flex:0 0 auto">Clear</button>
+    </div>
+    <div id="results"></div>
+
+    <div class="card" id="icpCard" data-pro="ICP analysis" data-why="Type in a Triton report and the app reads all 45 figures against their setpoints, works out which water change would correct what, and says plainly which elements it cannot fix from your shelf.">
+      <div class="card-title">ICP analysis</div>
+      <div class="sub">A lab report covers the elements no home kit reaches. Every report is kept on the ICP tab, alongside what has changed since the last one.</div>
+      <div class="btn-row" style="margin-bottom:0">
+        <button class="small" id="btnIcpOpen">Enter ICP results</button>
+        <button class="small ghost" id="btnIcpLast">Reports</button>
+      </div>
+      <div id="icpOut"></div>
+    </div>
+
   </section>
 
   <!-- LOG -->
@@ -2275,6 +2281,39 @@ function unfilledFor(k){
   });
   return out;
 }
+/* What to stop before adding anything. If a keeper is stripping nutrients on
+   purpose and then dosing them back in, easing off costs nothing and works
+   faster than a bottle. */
+function exportInUse(){
+  var out = [];
+  shelfList().forEach(function(x){
+    var b = libProduct(x.id) || x;
+    if(b.kind === 'reduce') out.push(b.name + ' (carbon dosing)');
+    if(b.kind === 'media') out.push(b.name);
+  });
+  return out;
+}
+/* Feeding more is the first answer to a low nutrient: it lifts nitrate and
+   phosphate together, in roughly the ratio the animals use, and feeds the
+   tank while it does it. */
+function feedUpAdvice(which){
+  var mine = (typeof foodsOnShelf === 'function') ? foodsOnShelf() : [];
+  var fish = mine.filter(function(f){ return f.cat === 'fish-dry' || f.cat === 'fish-frozen'; })[0];
+  var coral = mine.filter(function(f){ return f.cat.indexOf('coral') === 0 || f.cat === 'phyto'; })[0];
+  var lines = ['Feed more before you dose anything. Food lifts nitrate and phosphate together, in about the ratio ' +
+    'the animals actually use, and it feeds the fish and corals while it does it — which dosing does not. ' +
+    'An extra frozen cube a day, or a second small feed, moves ' + which + ' within a week or two on most tanks.'];
+  var stops = exportInUse();
+  if(stops.length){
+    lines.push('First, ease off what is taking it out: you have ' + listOf(stops) + ' on the shelf. ' +
+      'Cutting that back is faster than dosing, costs nothing, and is the usual reason a tank sits at zero in the first place.');
+  }
+  if(fish || coral){
+    lines.push('You already keep ' + (fish ? fish.brand + ' ' + fish.name : coral.brand + ' ' + coral.name) +
+      ' on your food list — more of that is the simplest lever you have. Add the extra feed at the same time each day, so a re-test in a week means something.');
+  }
+  return lines;
+}
 /* Named for every parameter, not just the three it was written for: falling
    through to 'magnesium' meant a low phosphate reading was reported to the
    keeper as low magnesium. */
@@ -2617,10 +2656,24 @@ function buildCorrections(){
       }
     } else if(r.no3 < tn.low){
       var g = ((tn.target - r.no3) * 0.137) * (L/100);
-      push('Then','Nitrate is low', amt(g,'g') + ' of sodium nitrate',
-        ['Dissolve in RO/DI and add a quarter of it a day while watching the corals. Zero nitrate is not clean water — it pales tissue, stalls growth and often drags phosphate down with it.',
-         'A commercial nitrate supplement at label dose does the same job with less arithmetic.']);
-      if(!onShelf('nano3')) shopping.push({key:'no3', why:'Nitrate reads below target and you have no nitrate supplement — sodium nitrate lets you raise it in small, controlled steps.'});
+      var noProd = shelfList().filter(function(x){ return x.effects.no3; })[0];
+      var nbody = feedUpAdvice('nitrate');
+      nbody.push('Zero nitrate is not clean water. It pales tissue, stalls growth, and usually drags phosphate down with it — ' +
+        'the two are consumed together and want to come up together.');
+      if(noProd){
+        var mlNo = (tn.target - r.no3) * L / 100 / noProd.effects.no3;
+        nbody.push('If feeding will not hold it, you have ' + noProd.name + ' on the shelf: about ' +
+          amt(mlNo, noProd.form) + ' would take ' + fmt(r.no3, 1) + ' to ' + fmt(tn.target, 1) +
+          ' ppm across your ' + Math.round(L) + ' litres. Add a quarter of it a day and watch the corals.');
+      } else if(unfilledFor('no3').length){
+        nbody.push('You have ' + unfilledFor('no3')[0].name + ' ticked but no strength set for it. Fill that in under Setup and the app can work the dose out.');
+      } else {
+        nbody.push('If feeding will not hold it, a nitrate supplement is the controlled way: about ' + amt(g, 'g') +
+          ' of sodium nitrate dissolved in RO/DI would close the gap for your volume, added a quarter at a time. ' +
+          'A bottled nitrate supplement at label dose does the same job with less arithmetic.');
+        shopping.push({key:'no3', why:'Nitrate is below target and nothing on your shelf raises it — feeding more comes first, but a supplement gives you control when it will not hold.'});
+      }
+      push('Then','Nitrate is low', noProd ? 'Feed more, then top up if it will not hold' : 'Feed more heavily', nbody);
     } else ok.push('Nitrate ' + fmt(r.no3,1) + ' ppm');
   }
   if(have('po4')){
@@ -2656,11 +2709,11 @@ function buildCorrections(){
          have nothing to work with. Feeding is the first lever, not a bottle. */
       var uln = (state.settings.tankType || '').indexOf('sps') > -1 || tp.high <= 0.12;
       var poProd = shelfList().filter(function(x){ return x.effects.po4; })[0];
-      var pbody = [];
+      var pbody = feedUpAdvice('phosphate');
       if(uln){
         pbody.push('At ' + fmt(r.po4, 3) + ' ppm this tank is running ultra-low, and on an SPS system that is usually deliberate — but below about ' +
           fmt(tp.low, 3) + ' the zooxanthellae are underfed, tissue pales, and growth slows even though every other number looks perfect. Zero is not the goal; a small, stable, non-zero figure is.');
-        pbody.push('Feed the tank more before you dose anything. More food means more phosphate and more nitrate, in the ratio the animals actually use, and it feeds the fish and corals at the same time. An extra frozen cube, a second small feed in the day, or simply easing off the skimmer or the GFO will usually lift it within a week.');
+
       }
       if(poProd){
         var needPo = Math.max(0, tp.target - r.po4);
@@ -2676,7 +2729,6 @@ function buildCorrections(){
       }
       pbody.push('Check nitrate at the same time. The two are consumed together and want to come up together; lifting phosphate while nitrate sits at zero tends to feed algae rather than corals.');
       push('Then','Phosphate is low', poProd ? 'Feed more, then top up if it will not hold' : 'Feed more heavily', pbody);
-      shopping.push({key:'po4', why:'Phosphate reads below target — a bottled phosphate supplement dosed to label brings it up in the tiny steps this range needs.'});
     } else ok.push('Phosphate ' + fmt(r.po4,3) + ' ppm');
   }
 
@@ -3062,6 +3114,16 @@ function buildCorrections(){
   }
   if(!lines.length && out.length){
     lines.push('Nothing needs correcting today. What follows is optional polish and the reasoning behind it.');
+  }
+  /* Which water these numbers describe. The planner sits above this on the
+     page now, so the honest question is whether it has been used. */
+  if(lines.length){
+    lines.push(state.predicted
+      ? '<b>These figures are for the water after that change.</b> You applied the predicted readings above, so everything here is worked ' +
+        'out from where the tank will be once the change has mixed — do the change first, then the steps below.'
+      : '<b>These figures are for the water as it reads now.</b> If you are about to do a water change, plan it in the card above and ' +
+        'press <em>Apply to readings</em> first: a change moves every parameter at once, and doses worked out beforehand will be wrong afterwards. ' +
+        'Changed the water recently? Then this is already the right basis and you can work straight down the list.');
   }
 
   if(lines.length){
