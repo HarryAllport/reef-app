@@ -1911,7 +1911,13 @@ function unfilledFor(k){
   /* Removed from the free build. */
   return [];
 }
-function paramName(k){ return k === 'alk' ? 'alkalinity' : k === 'ca' ? 'calcium' : 'magnesium'; }
+/* Named for every parameter, not just the three it was written for: falling
+   through to 'magnesium' meant a low phosphate reading was reported to the
+   keeper as low magnesium. */
+function paramName(k){
+  return {alk:'alkalinity', ca:'calcium', mg:'magnesium', no3:'nitrate', po4:'phosphate',
+          salinity:'salinity', ph:'pH', temp:'temperature', nh3:'ammonia', no2:'nitrite'}[k] || k;
+}
 /* What to reach for, named from the shelf where possible rather than from a
    brand the keeper may not own. */
 function fixSuggestion(k){
