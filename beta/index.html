@@ -416,6 +416,31 @@ button.small{padding:8px 11px;font-size:13px}
 .mode-tab{flex:1;font-family:var(--f-display);font-weight:700;font-size:12px;letter-spacing:0.04em;text-transform:uppercase;padding:10px 8px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--muted)}
 .mode-tab.on{background:var(--fill);border-color:var(--fill);color:#fff}
 .wc-rows{margin:10px 0 2px}
+/* ---------- the pathway ----------
+   Four steps across the top of the Test tab, showing where the keeper is and
+   what is left. It exists because the order matters and the page cannot say
+   so loudly enough in prose: doses worked out before a water change describe
+   water that is about to be thrown away. */
+.flow{display:flex;gap:6px;margin:10px 0 12px;flex-wrap:wrap}
+.flow-step{flex:1 1 0;min-width:132px;border:1px solid var(--line);border-radius:10px;
+  background:var(--deep);padding:9px 11px;cursor:pointer;text-align:left;
+  display:flex;gap:9px;align-items:flex-start;transition:border-color .2s, background .2s}
+.flow-step:disabled{cursor:default}
+.flow-n{flex:0 0 auto;width:19px;height:19px;border-radius:50%;border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--f-mono);font-size:10px;color:var(--muted);margin-top:1px}
+.flow-t{font-family:var(--f-display);font-weight:700;font-size:12px;color:var(--foam);display:block;line-height:1.3}
+.flow-s{font-size:10.5px;color:var(--muted);display:block;margin-top:2px;line-height:1.35}
+.flow-step.done{border-color:rgba(47,224,198,0.35)}
+.flow-step.done .flow-n{border-color:var(--titrant);color:var(--titrant)}
+.flow-step.now{border-color:var(--titrant);background:rgba(47,224,198,0.06)}
+.flow-step.now .flow-n{background:var(--titrant);border-color:var(--titrant);color:#04201c;font-weight:700}
+.flow-step.opt .flow-t{font-weight:600}
+.flow-note{font-size:11.5px;color:var(--muted);line-height:1.55;margin:-4px 0 12px}
+.flow-note b{color:var(--foam)}
+.wc-next{border-top:1px solid var(--line);margin-top:14px;padding-top:10px}
+.wc-next p{font-size:12.5px;line-height:1.6;color:var(--muted);margin:6px 0}
+.wc-next b{color:var(--foam)}
 .wc-row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
 .wc-row:last-child{border-bottom:0}
 .wc-row .mono{font-size:13px}
@@ -722,12 +747,18 @@ nav button.on{color:var(--titrant)}
 
   <!-- TEST -->
   <section class="view on" id="view-test">
+    <div id="flow"></div>
     <div class="card">
       <div class="card-title">Today's readings</div>
       <div class="sub">Leave anything you haven't tested blank — the app never assumes a reading it has not been given.
         <b>Enter your readings, then work down the page:</b> a water change comes first if you are doing one, because it moves
         every parameter at once, and the doses are only worth working out from the water you will actually be left with.</div>
       <div id="rows"></div>
+      <div class="btn-row" style="margin-bottom:0">
+        <button class="small" id="btnLogNow">Save readings to log</button>
+        <button class="small ghost" id="btnClear" style="flex:0 0 auto">Clear</button>
+      </div>
+      <div class="hint" style="margin-top:6px">Saves exactly what is in the boxes above, dated now. Do it before you dose — the reading you log should be the one you measured, not what the tank became afterwards.</div>
     </div>
     <div class="card" id="saltCard">
       <div class="card-title">Salt &amp; water changes</div>
@@ -770,9 +801,7 @@ nav button.on{color:var(--titrant)}
     </div>
 
     <div class="btn-row">
-      <button class="small" id="btnLogNow" style="flex:0 0 auto">Save to log</button>
       <button class="primary" id="btnCalc">Work out corrections</button>
-      <button class="ghost" id="btnClear" style="flex:0 0 auto">Clear</button>
     </div>
     <div id="results"></div>
 
@@ -1964,6 +1993,50 @@ function verdictText(key,v){
    (ammonia, nitrite) as half-width rows at the bottom. */
 var TILE_ORDER = ['temp','salinity','ph','ca','alk','mg','no3','po4','nh3','no2'];
 var TILE_HALF = ['no3','po4','nh3','no2'];
+/* Where the keeper is, worked out from the state rather than remembered:
+   readings present, predictions applied, a plan on screen. */
+function flowState(){
+  var typed = PARAMS.some(function(p){ return state.readings[p.key] !== undefined && state.readings[p.key] !== null; });
+  var planned = !!($('#results') && $('#results').innerHTML);
+  return {typed:typed, applied:!!state.predicted, planned:planned};
+}
+function renderFlow(){
+  var el = document.getElementById('flow');
+  if(!el) return;
+  var f = flowState();
+  var steps = [
+    {n:1, t:'Test', s:'Enter what you measured', done:f.typed, sel:'#rows'},
+    {n:2, t:'Water change', s:f.applied ? 'Using the post-change figures' : 'Optional — plan it before dosing',
+     done:f.applied, opt:true, sel:'#saltCard'},
+    {n:3, t:'Corrections', s:f.planned ? 'Your steps, in order' : 'Doses from your own shelf',
+     done:f.planned, sel:'#btnCalc'},
+    {n:4, t:'Do it, then re-test', s:'Log the real numbers next time', done:false, sel:'#btnLogNow'}
+  ];
+  /* The current step is the first one not yet done — except that the water
+     change is optional, so it never blocks the one after it. */
+  var now = f.planned ? 4 : f.typed ? 3 : 1;
+  var h = '<div class="flow">';
+  steps.forEach(function(x){
+    var cls = 'flow-step' + (x.opt ? ' opt' : '') + (x.done ? ' done' : '') + (x.n === now ? ' now' : '');
+    h += '<button type="button" class="' + cls + '" data-flow="' + esc(x.sel) + '">' +
+         '<span class="flow-n">' + (x.done ? '✓' : x.n) + '</span>' +
+         '<span><span class="flow-t">' + esc(x.t) + '</span><span class="flow-s">' + esc(x.s) + '</span></span></button>';
+  });
+  h += '</div>';
+  h += '<div class="flow-note">' + (f.applied
+    ? '<b>You are working from predicted figures.</b> Do the change, and if any dose below looks large, test again afterwards and press Work out corrections before adding it.'
+    : f.planned
+      ? '<b>Work down the list in order.</b> Then do it, give the tank a day, and log a fresh test — the next set of doses is only as good as the readings behind it.'
+      : 'Doing a water change today? <b>Plan it at step 2 first</b> — it moves every parameter at once, so doses worked out beforehand will be wrong afterwards. Not changing water? Skip straight to step 3.') +
+    '</div>';
+  el.innerHTML = h;
+  el.querySelectorAll('[data-flow]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var target = document.querySelector(b.getAttribute('data-flow'));
+      if(target && target.scrollIntoView) target.scrollIntoView({behavior:'smooth', block:'center'});
+    });
+  });
+}
 function renderRows(){
   var html = '';
   TILE_ORDER.forEach(function(key){
@@ -3119,8 +3192,10 @@ function buildCorrections(){
      page now, so the honest question is whether it has been used. */
   if(lines.length){
     lines.push(state.predicted
-      ? '<b>These figures are for the water after that change.</b> You applied the predicted readings above, so everything here is worked ' +
-        'out from where the tank will be once the change has mixed — do the change first, then the steps below.'
+      ? '<b>These figures are for the water after that change.</b> You used the predicted readings, so everything here is worked out from ' +
+        'where the tank will be once the change has mixed — do the change first, then the steps below. ' +
+        'They are arithmetic rather than a test: if anything here looks like a large dose, re-test after the change and press ' +
+        'Work out corrections again before you add it.'
       : '<b>These figures are for the water as it reads now.</b> If you are about to do a water change, plan it in the card above and ' +
         'press <em>Apply to readings</em> first: a change moves every parameter at once, and doses worked out beforehand will be wrong afterwards. ' +
         'Changed the water recently? Then this is already the right basis and you can work straight down the list.');
@@ -3173,14 +3248,18 @@ function renderResults(quiet){
     'Real tanks do not land exactly where arithmetic says they will — test kits have error, products vary between batches, and the '+
     'tank goes on consuming while you dose. Carry out the steps, give it time to mix, then <b>test again and log what you actually '+
     'measure</b>. That measured figure is what the next calculation should be built on, never this one.</div></div>';
-  html += '<div class="btn-row" style="flex-direction:column;align-items:stretch;gap:4px">'+
-    '<button class="primary" id="btnSave">Save today\'s readings to log</button>'+
-    '<div class="hint" style="text-align:center">Files the numbers you entered above — the test you did today, before any of this. '+
-    'The doses and predictions are not saved; come back and log the re-test once it has all mixed.</div></div>';
+  /* No second save button here. There is one, at the top with the readings
+     it saves, and two buttons doing the same job on one screen is how a
+     keeper ends up with the same test logged twice. This says what to do
+     next instead. */
+  html += '<div class="card" style="border-left:3px solid var(--titrant)">'+
+    '<div class="card-title">Step 4 — after you have done all this</div>'+
+    '<div class="sub">Give the tank a day to settle, test again, and save <b>that</b> reading with <em>Save readings to log</em> '+
+    'at the top of this screen. It is the measured figure that teaches the app your tank\'s consumption — and every dose it '+
+    'works out from then on is built on it. Today\'s reading should already be saved; if you have not, scroll up and do it before you dose.</div></div>';
   el.innerHTML = html;
-  var sv = document.getElementById('btnSave');
-  if(sv) sv.addEventListener('click', saveEntry);
   hydrateSpeciesImages(el);
+  renderFlow();
   if(quiet !== true){
     /* The plan is read top-down and the first step matters most, so put its
        start at the top of the pane rather than wherever the button was. */
@@ -3206,7 +3285,7 @@ function hydrateSpeciesImages(root){ return; }
    on screen — tiles, corrections, salt card, log, uptake — follows it. */
 function refreshAll(){
   renderHeader();
-  renderRows();
+  renderRows(); renderFlow();
   renderSetup();
   renderSaltCalc();
   renderLog();
@@ -5447,22 +5526,36 @@ function calcWC(driver){
         ? '<div class="step" style="margin-top:12px">Feeding check — while you’re at the tank</div>' + feeds.join('')
         : '';
     })()+
+    /* Three honest routes out of here, and the difference between them is
+       what the doses underneath will be calculated from. Left implicit, a
+       keeper doses from figures describing water they are about to throw
+       away — so it is spelled out rather than assumed. */
+    '<div class="wc-next"><div class="step">What happens next</div>' +
+      '<p><b>Do the change, then re-test.</b> The surest route. Carry it out, give it a few hours to mix, ' +
+      'test again and enter the real numbers — every dose after that is worked out from water that actually exists. ' +
+      'Press <em>Log this water change</em> so the log shows what you did.</p>' +
+      '<p><b>Or work the doses out now, from the predictions.</b> Press <em>Calculate adjustments</em> and the readings above are ' +
+      'replaced with the figures in this table, so the corrections are sized for the water you will be left with rather than the ' +
+      'water you have. Convenient, and near enough on most tanks — but it is arithmetic, not a test kit, and the app will ask before ' +
+      'it lets you save those numbers to the log.</p>' +
+      '<p><b>Or skip the change entirely.</b> If you did one recently, leave this card alone and press <em>Work out corrections</em> ' +
+      'below: your readings already describe the water in the tank.</p></div>' +
     '<div class="btn-row" style="margin-bottom:0">'+
     '<button class="small" id="wcLog">Log this water change</button>'+
-    '<button class="small primary" id="wcApply">Calculate adjustments</button></div></div>';
+    '<button class="small primary" id="wcApply">Use the predicted figures</button></div></div>';
   function applyPreds(){
     preds.forEach(function(p){ state.readings[p.key] = round3(p.key, p.after); });
     /* These are the planner's numbers, not a test. Flagged so that saving
        them to the log asks first — a predicted figure filed as a measurement
        is the one mistake that quietly corrupts every calculation after it. */
     state.predicted = true;
-    renderRows();
+    renderRows(); renderFlow();
   }
   $('#wcLog').addEventListener('click', saveWaterChange);
   $('#wcApply').addEventListener('click', function(){
     applyPreds();
     renderResults();
-    toast('Corrections now show the post-change top-up');
+    toast('Readings updated to the post-change figures — the corrections below are now sized for that water');
   });
 }
 
@@ -5623,7 +5716,7 @@ $('#btnCalc').addEventListener('click', function(){
 $('#btnLogNow').addEventListener('click', saveEntry);
 $('#btnClear').addEventListener('click', function(){
   state.readings = {};
-  renderRows();
+  renderRows(); renderFlow();
   $('#results').innerHTML = '';
 });
 $('#setTankName').addEventListener('change', function(){
@@ -6514,7 +6607,7 @@ load(function(){
   applyTier();
   renderTankPicker();
   renderHeader();
-  renderRows();
+  renderRows(); renderFlow();
   renderLog();
   renderSetup();
   renderSaltCalc();
