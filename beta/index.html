@@ -204,6 +204,7 @@ header{
   color:var(--titrant);margin:16px 0 4px}
 .icp-plan h4:first-of-type{margin-top:8px}
 .icp-plan p{margin:4px 0;font-size:12.5px;line-height:1.55}
+.icp-fix{margin:8px 0}
 .icp-plan .lead{font-family:var(--f-mono);font-size:18px;color:var(--titrant);margin:4px 0 6px}
 .icp-el{border-top:1px solid var(--line);padding:9px 0}
 .icp-el:last-child{padding-bottom:0}
@@ -424,6 +425,28 @@ button.small{padding:8px 11px;font-size:13px}
 .feed-sch-row{display:flex;gap:12px;align-items:baseline;padding:7px 0;border-top:1px solid var(--line)}
 .feed-sch-row .mono{font-family:var(--f-mono);font-size:11px;color:var(--titrant);flex:0 0 108px}
 .feed-sch-row b{font-size:12.5px}
+/* ---------- guided tour ----------
+   The dimming is one enormous box-shadow spreading outward from a transparent
+   hole, rather than four panels around the target. One element, no seams, and
+   it follows the target when the page scrolls. */
+#tour{position:fixed;inset:0;z-index:880;display:none;pointer-events:auto}
+#tour.on{display:block}
+#tourHole.none{box-shadow:0 0 0 9999px rgba(2,6,10,0.88);width:0;height:0;top:50%;left:50%;transition:none}
+#tourCard.centre{top:50% !important;left:50% !important;transform:translate(-50%,-50%);
+  text-align:center;max-width:320px}
+#tourCard.centre .tour-btns{justify-content:center}
+#tourCard.centre #tourNext{padding:9px 18px}
+#tourHole{position:absolute;border-radius:12px;
+  box-shadow:0 0 0 9999px rgba(2,6,10,0.82), 0 0 0 2px var(--titrant);
+  transition:top .28s ease, left .28s ease, width .28s ease, height .28s ease}
+#tourCard{position:absolute;max-width:330px;background:var(--deep);border:1px solid var(--titrant);
+  border-radius:var(--radius);padding:15px 17px;box-shadow:0 14px 44px rgba(0,0,0,.6);
+  transition:top .28s ease, left .28s ease}
+#tourCard h3{font-family:var(--f-display);font-weight:800;font-size:15px;margin:2px 0 6px}
+#tourCard p{font-size:13px;line-height:1.6;color:var(--foam);margin:0}
+.tour-step{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--titrant)}
+.tour-btns{display:flex;align-items:center;gap:8px;margin-top:14px}
+@media(max-width:420px){ #tourCard{max-width:none;left:12px !important;right:12px} }
 .food-grp{border:1px solid var(--line);border-radius:10px;margin-bottom:8px;overflow:hidden}
 .food-grp summary{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 13px;cursor:pointer;
   font-family:var(--f-display);font-weight:700;font-size:13px;list-style:none}
@@ -480,6 +503,50 @@ nav button.on{color:var(--titrant)}
 </style>
 </head>
 <body>
+<!-- First run: three questions, then an offer to be shown round. -->
+<div class="modal" id="welcome" role="dialog" aria-modal="true" aria-labelledby="wcm-h">
+  <div class="card">
+    <div class="card-title" id="wcm-h">Set your tank up</div>
+    <div class="sub">Three things and the app can start working. All of it is editable later, and none of it leaves this device.</div>
+    <div class="field" style="margin-top:14px">
+      <label for="wName">What do you call this tank?</label>
+      <input type="text" id="wName" placeholder="Reef tank" autocomplete="off">
+    </div>
+    <div class="grid2">
+      <div class="field"><label for="wVol">Water volume</label>
+        <input type="number" id="wVol" inputmode="decimal" step="1" placeholder="250"></div>
+      <div class="field"><label for="wUnit">Units</label>
+        <select id="wUnit"><option value="L">litres</option><option value="gal">US gallons</option></select></div>
+    </div>
+    <div class="hint" id="wVolHint">Net volume — the water actually in the system, not the box on the label. Take the display and sump, then knock off roughly 10% for rock and sand. On a 250 L display with a 60 L sump running half full, about 250 is closer than 310.</div>
+    <div class="field" style="margin-top:12px">
+      <label for="wType">What are you keeping?</label>
+      <select id="wType"></select>
+    </div>
+    <div class="hint">This sets your starting target ranges. Add your livestock later and they are refined around what you actually keep.</div>
+    <div class="btn-row" style="margin-top:16px;margin-bottom:0">
+      <button class="primary" id="wStart">Save and show me around</button>
+      <button class="small ghost" id="wSkip">Skip</button>
+    </div>
+  </div>
+</div>
+
+<!-- The tour: everything dimmed but the thing being explained. -->
+<div id="tour" aria-hidden="true">
+  <div id="tourHole"></div>
+  <div id="tourCard" role="dialog" aria-live="polite">
+    <div class="tour-step"><span id="tourN"></span></div>
+    <h3 id="tourTitle"></h3>
+    <p id="tourBody"></p>
+    <div class="tour-btns">
+      <button class="small ghost" id="tourSkip">Skip</button>
+      <span style="flex:1"></span>
+      <button class="small ghost" id="tourBack">Back</button>
+      <button class="small" id="tourNext">Next</button>
+    </div>
+  </div>
+</div>
+
 <div id="splash" role="presentation" aria-hidden="true">
   <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
     <!-- the ripple the key makes as it lands -->
@@ -719,6 +786,20 @@ nav button.on{color:var(--titrant)}
   <section class="view" id="view-log">
     <div id="trendCard"></div>
     <div id="logList"></div>
+    <div class="card" id="logTrimCard" style="display:none">
+      <div class="card-title">Clear a range of entries</div>
+      <div class="sub">Uptake and dosing rates are worked out from your log, so a spell that no longer reflects the tank —
+        before a big stocking change, a period the skimmer was off, a run of readings from a dud test kit — drags the
+        averages with it. Removing that stretch leaves the rest intact.</div>
+      <div class="grid2" style="margin-top:10px">
+        <div class="field"><label for="trimFrom">From</label><input type="date" id="trimFrom"></div>
+        <div class="field"><label for="trimTo">To</label><input type="date" id="trimTo"></div>
+      </div>
+      <div class="hint" id="trimCount" style="margin-top:-4px"></div>
+      <div class="btn-row" style="margin-bottom:0">
+        <button class="small ghost" id="btnTrim">Clear entries in this range</button>
+      </div>
+    </div>
   </section>
 
   <!-- SETUP -->
@@ -804,12 +885,13 @@ nav button.on{color:var(--titrant)}
     <!--PRO-ONLY:end-->
     <div class="card">
       <div class="card-title">Data</div>
-      <div class="sub" id="storageNote">Your settings and test log are stored by this browser on this machine.</div>
+      <div class="sub" id="storageNote">Your settings, log and reports are stored by this browser on this device — nothing leaves it, and nothing is on a server. Two things clear that store, and neither is the app: deleting the home screen icon on an iPhone or iPad throws away everything that icon held, and clearing website data does the same. <b>Take a backup before you remove or re-add the icon</b>, and keep one anyway.</div>
       <div class="btn-row">
         <button class="small" id="btnBackup">Save backup file</button>
         <button class="small" id="btnRestore">Load backup</button>
       </div>
       <div class="btn-row" style="margin-bottom:0">
+        <button class="small ghost" id="btnTour">Show me around again</button>
         <button class="small ghost" id="btnExport">Export log for Excel</button>
         <button class="small ghost" id="btnWipe">Erase log</button>
       </div>
@@ -1618,6 +1700,7 @@ var DEFAULTS = {
   saltMix:{brand:'rs-salt', strengths:{}, elements:{}},
   reminders:{email:'', wc:7, test:7, dose:'1', feed:'1'},
   foods:[],
+  seenTour:false,
   doser:{alk:'rs-b', ca:'rs-a', mg:'rs-c'},
   estimator:{total:null, rock:null, sand:null},
   corals:[],
@@ -1655,7 +1738,7 @@ function tankById(id){
   return null;
 }
 function blankTank(name){
-  var t = {id:uid(), settings:clone(DEFAULTS), log:[]};
+  var t = {id:uid(), settings:clone(DEFAULTS), log:[], readings:{}};
   if(name) t.settings.tankName = name;
   return t;
 }
@@ -1663,7 +1746,11 @@ function blankTank(name){
    because some code paths reassign state.log rather than mutating it. */
 function syncActive(){
   var t = tankById(vault && vault.activeId);
-  if(t){ t.settings = state.settings; t.log = state.log; }
+  /* Readings were held in memory only, so closing the app emptied the test
+     screen even though the log survived. They are half-finished work — the
+     numbers typed in before the last kit has developed — and losing them is
+     the most annoying thing the app can do. */
+  if(t){ t.settings = state.settings; t.log = state.log; t.readings = state.readings; }
 }
 function useTank(id){
   icpChartKey = null;
@@ -1671,24 +1758,40 @@ function useTank(id){
   vault.activeId = t.id;
   state.settings = t.settings;
   state.log = t.log;
-  state.readings = {};
+  /* Each tank keeps its own half-finished test, so switching tanks does not
+     tip the numbers you were part-way through entering into the other one. */
+  state.readings = t.readings || (t.readings = {});
+  state.predicted = false;
 }
 /* Read a stored payload of either shape: v2 holds many tanks, anything
    earlier is a single tank and becomes the first one. */
 function adopt(data){
   vault = {v:2, activeId:null, tanks:[]};
-  function ingest(settings, log, id){
-    var t = {id:id || uid(), settings:clone(DEFAULTS), log:[]};
+  function ingest(settings, log, id, readings){
+    var t = {id:id || uid(), settings:clone(DEFAULTS), log:[], readings:{}};
     state.settings = t.settings; state.log = t.log;
     apply({settings:settings, log:log});
     t.settings = state.settings; t.log = state.log;
+    if(readings && typeof readings === 'object'){
+      PARAMS.forEach(function(pp){
+        var v = num(readings[pp.key]);
+        if(v !== null) t.readings[pp.key] = v;
+      });
+    }
     vault.tanks.push(t);
   }
-  if(data && data.v === 2 && data.tanks && data.tanks.length){
-    data.tanks.forEach(function(t){ ingest(t.settings, t.log, t.id); });
+  /* Anything could be in storage: a half-written payload from a crash, a
+     hand-edited backup, a file from a future version. Check the shape rather
+     than trusting it — a throw here takes the whole app down on boot, which
+     is the one failure a keeper cannot work around. */
+  if(data && data.v === 2 && Array.isArray(data.tanks) && data.tanks.length){
+    data.tanks.forEach(function(t){
+      if(!t || typeof t !== 'object') return;
+      ingest(t.settings, Array.isArray(t.log) ? t.log : [], t.id, t.readings);
+    });
     vault.activeId = data.activeId;
   } else if(data && (data.settings || data.log)){
-    ingest(data.settings, data.log, null);
+    ingest(data.settings, data.log, null, data.readings);
   }
   if(!vault.tanks.length) vault.tanks.push(blankTank());
   if(!tankById(vault.activeId)) vault.activeId = vault.tanks[0].id;
@@ -1787,7 +1890,7 @@ function flagMemoryOnly(){
   if(el) el.textContent = 'This browser is not letting the page store anything, so the log will empty when you close the tab. Use Save backup file below to keep your history, and Load backup to bring it back.';
 }
 function apply(data){
-  if(!data) return;
+  if(!data || typeof data !== 'object') return;
   if(data.settings){
     var s = data.settings;
     state.settings.tankName = s.tankName || DEFAULTS.tankName;
@@ -1805,6 +1908,7 @@ function apply(data){
     if(Array.isArray(s.icp)) state.settings.icp = s.icp;
     if(s.costs) state.settings.costs = {saltPrice:num(s.costs.saltPrice), saltKg:num(s.costs.saltKg), roPerL:num(s.costs.roPerL), products:s.costs.products || {}};
     if(Array.isArray(s.foods)) state.settings.foods = s.foods.filter(function(id){ return !!foodById(id); });
+    if(s.seenTour) state.settings.seenTour = true;
     if(s.reminders) state.settings.reminders = {
       email:s.reminders.email || '',
       wc:num(s.reminders.wc) || 7,
@@ -3074,9 +3178,66 @@ function renderIcpPlan(){
     });
   }
 
-  if(pl.bySupplement.length){
+  /* Split the shortfalls: what can be dosed today with something already on
+     the shelf, and what still needs buying. The first group gets the same
+     treatment as the Test screen — a tile with the dose in cyan at the top —
+     because that is the one thing on this page the keeper can act on now. */
+  var dosable = [], toBuy = [];
+  pl.bySupplement.forEach(function(i){
+    var key = i.e.maps || i.e.k;
+    var have = shelfList().filter(function(pp){ return pp.effects[key]; })[0];
+    var rated = null;
+    if(!have){
+      var tick = (state.settings.shelf || []).filter(function(en){
+        var b = libProduct(en.id);
+        return b && b.effects && (i.e.k in b.effects);
+      })[0];
+      if(tick) rated = labelRate(tick.id) ? {entry:tick, base:libProduct(tick.id), rate:labelRate(tick.id)} : null;
+    }
+    if(have || rated){ i._have = have; i._rated = rated; dosable.push(i); }
+    else toBuy.push(i);
+  });
+
+  if(dosable.length){
+    h += '<h4>These you can dose now, from your own shelf</h4>' +
+         '<div class="hint" style="margin-bottom:6px">Do the water change first — it moves these too — then dose what is still short and re-test before repeating.</div>';
+    dosable.forEach(function(i){
+      var dp = i.v < 10 ? 2 : 0;
+      var need = Math.max(0, i.sp - i.v);
+      var dose, body = [];
+      if(i._have){
+        var key2 = i.e.maps || i.e.k;
+        var ml = need * L / 100 / i._have.effects[key2];
+        var hb = libProduct(i._have.id);
+        dose = amt(ml, i._have.form) + ' of ' + ((hb && hb.brand ? hb.brand + ' ' : '') + i._have.name);
+        body.push('Closes the gap from ' + fmt(i.v, dp) + ' to its setpoint of ' + i.sp + ' ' + i.e.u +
+                  ' in your ' + Math.round(L) + ' litres.');
+        body.push('Add a quarter of it, wait a week and re-test before the rest. A trace element is far easier to overshoot than to top up, ' +
+                  'and the tank has no way to shed the excess except a water change.');
+      } else {
+        dose = fmt(i._rated.rate.ml, 1) + ' ml a ' + i._rated.rate.freq + ' of ' +
+               (i._rated.base.brand ? i._rated.base.brand + ' ' : '') + i._rated.base.name;
+        body.push('The label rate of ' + fmt(i._rated.rate.per100, 1) + ' ml per 100 L, scaled to your ' + Math.round(L) + ' litres.');
+        body.push('That is a maintenance routine rather than a correction — it will close a gap this size over a few weeks. ' +
+                  'Keep to it and check the figure on your next report.');
+        if(Object.keys(i._rated.base.effects || {}).length > 1){
+          body.push('Being a blend, it lifts ' +
+            Object.keys(i._rated.base.effects).map(function(k){ return keyName(k).toLowerCase(); }).join(', ') +
+            ' together — check the others on your next report rather than only the one you were chasing.');
+        }
+      }
+      if(i.e.role) body.push(cap(i.e.role) + '. ' + (i.e.lo || ''));
+      h += '<div class="fix icp-fix"><div class="step">Dose after the change</div>' +
+           '<h3>' + esc(i.e.n) + ' is low</h3>' +
+           '<div class="dose">' + esc(dose) + '</div>' +
+           body.map(function(b){ return '<p>' + esc(b) + '</p>'; }).join('') +
+           '</div>';
+    });
+  }
+
+  if(toBuy.length){
     h += '<h4>A water change will not reach these</h4>';
-    pl.bySupplement.forEach(function(i){
+    toBuy.forEach(function(i){
       h += icpLine(i, false);
       var need = Math.max(0, i.sp - i.v);
       var mg = i.e.u === 'mg/l' ? need * L : need * L / 1000;
@@ -3780,6 +3941,42 @@ function saveEntry(){
 }
 
 /* ---------- log ---------- */
+/* Entries between two dates, inclusive of both days. Dates come off an
+   <input type="date"> as YYYY-MM-DD in local time, so the comparison is done
+   on the local calendar day rather than on an instant — otherwise an evening
+   test in British Summer Time lands on the wrong side of a boundary. */
+function dayKey(d){
+  var x = new Date(d);
+  return x.getFullYear() + '-' + (x.getMonth() < 9 ? '0' : '') + (x.getMonth() + 1) +
+         '-' + (x.getDate() < 10 ? '0' : '') + x.getDate();
+}
+function entriesInRange(from, to){
+  if(!from || !to) return [];
+  var lo = from <= to ? from : to, hi = from <= to ? to : from;
+  return (state.log || []).filter(function(e){
+    var k = dayKey(e.date);
+    return k >= lo && k <= hi;
+  });
+}
+function renderTrim(){
+  var card = document.getElementById('logTrimCard');
+  if(!card) return;
+  card.style.display = (state.log || []).length ? '' : 'none';
+  var from = ($('#trimFrom') || {}).value, to = ($('#trimTo') || {}).value;
+  var hit = entriesInRange(from, to);
+  var el = $('#trimCount');
+  if(el){
+    el.textContent = (!from || !to)
+      ? 'Pick both dates to see what would go.'
+      : hit.length
+        ? hit.length + ' entr' + (hit.length === 1 ? 'y' : 'ies') + ' fall in that range, including ' +
+          hit.filter(function(e){ return e.type === 'wc'; }).length + ' water change' +
+          (hit.filter(function(e){ return e.type === 'wc'; }).length === 1 ? '' : 's') + '.'
+        : 'Nothing in that range.';
+  }
+  var b = $('#btnTrim');
+  if(b) b.disabled = !hit.length;
+}
 function renderLog(){
   var list = $('#logList');
   function bindTrendCard(){
@@ -3869,6 +4066,7 @@ function renderLog(){
     html += '</div></div>';
   });
   list.innerHTML = html;
+  renderTrim();
   list.querySelectorAll('[data-del]').forEach(function(b){
     b.addEventListener('click', function(){
       var i = parseInt(b.getAttribute('data-del'), 10);
@@ -5061,9 +5259,15 @@ function calcWC(driver){
 
 /* ---------- misc ---------- */
 var toastTimer;
+/* Long enough to actually read. 1.9 seconds was fine for "Saved" and far too
+   short for a sentence explaining why a feature is locked — so the message
+   sets its own dwell: roughly the time it takes to read it, with a floor of
+   three seconds and a ceiling of seven. */
 function toast(msg){
   var t = $('#toast'); t.textContent = msg; t.classList.add('on');
-  clearTimeout(toastTimer); toastTimer = setTimeout(function(){ t.classList.remove('on'); }, 1900);
+  var words = String(msg).split(/\s+/).length;
+  var ms = Math.max(3000, Math.min(7000, 1400 + words * 260));
+  clearTimeout(toastTimer); toastTimer = setTimeout(function(){ t.classList.remove('on'); }, ms);
 }
 /* One sheet covering every tank. A Tank column rather than separate files,
    because that is what a spreadsheet is good at: sort it, filter it, or drop
@@ -5254,6 +5458,207 @@ $('#wcVol').addEventListener('change', function(){ calcWC(); });
 $('#wcTgt').addEventListener('input', function(){ calcWC(); });
 $('#wcCur').addEventListener('input', function(){ calcWC(); });
 
+/* ---------- first run and the guided tour ----------
+   Every step carries the tier it belongs to, so the Lite build drops the ones
+   about features it does not have rather than showing a tour of things the
+   keeper cannot use. One list, two products.
+
+   `sel` is what gets the spotlight; `view` is the tab to be on first. A step
+   whose element is missing is skipped silently — which is what makes the tier
+   filtering safe as features move between builds. */
+var TOUR = [
+  {view:'test', sel:'#rows', title:'Start here, with what you measured',
+   body:'Type in whatever you tested today and leave the rest blank — the app never assumes a reading it has not been given. ' +
+        'The bar under each box shows your target range, so you can see at a glance what is off before you do anything.'},
+
+  {view:'test', sel:'#btnLogNow', title:'Save it, even on a good day',
+   body:'A reading is worth more as part of a series than on its own. Once there are a few in the log, the app can work out ' +
+        'how fast your tank consumes alkalinity, calcium and magnesium — and that is what turns a calculator into something ' +
+        'that knows your particular tank.'},
+
+  {view:'test', sel:'#btnCalc', title:'Then ask what to do about it', tier:'pro',
+   body:'This reads today\'s numbers against your targets and works out the fix from the products you actually own. ' +
+        'It comes back as numbered steps in the order to do them, starting with a summary of the whole job.'},
+
+  {view:'test', sel:'#saltCard', title:'Water changes, worked out properly',
+   body:'Pick your salt and the volume and it gives you the exact weight, the salinity to mix to, and what the change will do ' +
+        'to every other parameter before you start. Bought water ready mixed? Choose that and it asks for the salinity you measured instead.'},
+
+  {view:'setup', sel:'#shelfFields', title:'Tell it what is on your shelf', tier:'pro',
+   body:'This is the part that matters most. Corrections are worked out from these products and nothing else — so the doses are in ' +
+        'millilitres of the bottle in your hand, not in some generic unit. Tick what you own; the strengths come from the labels.'},
+
+  {view:'setup', sel:'#foodFields', title:'And what you feed',
+   body:'Foods are not dosed like supplements — they have a routine rather than a strength. Tick what you use and the feeding ' +
+        'reminders build themselves from it, one per routine rather than one per tub.'},
+
+  {view:'log', sel:'#trendCard', title:'Watch it over time',
+   body:'Every saved test lands here, with water changes marked separately so you can see how much testing happened on a body of ' +
+        'water before it was replaced. Tap a parameter to change the chart.'},
+
+  {view:'icp', sel:'#icpHead', title:'Send water off for analysis', tier:'pro',
+   body:'A lab report covers forty-odd elements a home kit cannot touch. Enter one and the app turns it into a plan: what a single ' +
+        'water change fixes, what it will not reach, what you can dose from your own shelf today, and where every element lands afterwards.'},
+
+  {view:'feed', sel:'#feedOut', title:'Feeding, for what you actually keep',
+   body:'Add your livestock and this becomes specific to your tank rather than general advice — a juvenile fish needs feeding three ' +
+        'times a day, a large one needs something to tear at once a day, and the two failure modes are opposite.'},
+
+  {view:'test', centre:true, title:'That\u2019s the tour',
+   body:'Enter whatever you tested today and save it. One reading is a number; a handful is a pattern, and that is when the app ' +
+        'starts telling you things about your tank rather than about chemistry in general. Everything you have just seen is ' +
+        'waiting under Setup when you want it.',
+   cta:'Let\u2019s get started'},
+
+  {view:'setup', sel:'#storageNote', title:'One thing worth knowing',
+   body:'Everything stays on this device. Nothing is uploaded, there is no account, and no server holds your history. ' +
+        'That also means it is yours to look after: take a backup now and again, and never delete the home screen icon to force ' +
+        'an update — the icon owns the storage and takes it with it. Refresh the page instead.'}
+];
+var tourAt = 0, tourSteps = [];
+function tourVisible(st){
+  if(st.tier === 'pro' && !FEATURES.corrections) return false;
+  if(st.centre) return true;                 /* nothing to point at */
+  return !!document.querySelector(st.sel);
+}
+function startTour(){
+  tourSteps = TOUR.filter(tourVisible);
+  /* The closing card always sits last, wherever it was written in the list. */
+  tourSteps.sort(function(a, b){ return (a.centre ? 1 : 0) - (b.centre ? 1 : 0); });
+  if(!tourSteps.length) return;
+  tourAt = 0;
+  document.getElementById('tour').classList.add('on');
+  showTourStep();
+}
+function endTour(){
+  document.getElementById('tour').classList.remove('on');
+  state.settings.seenTour = true;
+  save();
+}
+function showTourStep(){
+  var st = tourSteps[tourAt];
+  if(!st){ endTour(); return; }
+  goToView(st.view);
+  if(st.centre){
+    setTimeout(function(){ placeTourCentre(st); }, 60);
+    return;
+  }
+  /* Let the tab render before measuring, or the rectangle is the old one. */
+  setTimeout(function(){
+    var el = document.querySelector(st.sel);
+    if(!el){ tourAt++; showTourStep(); return; }
+    if(el.scrollIntoView) el.scrollIntoView({block:'center', behavior:'smooth'});
+    setTimeout(function(){ placeTour(el, st); }, 260);
+  }, 60);
+}
+/* No spotlight, no target — just the dimmed screen and a card in the middle
+   of it. The last thing said should not be pointing at anything. */
+function placeTourCentre(st){
+  var hole = document.getElementById('tourHole');
+  hole.classList.add('none');
+  document.getElementById('tourN').textContent = 'Step ' + (tourAt + 1) + ' of ' + tourSteps.length;
+  document.getElementById('tourTitle').textContent = st.title;
+  document.getElementById('tourBody').textContent = st.body;
+  document.getElementById('tourBack').style.visibility = tourAt ? '' : 'hidden';
+  document.getElementById('tourNext').textContent = st.cta || 'Done';
+  var card = document.getElementById('tourCard');
+  card.classList.add('centre');
+  card.style.top = ''; card.style.left = '';
+}
+function placeTour(el, st){
+  document.getElementById('tourHole').classList.remove('none');
+  document.getElementById('tourCard').classList.remove('centre');
+  var r = el.getBoundingClientRect();
+  var pad = 8;
+  var hole = document.getElementById('tourHole');
+  hole.style.top = Math.max(4, r.top - pad) + 'px';
+  hole.style.left = Math.max(4, r.left - pad) + 'px';
+  hole.style.width = Math.min(window.innerWidth - 8, r.width + pad * 2) + 'px';
+  hole.style.height = (r.height + pad * 2) + 'px';
+
+  document.getElementById('tourN').textContent = 'Step ' + (tourAt + 1) + ' of ' + tourSteps.length;
+  document.getElementById('tourTitle').textContent = st.title;
+  document.getElementById('tourBody').textContent = st.body;
+  document.getElementById('tourBack').style.visibility = tourAt ? '' : 'hidden';
+  document.getElementById('tourNext').textContent = tourAt === tourSteps.length - 1 ? 'Done' : 'Next';
+
+  /* Put the card wherever there is more room — below the highlight if the
+     target sits high on screen, above it if not. */
+  var card = document.getElementById('tourCard');
+  card.style.top = '0px'; card.style.left = '0px';
+  var ch = card.offsetHeight || 180, cw = card.offsetWidth || 320;
+  var below = r.bottom + 14, above = r.top - ch - 14;
+  var top = (window.innerHeight - r.bottom > ch + 30 || above < 10) ? below : above;
+  top = Math.max(10, Math.min(top, window.innerHeight - ch - 10));
+  var left = Math.max(12, Math.min(r.left, window.innerWidth - cw - 12));
+  card.style.top = top + 'px';
+  card.style.left = left + 'px';
+}
+var tourBound = false;
+function bindTour(){
+  var next = document.getElementById('tourNext');
+  /* Bind once. Called twice, the click handlers stack and Next jumps two
+     steps at a time — which is exactly the sort of fault that only shows up
+     on the device, because it looks like a tour with missing steps. */
+  if(!next || tourBound) return;
+  tourBound = true;
+  next.addEventListener('click', function(){ tourAt++; showTourStep(); });
+  document.getElementById('tourBack').addEventListener('click', function(){ if(tourAt) tourAt--; showTourStep(); });
+  document.getElementById('tourSkip').addEventListener('click', endTour);
+  window.addEventListener('resize', function(){
+    if(!document.getElementById('tour').classList.contains('on')) return;
+    var st = tourSteps[tourAt];
+    var el = st && document.querySelector(st.sel);
+    if(el) placeTour(el, st);
+  });
+}
+/* First run: no tank name and nothing logged means nobody has been here. */
+function needsWelcome(){
+  return !state.settings.seenTour && !(state.log || []).length &&
+         state.settings.tankName === DEFAULTS.tankName;
+}
+function openWelcome(){
+  var sel = $('#wType');
+  if(sel && !(sel.options && sel.options.length)){
+    var o = '';
+    Object.keys(TANK_TYPES).forEach(function(k){
+      o += '<option value="' + k + '"' + (k === DEFAULTS.tankType ? ' selected' : '') + '>' + esc(TANK_TYPES[k].name) + '</option>';
+    });
+    sel.innerHTML = o;
+  }
+  $('#wName').value = '';
+  $('#wVol').value = '';
+  $('#welcome').classList.add('on');
+}
+function bindWelcome(){
+  if(!$('#wStart')) return;
+  function saveWelcome(){
+    var nm = ($('#wName').value || '').trim();
+    if(nm) state.settings.tankName = nm;
+    var v = num($('#wVol').value);
+    if(v && v > 0){
+      state.settings.volUnit = $('#wUnit').value === 'gal' ? 'gal' : 'L';
+      state.settings.netLitres = state.settings.volUnit === 'gal' ? v * 3.78541 : v;
+    }
+    var ty = $('#wType').value, prof = TANK_TYPES[ty];
+    if(prof){
+      state.settings.tankType = ty;
+      state.settings.targets = clone(prof.targets);
+      state.settings.caps = clone(prof.caps);
+      applyStocking();
+    }
+    save();
+    refreshAll();
+    $('#welcome').classList.remove('on');
+  }
+  $('#wStart').addEventListener('click', function(){ saveWelcome(); startTour(); });
+  $('#wSkip').addEventListener('click', function(){ saveWelcome(); state.settings.seenTour = true; save(); });
+  $('#wUnit').addEventListener('change', function(){
+    $('#wVolHint').textContent = this.value === 'gal'
+      ? 'Net volume in US gallons — the water actually in the system, not the box on the label. Take display and sump, then knock off roughly 10% for rock and sand.'
+      : 'Net volume — the water actually in the system, not the box on the label. Take the display and sump, then knock off roughly 10% for rock and sand.';
+  });
+}
 /* ---------- tank settings cog & reminders ---------- */
 function remSettings(){
   if(!state.settings.reminders) state.settings.reminders = clone(DEFAULTS.reminders);
@@ -5760,6 +6165,29 @@ $('#btnIcs').addEventListener('click', function(){
     if(v && v > 0){ state.settings.caps[k] = v; save(); if($('#results').innerHTML) renderResults(true); }
   });
 });
+['#trimFrom', '#trimTo'].forEach(function(sel){
+  if($(sel)) $(sel).addEventListener('change', renderTrim);
+});
+if($('#btnTrim')) $('#btnTrim').addEventListener('click', function(){
+  var from = $('#trimFrom').value, to = $('#trimTo').value;
+  var hit = entriesInRange(from, to);
+  if(!hit.length){ toast('Nothing in that range'); return; }
+  var wcs = hit.filter(function(e){ return e.type === 'wc'; }).length;
+  var msg = 'Delete ' + hit.length + ' entr' + (hit.length === 1 ? 'y' : 'ies') + ' between ' +
+            from + ' and ' + to + '?';
+  if(wcs) msg += '\n\n' + wcs + ' of them ' + (wcs === 1 ? 'is a logged water change' : 'are logged water changes') + '.';
+  msg += '\n\nUptake and dosing rates will be recalculated from what is left. This cannot be undone — ' +
+         'save a backup first if you are not certain.';
+  if(!confirm(msg)) return;
+  var keep = {};
+  hit.forEach(function(e){ keep[e.date] = true; });
+  state.log = (state.log || []).filter(function(e){ return !keep[e.date]; });
+  save();
+  renderLog(); renderHeader();
+  if($('#results').innerHTML) renderResults(true);
+  toast(hit.length + ' entr' + (hit.length === 1 ? 'y' : 'ies') + ' removed — uptake recalculated from the rest');
+});
+if($('#btnTour')) $('#btnTour').addEventListener('click', startTour);
 if($('#btnClearFoods')) $('#btnClearFoods').addEventListener('click', function(){
   var nF = (state.settings.foods || []).length;
   if(!nF){ toast('Nothing ticked yet'); return; }
@@ -5887,6 +6315,11 @@ load(function(){
   renderIcpTrend();
   renderIcpHistory();
   renderFeeding();
+  bindWelcome();
+  bindTour();
+  /* After the splash has lifted, so the first thing seen is the mark and the
+     second is a question, not both at once. */
+  if(needsWelcome()) setTimeout(openWelcome, 4300);
 });
 })();
 </script>
