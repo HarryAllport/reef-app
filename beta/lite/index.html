@@ -724,29 +724,17 @@ nav button.on{color:var(--titrant)}
   <section class="view on" id="view-test">
     <div class="card">
       <div class="card-title">Today's readings</div>
-      <div class="sub">Leave anything you haven't tested blank. The flow: <b>enter readings → save to log → calculate</b> to see what's off and how to fix it. Doing a water change today? Plan it below first — it updates the readings for you (re-test and overtype if you prefer) — then calculate for the remaining amendments, listed in the order to do them.</div>
+      <div class="sub">Leave anything you haven't tested blank — the app never assumes a reading it has not been given.
+        <b>Enter your readings, then work down the page:</b> a water change comes first if you are doing one, because it moves
+        every parameter at once, and the doses are only worth working out from the water you will actually be left with.</div>
       <div id="rows"></div>
     </div>
-    <div class="btn-row">
-      <button class="small" id="btnLogNow" style="flex:0 0 auto">Save to log</button>
-      <button class="primary" id="btnCalc">Work out corrections</button>
-      <button class="ghost" id="btnClear" style="flex:0 0 auto">Clear</button>
-    </div>
-    <div id="results"></div>
-
-    <div class="card" id="icpCard" data-pro="ICP analysis" data-why="Available in Reef Key Pro.">
-      <div class="card-title">ICP analysis</div>
-      <div class="sub">A lab report covers the elements no home kit reaches. Every report is kept on the ICP tab, alongside what has changed since the last one.</div>
-      <div class="btn-row" style="margin-bottom:0">
-        <button class="small" id="btnIcpOpen">Enter ICP results</button>
-        <button class="small ghost" id="btnIcpLast">Reports</button>
-      </div>
-      <div id="icpOut"></div>
-    </div>
-
     <div class="card" id="saltCard">
       <div class="card-title">Salt &amp; water changes</div>
-      <div class="sub">Pick your salt and the app uses its published levels when working out mixes, water changes, and what still needs supplementing afterwards.</div>
+      <div class="sub"><b>Doing a water change today?</b> Plan it here first. It shows the salt weight, the salinity to mix to, and what
+        the change does to every parameter — then <em>Apply to readings</em> updates the boxes above so the corrections below are
+        worked out from the water you will end up with, not the water you started with.
+        Changed the water recently? Skip this card and go straight to <em>Work out corrections</em>.</div>
       <div class="field" style="margin-top:12px">
         <label for="smBrand">Salt brand</label>
         <div class="grid2">
@@ -780,6 +768,24 @@ nav button.on{color:var(--titrant)}
       <div class="hint" style="margin-top:-4px;margin-bottom:10px" id="wcPct"></div>
       <div id="wcOut"></div>
     </div>
+
+    <div class="btn-row">
+      <button class="small" id="btnLogNow" style="flex:0 0 auto">Save to log</button>
+      <button class="primary" id="btnCalc">Work out corrections</button>
+      <button class="ghost" id="btnClear" style="flex:0 0 auto">Clear</button>
+    </div>
+    <div id="results"></div>
+
+    <div class="card" id="icpCard" data-pro="ICP analysis" data-why="Available in Reef Key Pro.">
+      <div class="card-title">ICP analysis</div>
+      <div class="sub">A lab report covers the elements no home kit reaches. Every report is kept on the ICP tab, alongside what has changed since the last one.</div>
+      <div class="btn-row" style="margin-bottom:0">
+        <button class="small" id="btnIcpOpen">Enter ICP results</button>
+        <button class="small ghost" id="btnIcpLast">Reports</button>
+      </div>
+      <div id="icpOut"></div>
+    </div>
+
   </section>
 
   <!-- LOG -->
@@ -1910,6 +1916,39 @@ function d0(n){ return n; }
 function unfilledFor(k){
   /* Removed from the free build. */
   return [];
+}
+/* What to stop before adding anything. If a keeper is stripping nutrients on
+   purpose and then dosing them back in, easing off costs nothing and works
+   faster than a bottle. */
+function exportInUse(){
+  var out = [];
+  shelfList().forEach(function(x){
+    var b = libProduct(x.id) || x;
+    if(b.kind === 'reduce') out.push(b.name + ' (carbon dosing)');
+    if(b.kind === 'media') out.push(b.name);
+  });
+  return out;
+}
+/* Feeding more is the first answer to a low nutrient: it lifts nitrate and
+   phosphate together, in roughly the ratio the animals use, and feeds the
+   tank while it does it. */
+function feedUpAdvice(which){
+  var mine = (typeof foodsOnShelf === 'function') ? foodsOnShelf() : [];
+  var fish = mine.filter(function(f){ return f.cat === 'fish-dry' || f.cat === 'fish-frozen'; })[0];
+  var coral = mine.filter(function(f){ return f.cat.indexOf('coral') === 0 || f.cat === 'phyto'; })[0];
+  var lines = ['Feed more before you dose anything. Food lifts nitrate and phosphate together, in about the ratio ' +
+    'the animals actually use, and it feeds the fish and corals while it does it — which dosing does not. ' +
+    'An extra frozen cube a day, or a second small feed, moves ' + which + ' within a week or two on most tanks.'];
+  var stops = exportInUse();
+  if(stops.length){
+    lines.push('First, ease off what is taking it out: you have ' + listOf(stops) + ' on the shelf. ' +
+      'Cutting that back is faster than dosing, costs nothing, and is the usual reason a tank sits at zero in the first place.');
+  }
+  if(fish || coral){
+    lines.push('You already keep ' + (fish ? fish.brand + ' ' + fish.name : coral.brand + ' ' + coral.name) +
+      ' on your food list — more of that is the simplest lever you have. Add the extra feed at the same time each day, so a re-test in a week means something.');
+  }
+  return lines;
 }
 /* Named for every parameter, not just the three it was written for: falling
    through to 'magnesium' meant a low phosphate reading was reported to the
